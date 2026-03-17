@@ -93,7 +93,8 @@ async function resolveCustomDomain(domain: string): Promise<string | null> {
           apikey: supabaseAnonKey,
           Authorization: `Bearer ${supabaseAnonKey}`,
           Accept: 'application/json',
-feat: make platform domain configurable via NEXT_PUBLIC_APP_DOMAIN env var (fans-flock.com)      }
+        },
+      }
     )
 
     if (!res.ok) return null
