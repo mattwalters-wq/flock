@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type Profile = {
   id: string
@@ -18,7 +18,7 @@ export type AuthUser = {
   profile: Profile
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
  * Returns the current Supabase auth user, or null if not signed in.
@@ -30,8 +30,36 @@ export async function getSession() {
     data: { user },
     error,
   } = await supabase.auth.getUser()
-
   if (error || !user) return null
+  return user
+}
+
+/**
+ * Returns the current user's profile row (any tenant).
+ * Returns null if not authenticated or no profile found.
+ */
+export async function getProfile(): Promise<Profile | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('id, tenant_id, email, display_name, avatar_url, created_at')
+    .eq('id', user.id)
+    .single() as { data: Profile | null; error: unknown }
+
+  if (error || !profile) return null
+  return profile
+}
+
+/**
+ * Requires auth. Redirects to /login if no session.
+ * Use in protected Server Component pages.
+ */
+export async function requireAuth() {
+  const user = await getSession()
+  if (!user) redirect('/login')
   return user
 }
 
@@ -41,11 +69,9 @@ export async function getSession() {
  */
 export async function getTenantUser(tenantId: number): Promise<AuthUser | null> {
   const supabase = await createClient()
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
   if (!user) return null
 
   const { data: profile, error } = await supabase
@@ -56,32 +82,9 @@ export async function getTenantUser(tenantId: number): Promise<AuthUser | null> 
     .single() as { data: Profile | null; error: unknown }
 
   if (error || !profile) return null
-
   return {
     id: user.id,
     email: user.email ?? profile.email,
     profile,
   }
 }
-
-/**
- * Requires the user to be authenticated and have a profile for this tenant.
- * Redirects to the tenant login page if not. Use in Server Components / page.tsx.
- */
-export async function requireTenantAuth(
-  tenantId: number,
-  slug: string,
-  next?: string
-): Promise<AuthUser> {
-  const authUser = await getTenantUser(tenantId)
-
-  if (!authUser) {
-    const loginPath = next
-      ? `/${slug}/login?next=${encodeURIComponent(next)}`
-      : `/${slug}/login`
-    redirect(loginPath)
-  }
-
-  return authUser
-}
- 
