@@ -1,6 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createBrowserClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
 
 // ============================================================
 // Types
@@ -75,10 +73,9 @@ function buildConfig(rows: { key: string; value: string | null }[]): TenantConfi
   }
 
   return {
-    siteTitle:       kv['site_title']       ?? '',
-    siteTagline:     kv['site_tagline']     ?? '',
+    siteTitle: kv['site_title'] ?? '',
+    siteTagline: kv['site_tagline'] ?? '',
     metaDescription: kv['meta_description'] ?? '',
-
     palette: {
       INK:       kv['color_ink']       || '#1A1A1A',
       CREAM:     kv['color_cream']     || '#F5F0E8',
@@ -90,9 +87,7 @@ function buildConfig(rows: { key: string; value: string | null }[]): TenantConfi
       SLATE:     kv['color_slate']     || '#708090',
       BORDER:    kv['color_border']    || '#E0D8CC',
     },
-
     spotifyEmbedUrls,
-
     links: {
       spotify:      kv['link_spotify']       || null,
       appleMusic:   kv['link_apple_music']   || null,
@@ -104,7 +99,6 @@ function buildConfig(rows: { key: string; value: string | null }[]): TenantConfi
       facebook:     kv['link_facebook']      || null,
       tiktok:       kv['link_tiktok']        || null,
     },
-
     resendFromAddress:   kv['resend_from_address']   || null,
     resendSendingDomain: kv['resend_sending_domain'] || null,
   }
@@ -124,22 +118,22 @@ function buildMembers(
   return rows
     .sort((a, b) => a.display_order - b.display_order)
     .map((r) => ({
-      id:           r.id,
-      slug:         r.slug,
-      name:         r.name,
-      accentColor:  r.accent_color,
-      bio:          r.bio,
-      avatarUrl:    r.avatar_url,
+      id: r.id,
+      slug: r.slug,
+      name: r.name,
+      accentColor: r.accent_color,
+      bio: r.bio,
+      avatarUrl: r.avatar_url,
       displayOrder: r.display_order,
     }))
 }
 
 // ============================================================
-// Server-side fetch
+// Server-side fetch functions
 // ============================================================
 
 export async function getTenant(slug: string): Promise<Tenant | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: tenantRow, error: tenantError } = await supabase
     .from('tenants')
@@ -154,14 +148,13 @@ export async function getTenant(slug: string): Promise<Tenant | null> {
       .from('tenant_config')
       .select('key, value')
       .eq('tenant_id', tenantRow.id),
-
     supabase
       .from('tenant_members')
       .select('id, slug, name, accent_color, bio, avatar_url, display_order')
       .eq('tenant_id', tenantRow.id),
   ])
 
-  if (configResult.error)  console.error('[getTenant] config error:',  configResult.error)
+  if (configResult.error)  console.error('[getTenant] config error:',   configResult.error)
   if (membersResult.error) console.error('[getTenant] members error:', membersResult.error)
 
   return {
@@ -169,13 +162,13 @@ export async function getTenant(slug: string): Promise<Tenant | null> {
     slug:         tenantRow.slug,
     name:         tenantRow.name,
     customDomain: tenantRow.custom_domain,
-    config:       buildConfig(configResult.data  ?? []),
+    config:       buildConfig(configResult.data ?? []),
     members:      buildMembers(membersResult.data ?? []),
   }
 }
 
 export async function getTenantByDomain(domain: string): Promise<Tenant | null> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: tenantRow, error } = await supabase
     .from('tenants')
@@ -185,80 +178,4 @@ export async function getTenantByDomain(domain: string): Promise<Tenant | null> 
 
   if (error || !tenantRow) return null
   return getTenant(tenantRow.slug)
-}
-
-// ============================================================
-// Client-side hook
-// ============================================================
-
-type UseTenantResult =
-  | { status: 'loading'; tenant: null; error: null }
-  | { status: 'error';   tenant: null; error: string }
-  | { status: 'ready';   tenant: Tenant; error: null }
-
-export function useTenant(slug: string): UseTenantResult {
-  const [result, setResult] = useState<UseTenantResult>({
-    status: 'loading',
-    tenant: null,
-    error:  null,
-  })
-
-  useEffect(() => {
-    if (!slug) return
-
-    let cancelled = false
-    setResult({ status: 'loading', tenant: null, error: null })
-
-    async function load() {
-      try {
-        const supabase = createBrowserClient()
-
-        const { data: tenantRow, error: tenantError } = await supabase
-          .from('tenants')
-          .select('id, slug, name, custom_domain')
-          .eq('slug', slug)
-          .single()
-
-        if (tenantError || !tenantRow) throw new Error(tenantError?.message ?? 'Tenant not found')
-
-        const [configResult, membersResult] = await Promise.all([
-          supabase
-            .from('tenant_config')
-            .select('key, value')
-            .eq('tenant_id', tenantRow.id),
-
-          supabase
-            .from('tenant_members')
-            .select('id, slug, name, accent_color, bio, avatar_url, display_order')
-            .eq('tenant_id', tenantRow.id),
-        ])
-
-        if (configResult.error)  throw configResult.error
-        if (membersResult.error) throw membersResult.error
-
-        const tenant: Tenant = {
-          id:           tenantRow.id,
-          slug:         tenantRow.slug,
-          name:         tenantRow.name,
-          customDomain: tenantRow.custom_domain,
-          config:       buildConfig(configResult.data  ?? []),
-          members:      buildMembers(membersResult.data ?? []),
-        }
-
-        if (!cancelled) setResult({ status: 'ready', tenant, error: null })
-      } catch (err) {
-        if (!cancelled)
-          setResult({
-            status: 'error',
-            tenant: null,
-            error:  err instanceof Error ? err.message : 'Unknown error',
-          })
-      }
-    }
-
-    load()
-    return () => { cancelled = true }
-  }, [slug])
-
-  return result
 }
