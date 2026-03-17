@@ -72,7 +72,7 @@ async function fetchPosts(slug: string): Promise<PostWithAuthor[]> {
 
   // Supabase returns author as an array when using a join — normalise to single object
   return (data ?? []).map((row) => ({
-    ...row,
+    ...(row as object),
     author: Array.isArray(row.author) ? (row.author[0] ?? null) : row.author,
   })) as PostWithAuthor[]
 }
