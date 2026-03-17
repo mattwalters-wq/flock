@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import type { Database } from '@/types/supabase'
+// import type { Database } from '@/types/supabase' // disabled: generated types are stale
 
 /**
  * Creates a Supabase server client for use in Server Components, Route Handlers,
@@ -12,7 +12,7 @@ import type { Database } from '@/types/supabase'
 export async function createClient(tenantSlug?: string) {
   const cookieStore = await cookies()
 
-  const supabase = createServerClient<Database>(
+    const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
