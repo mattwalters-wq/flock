@@ -36,7 +36,7 @@ export async function createClient(tenantSlug?: string) {
 
   // Activate RLS tenant isolation for this request
   if (tenantSlug) {
-    await supabase.rpc('set_tenant', { slug: tenantSlug })
+          await (supabase as any).rpc('set_tenant', { slug: tenantSlug })
   }
 
   return supabase
