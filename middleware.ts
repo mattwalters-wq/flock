@@ -17,6 +17,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Platform domain (configurable via env) ────────────────────────────────
+  // Set NEXT_PUBLIC_APP_DOMAIN=fans-flock.com in your environment.
+  // Defaults to fans-flock.com if not set.
+  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'fans-flock.com'
+
   // ── Resolve tenant slug from host ──────────────────────────────────────────
 
   let tenantSlug: string | null = null
@@ -24,9 +29,9 @@ export async function middleware(request: NextRequest) {
   if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) {
     // Development default
     tenantSlug = process.env.DEV_TENANT_SLUG ?? 'the-stamps'
-  } else if (host.endsWith('.flock.fm')) {
-    // Subdomain routing: <slug>.flock.fm
-    tenantSlug = host.replace('.flock.fm', '')
+  } else if (host.endsWith(`.${appDomain}`)) {
+    // Subdomain routing: <slug>.fans-flock.com
+    tenantSlug = host.replace(`.${appDomain}`, '')
   } else {
     // Custom domain — look up in Supabase
     tenantSlug = await resolveCustomDomain(host)
@@ -35,7 +40,7 @@ export async function middleware(request: NextRequest) {
   // ── Tenant not found → redirect to marketing homepage ─────────────────────
 
   if (!tenantSlug) {
-    const marketingUrl = new URL('https://flock.fm')
+    const marketingUrl = new URL(`https://${appDomain}`)
     return NextResponse.redirect(marketingUrl)
   }
 
@@ -88,8 +93,7 @@ async function resolveCustomDomain(domain: string): Promise<string | null> {
           apikey: supabaseAnonKey,
           Authorization: `Bearer ${supabaseAnonKey}`,
           Accept: 'application/json',
-        },
-      }
+feat: make platform domain configurable via NEXT_PUBLIC_APP_DOMAIN env var (fans-flock.com)      }
     )
 
     if (!res.ok) return null
