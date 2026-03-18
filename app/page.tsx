@@ -26,7 +26,7 @@ export default async function HomePage() {
   const slug = await getTenantSlug()
   const [tenant, posts] = await Promise.all([
     getTenant(slug),
-    fetchPosts(slug),
+    fetchPosts(),
   ])
 
   if (!tenant) {
@@ -40,9 +40,8 @@ export default async function HomePage() {
   return <Feed posts={posts} tenant={tenant} />
 }
 
-async function fetchPosts(slug: string): Promise<PostWithAuthor[]> {
-  const supabase = await createClient(slug)
-
+async function fetchPosts(): Promise<PostWithAuthor[]> {
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('posts')
     .select(`
@@ -72,7 +71,7 @@ async function fetchPosts(slug: string): Promise<PostWithAuthor[]> {
 
   // Supabase returns author as an array when using a join — normalise to single object
   return ((data ?? []) as any[]).map((row) => ({
-          ...row,
+    ...row,
     author: Array.isArray(row.author) ? (row.author[0] ?? null) : row.author,
   })) as PostWithAuthor[]
 }
