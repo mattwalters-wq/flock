@@ -84,7 +84,7 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
           stamp_count: 0,
           stamp_level: 1,
           role: 'fan',
-        })
+        } as any)
         if (profileError) { setError(profileError.message); return }
 
         // Email confirmation required
