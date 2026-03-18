@@ -34,15 +34,12 @@ export async function GET(request: NextRequest) {
           id: data.user.id,
           tenant_id: tenantRow.id,
           email: data.user.email ?? '',
-          display_name:
-            data.user.user_metadata?.full_name ??
-            data.user.user_metadata?.name ??
-            null,
+          display_name: data.user.user_metadata?.full_name ?? data.user.user_metadata?.name ?? null,
           avatar_url: data.user.user_metadata?.avatar_url ?? null,
           stamp_count: 0,
           stamp_level: 1,
           role: 'fan',
-        },
+        } as any,
         { onConflict: 'id', ignoreDuplicates: true }
       )
 
@@ -57,10 +54,7 @@ export async function GET(request: NextRequest) {
             body: JSON.stringify({
               userId: data.user.id,
               email: data.user.email,
-              displayName:
-                data.user.user_metadata?.full_name ??
-                data.user.user_metadata?.name ??
-                null,
+              displayName: data.user.user_metadata?.full_name ?? data.user.user_metadata?.name ?? null,
             }),
           })
         } catch {
