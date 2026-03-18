@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Tenant } from '@/lib/tenant'
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
+// ── Types ────────────────────────────────────────────────────────────────────
 export type AuthMode = 'login' | 'signup'
 
 interface Props {
@@ -14,8 +13,7 @@ interface Props {
   tenant: Tenant
 }
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
+// ── Icons ────────────────────────────────────────────────────────────────────
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
@@ -30,7 +28,11 @@ function GoogleIcon() {
 function Spinner() {
   return (
     <svg
-      width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
       style={{ animation: 'auth-spin 0.7s linear infinite', flexShrink: 0 }}
     >
       <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.3" />
@@ -39,12 +41,10 @@ function Spinner() {
   )
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
+// ── Component ────────────────────────────────────────────────────────────────
 export default function AuthForm({ mode: initialMode, tenant }: Props) {
   const router = useRouter()
   const supabase = createClient()
-
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -53,22 +53,18 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
   const [checkEmail, setCheckEmail] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [isGooglePending, startGoogle] = useTransition()
-
   const palette = tenant.config.palette
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
-
+  // ── Handlers ──────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-
     startTransition(async () => {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) { setError(error.message); return }
         router.push('/')
         router.refresh()
-
       } else {
         // Sign up
         const { data, error } = await supabase.auth.signUp({
@@ -89,7 +85,6 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
           stamp_level: 1,
           role: 'fan',
         })
-
         if (profileError) { setError(profileError.message); return }
 
         // Email confirmation required
@@ -106,7 +101,7 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
             body: JSON.stringify({ userId: data.user.id, email, displayName }),
           })
         } catch {
-          // Non-fatal - welcome email failure shouldn't block the user
+          // Non-fatal
         }
 
         router.push('/')
@@ -126,13 +121,11 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
         },
       })
       if (error) setError(error.message)
-      // data.url redirect is handled by Supabase client automatically
       void data
     })
   }
 
   // ── Check-email screen ─────────────────────────────────────────────────────
-
   if (checkEmail) {
     return (
       <>
@@ -141,8 +134,7 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
           <div className="auth-card">
             <TenantMark name={tenant.name} palette={palette} />
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <p className="auth-heading" style={{ marginBottom:
-}}>Check your email</p>
+              <p className="auth-heading" style={{ marginBottom: 8 }}>Check your email</p>
               <p className="auth-subtext">
                 We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
               </p>
@@ -154,7 +146,6 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
   }
 
   // ── Main form ──────────────────────────────────────────────────────────────
-
   return (
     <>
       <AuthStyles palette={palette} />
@@ -199,8 +190,7 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
           </div>
 
           {/* Email / password form */}
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap:
-}}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {mode === 'signup' && (
               <AuthField
                 label="Display name"
@@ -227,11 +217,9 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               required
             />
-
             {error && (
               <p className="auth-error">{error}</p>
             )}
-
             <button
               className="auth-btn-primary"
               type="submit"
@@ -265,11 +253,9 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
 function TenantMark({ name, palette }: { name: string; palette: Tenant['config']['palette'] }) {
   return (
-    <div style={{ textAlign: 'center', marginBottom:
-}}>
+    <div style={{ textAlign: 'center', marginBottom: 24 }}>
       <div style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -280,8 +266,7 @@ function TenantMark({ name, palette }: { name: string; palette: Tenant['config']
         background: palette.RUBY,
         marginBottom: 10,
       }}>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize:
-}}>
+        <span style={{ color: '#fff', fontWeight: 700, fontSize: 20 }}>
           {name.charAt(0).toUpperCase()}
         </span>
       </div>
@@ -293,7 +278,12 @@ function TenantMark({ name, palette }: { name: string; palette: Tenant['config']
 }
 
 function AuthField({
-  label, type, value, onChange, autoComplete, required,
+  label,
+  type,
+  value,
+  onChange,
+  autoComplete,
+  required,
 }: {
   label: string
   type: string
@@ -303,8 +293,7 @@ function AuthField({
   required?: boolean
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap:
-}}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <label className="auth-label">{label}</label>
       <input
         className="auth-input"
@@ -319,16 +308,16 @@ function AuthField({
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-
 function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
   return (
     <style>{`
-      @keyframes auth-spin { to { transform: rotate(360deg); } }
+      @keyframes auth-spin {
+        to { transform: rotate(360deg); }
+      }
       @keyframes auth-fade-up {
         from { opacity: 0; transform: translateY(12px); }
         to   { opacity: 1; transform: translateY(0); }
       }
-
       .auth-shell {
         min-height: 100dvh;
         display: flex;
@@ -338,7 +327,6 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
         padding: 24px 16px;
         font-family: var(--font-dm-sans), 'DM Sans', sans-serif;
       }
-
       .auth-card {
         width: 100%;
         max-width: 480px;
@@ -346,31 +334,24 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
         border: 1px solid ${palette.BORDER};
         border-radius: 16px;
         padding: 36px 32px;
-        box-shadow:
-4px 24px rgba(0,0,0,0.07);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.07);
         animation: auth-fade-up 0.3s ease both;
       }
-
       @media (max-width: 520px) {
         .auth-card { padding: 28px 20px; border-radius: 12px; }
       }
-
       .auth-heading {
         font-size: 17px;
         font-weight: 600;
         color: ${palette.INK};
-        margin:
-
-4px;
+        margin: 0 0 4px;
       }
-
       .auth-subtext {
         font-size: 13px;
         color: ${palette.SLATE};
         margin: 0;
         line-height: 1.55;
       }
-
       /* Tabs */
       .auth-tabs {
         display: flex;
@@ -398,7 +379,6 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
         border-bottom-color: ${palette.RUBY};
         font-weight: 600;
       }
-
       /* Google button */
       .auth-btn-google {
         width: 100%;
@@ -420,7 +400,6 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
       }
       .auth-btn-google:hover:not(:disabled) { background: ${palette.CREAM}; }
       .auth-btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
-
       /* Divider */
       .auth-divider {
         display: flex;
@@ -428,17 +407,8 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
         gap: 10px;
         margin-bottom: 16px;
       }
-      .auth-divider-line {
-        flex: 1;
-        height: 1px;
-        background: ${palette.BORDER};
-      }
-      .auth-divider-text {
-        font-size: 12px;
-        color: ${palette.SLATE};
-        letter-spacing: 0.05em;
-      }
-
+      .auth-divider-line { flex: 1; height: 1px; background: ${palette.BORDER}; }
+      .auth-divider-text { font-size: 12px; color: ${palette.SLATE}; letter-spacing: 0.05em; }
       /* Fields */
       .auth-label {
         font-size: 12px;
@@ -460,19 +430,12 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
       .auth-input:focus {
         outline: none;
         border-color: ${palette.RUBY};
-        box-shadow:
-
-
-3px ${palette.RUBY}22;
+        box-shadow: 0 0 0 3px ${palette.RUBY}22;
       }
       .auth-input:-webkit-autofill {
-        -webkit-box-shadow:
-
-
-1000px ${palette.SURFACE} inset;
+        -webkit-box-shadow: 0 0 0 1000px ${palette.SURFACE} inset;
         -webkit-text-fill-color: ${palette.INK};
       }
-
       /* Error */
       .auth-error {
         margin: 0;
@@ -484,7 +447,6 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
         color: ${palette.RUBY};
         line-height: 1.45;
       }
-
       /* Primary button */
       .auth-btn-primary {
         width: 100%;
@@ -508,14 +470,12 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
       .auth-btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
       .auth-btn-primary:active:not(:disabled) { filter: brightness(0.95); }
       .auth-btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
-
       /* Toggle */
       .auth-toggle {
         text-align: center;
         font-size: 13px;
         color: ${palette.SLATE};
-        margin: 16px
-0;
+        margin: 16px 0 0;
       }
       .auth-toggle-btn {
         background: none;
@@ -532,4 +492,3 @@ function AuthStyles({ palette }: { palette: Tenant['config']['palette'] }) {
     `}</style>
   )
 }
- 
