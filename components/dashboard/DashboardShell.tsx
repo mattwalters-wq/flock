@@ -13,7 +13,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({ tenant, profile }: DashboardShellProps) {
     const palette = tenant.config.palette
-    const artistName = profile.display_name ?? 'Artist'
+        const artistName = profile.display_name || 'Artist'
 
   return (
         <>
