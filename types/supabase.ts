@@ -1,184 +1,211 @@
 /**
- * Manual Supabase database types for Flock.
- *
- * These cover the tables used by the app so far.
- * Replace with generated types once you have the CLI available:
- *   supabase gen types typescript --project-id pzcajxpqljulokvowcev > types/supabase.ts
+ *  * Manual Supabase database types for Flock.
+  *
+   * These cover the tables used by the app so far.
+    * Replace with generated types once you have the CLI available:
+     *   supabase gen types typescript --project-id pzcajxpqljulokvowcev > types/supabase.ts
+      */
+
+      export type Json =
+        | string
+          | number
+            | boolean
+              | null
+                | { [key: string]: Json | undefined }
+                  | Json[]
+
+                  // ── Table row types ──────────────────────────────────────────────────────────
+
+                  export interface TenantRow {
+                    id: number
+                      slug: string
+                        name: string
+                          custom_domain: string | null
+                            created_at: string
+                            }
+
+                            export interface TenantConfigRow {
+                              id: number
+                                tenant_id: number
+                                  key: string
+                                    value: string | null
+                                      created_at: string
+                                      }
+
+                                      export interface TenantMemberRow {
+                                        id: number
+                                          tenant_id: number
+                                            slug: string
+                                              name: string
+                                                accent_color: string | null
+                                                  bio: string | null
+                                                    avatar_url: string | null
+                                                      display_order: number
+                                                        created_at: string
+                                                        }
+
+                                                        export interface ProfileRow {
+                                                          id: string // uuid — matches auth.users.id
+                                                            tenant_id: number
+                                                              display_name: string | null
+                                                                avatar_url: string | null
+                                                                  band_member: boolean
+                                                                    member_slug: string | null
+                                                                      role: string | null
+                                                                        bio: string | null
+                                                                          stamp_balance: number
+                                                                            referral_code: string | null
+                                                                              referred_by: string | null
+                                                                                created_at: string
+                                                                                  updated_at: string
+                                                                                  }
+
+                                                                                  export interface PostRow {
+                                                                                    id: number
+                                                                                      tenant_id: number
+                                                                                        author_id: string // uuid — references profiles.id
+                                                                                          content: string | null
+                                                                                            image_urls: string[] | null
+                                                                                              audio_url: string | null
+                                                                                                post_type: string // 'text' | 'image' | 'audio'
+                                                                                                  is_pinned: boolean
+                                                                                                    created_at: string
+                                                                                                      updated_at: string
+                                                                                                      }
+
+                                                                                                      export interface FlockAccountRow {
+                                                                                                        id: string // uuid
+                                                                                                          auth_user_id: string // uuid — references auth.users.id
+                                                                                                            full_name: string
+                                                                                                              email: string
+                                                                                                                tenant_id: number | null
+                                                                                                                  created_at: string
+                                                                                                                  }
+
+                                                                                                                  // ── Insert types (omit auto-generated fields) ─────────────────────────────────
+
+                                                                                                                  export type TenantInsert = Omit<TenantRow, 'id' | 'created_at'> &
+                                                                                                                    Partial<Pick<TenantRow, 'id' | 'created_at'>>
+
+                                                                                                                    export type TenantConfigInsert = Omit<TenantConfigRow, 'id' | 'created_at'> &
+                                                                                                                      Partial<Pick<TenantConfigRow, 'id' | 'created_at'>>
+
+                                                                                                                      export type TenantMemberInsert = Omit<TenantMemberRow, 'id' | 'created_at'> &
+                                                                                                                        Partial<Pick<TenantMemberRow, 'id' | 'created_at'>>
+
+                                                                                                                        export type ProfileInsert = Omit<ProfileRow, 'created_at' | 'updated_at'> &
+                                                                                                                          Partial<Pick<ProfileRow, 'created_at' | 'updated_at'>>
+
+                                                                                                                          export type PostInsert = Omit<PostRow, 'id' | 'created_at' | 'updated_at'> &
+                                                                                                                            Partial<Pick<PostRow, 'id' | 'created_at' | 'updated_at'>>
+
+                                                                                                                            export type FlockAccountInsert = Omit<FlockAccountRow, 'id' | 'created_at'> &
+                                                                                                                              Partial<Pick<FlockAccountRow, 'id' | 'created_at'>>
+
+                                                                                                                              // ── Update types (all fields optional except identity) ────────────────────────
+
+                                                                                                                              export type TenantUpdate = Partial<Omit<TenantRow, 'id'>>
+                                                                                                                              export type TenantConfigUpdate = Partial<Omit<TenantConfigRow, 'id'>>
+                                                                                                                              export type TenantMemberUpdate = Partial<Omit<TenantMemberRow, 'id'>>
+                                                                                                                              export type ProfileUpdate = Partial<Omit<ProfileRow, 'id'>>
+                                                                                                                              export type PostUpdate = Partial<Omit<PostRow, 'id'>>
+                                                                                                                              export type FlockAccountUpdate = Partial<Omit<FlockAccountRow, 'id'>>
+
+                                                                                                                              // ── Database type (compatible with createClient<Database>) ───────────────────
+
+                                                                                                                              export interface Database {
+                                                                                                                                public: {
+                                                                                                                                    Tables: {
+                                                                                                                                          tenants: {
+                                                                                                                                                  Row: TenantRow
+                                                                                                                                                          Insert: TenantInsert
+                                                                                                                                                                  Update: TenantUpdate
+                                                                                                                                                                          Relationships: []
+                                                                                                                                                                                }
+                                                                                                                                                                                      tenant_config: {
+                                                                                                                                                                                              Row: TenantConfigRow
+                                                                                                                                                                                                      Insert: TenantConfigInsert
+                                                                                                                                                                                                              Update: TenantConfigUpdate
+                                                                                                                                                                                                                      Relationships: [
+                                                                                                                                                                                                                                {
+                                                                                                                                                                                                                                            foreignKeyName: 'tenant_config_tenant_id_fkey'
+                                                                                                                                                                                                                                                        columns: ['tenant_id']
+                                                                                                                                                                                                                                                                    referencedRelation: 'tenants'
+                                                                                                                                                                                                                                                                                referencedColumns: ['id']
+                                                                                                                                                                                                                                                                                          }
+                                                                                                                                                                                                                                                                                                  ]
+                                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                                              tenant_members: {
+                                                                                                                                                                                                                                                                                                                      Row: TenantMemberRow
+                                                                                                                                                                                                                                                                                                                              Insert: TenantMemberInsert
+                                                                                                                                                                                                                                                                                                                                      Update: TenantMemberUpdate
+                                                                                                                                                                                                                                                                                                                                              Relationships: [
+                                                                                                                                                                                                                                                                                                                                                        {
+                                                                                                                                                                                                                                                                                                                                                                    foreignKeyName: 'tenant_members_tenant_id_fkey'
+                                                                                                                                                                                                                                                                                                                                                                                columns: ['tenant_id']
+                                                                                                                                                                                                                                                                                                                                                                                            referencedRelation: 'tenants'
+                                                                                                                                                                                                                                                                                                                                                                                                        referencedColumns: ['id']
+                                                                                                                                                                                                                                                                                                                                                                                                                  }
+                                                                                                                                                                                                                                                                                                                                                                                                                          ]
+                                                                                                                                                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                                                                                                                                                                      profiles: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                              Row: ProfileRow
+                                                                                                                                                                                                                                                                                                                                                                                                                                                      Insert: ProfileInsert
+                                                                                                                                                                                                                                                                                                                                                                                                                                                              Update: ProfileUpdate
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Relationships: [
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            foreignKeyName: 'profiles_tenant_id_fkey'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        columns: ['tenant_id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    referencedRelation: 'tenants'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                referencedColumns: ['id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ]
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              posts: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Row: PostRow
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              Insert: PostInsert
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Update: PostUpdate
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              Relationships: [
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    foreignKeyName: 'posts_tenant_id_fkey'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                columns: ['tenant_id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            referencedRelation: 'tenants'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        referencedColumns: ['id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  },
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        foreignKeyName: 'posts_author_id_fkey'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    columns: ['author_id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                referencedRelation: 'profiles'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            referencedColumns: ['id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              ]
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          flock_accounts: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Row: FlockAccountRow
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          Insert: FlockAccountInsert
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Update: FlockAccountUpdate
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          Relationships: [
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                foreignKeyName: 'flock_accounts_tenant_id_fkey'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            columns: ['tenant_id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        referencedRelation: 'tenants'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    referencedColumns: ['id']
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ]
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Views: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          [_ in never]: never
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Functions: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        set_tenant: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Args: { slug: string }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        Returns: void
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Enums: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            [_ in never]: never
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
  */
-
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
-// ── Table row types ────────────────────────────────────────────────────────────
-
-export interface TenantRow {
-  id: number
-  slug: string
-  name: string
-  custom_domain: string | null
-  created_at: string
-}
-
-export interface TenantConfigRow {
-  id: number
-  tenant_id: number
-  key: string
-  value: string | null
-  created_at: string
-}
-
-export interface TenantMemberRow {
-  id: number
-  tenant_id: number
-  slug: string
-  name: string
-  accent_color: string | null
-  bio: string | null
-  avatar_url: string | null
-  display_order: number
-  created_at: string
-}
-
-export interface ProfileRow {
-  id: string               // uuid — matches auth.users.id
-  tenant_id: number
-  display_name: string | null
-  avatar_url: string | null
-  band_member: boolean
-  member_slug: string | null
-  role: string | null
-  bio: string | null
-  stamp_balance: number
-  referral_code: string | null
-  referred_by: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface PostRow {
-  id: number
-  tenant_id: number
-  author_id: string        // uuid — references profiles.id
-  content: string | null
-  image_urls: string[] | null
-  audio_url: string | null
-  post_type: string        // 'text' | 'image' | 'audio'
-  is_pinned: boolean
-  created_at: string
-  updated_at: string
-}
-
-// ── Insert types (omit auto-generated fields) ─────────────────────────────────
-
-export type TenantInsert = Omit<TenantRow, 'id' | 'created_at'> &
-  Partial<Pick<TenantRow, 'id' | 'created_at'>>
-
-export type TenantConfigInsert = Omit<TenantConfigRow, 'id' | 'created_at'> &
-  Partial<Pick<TenantConfigRow, 'id' | 'created_at'>>
-
-export type TenantMemberInsert = Omit<TenantMemberRow, 'id' | 'created_at'> &
-  Partial<Pick<TenantMemberRow, 'id' | 'created_at'>>
-
-export type ProfileInsert = Omit<ProfileRow, 'created_at' | 'updated_at'> &
-  Partial<Pick<ProfileRow, 'created_at' | 'updated_at'>>
-
-export type PostInsert = Omit<PostRow, 'id' | 'created_at' | 'updated_at'> &
-  Partial<Pick<PostRow, 'id' | 'created_at' | 'updated_at'>>
-
-// ── Update types (all fields optional except identity) ────────────────────────
-
-export type TenantUpdate = Partial<Omit<TenantRow, 'id'>>
-export type TenantConfigUpdate = Partial<Omit<TenantConfigRow, 'id'>>
-export type TenantMemberUpdate = Partial<Omit<TenantMemberRow, 'id'>>
-export type ProfileUpdate = Partial<Omit<ProfileRow, 'id'>>
-export type PostUpdate = Partial<Omit<PostRow, 'id'>>
-
-// ── Database type (compatible with createClient<Database>) ────────────────────
-
-export interface Database {
-  public: {
-    Tables: {
-      tenants: {
-        Row: TenantRow
-        Insert: TenantInsert
-        Update: TenantUpdate
-        Relationships: []
-      }
-      tenant_config: {
-        Row: TenantConfigRow
-        Insert: TenantConfigInsert
-        Update: TenantConfigUpdate
-        Relationships: [
-          {
-            foreignKeyName: 'tenant_config_tenant_id_fkey'
-            columns: ['tenant_id']
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
-          }
-        ]
-      }
-      tenant_members: {
-        Row: TenantMemberRow
-        Insert: TenantMemberInsert
-        Update: TenantMemberUpdate
-        Relationships: [
-          {
-            foreignKeyName: 'tenant_members_tenant_id_fkey'
-            columns: ['tenant_id']
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
-          }
-        ]
-      }
-      profiles: {
-        Row: ProfileRow
-        Insert: ProfileInsert
-        Update: ProfileUpdate
-        Relationships: [
-          {
-            foreignKeyName: 'profiles_tenant_id_fkey'
-            columns: ['tenant_id']
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
-          }
-        ]
-      }
-      posts: {
-        Row: PostRow
-        Insert: PostInsert
-        Update: PostUpdate
-        Relationships: [
-          {
-            foreignKeyName: 'posts_tenant_id_fkey'
-            columns: ['tenant_id']
-            referencedRelation: 'tenants'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'posts_author_id_fkey'
-            columns: ['author_id']
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
-          }
-        ]
-      }
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      set_tenant: {
-        Args: { slug: string }
-        Returns: void
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-  }
-}
