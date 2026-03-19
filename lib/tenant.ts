@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import type { TenantRow, TenantConfigRow, TenantMemberRow } from '@/types/supabase'
+import type { Database } from '@/types/supabase'
+
+type TenantRow = Database['public']['Tables']['tenants']['Row']
+type TenantConfigRow = Database['public']['Tables']['tenant_config']['Row']
+type TenantMemberRow = Database['public']['Tables']['tenant_members']['Row']
 
 // ============================================================
 // Types
