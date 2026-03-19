@@ -1,4 +1,4 @@
-────────────────────────────────────────────────────────────────'use client'
+'use client'
 
 import { PostComposer } from '@/components/dashboard/PostComposer'
 import type { Tenant } from '@/lib/tenant'
