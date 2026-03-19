@@ -56,7 +56,7 @@ export async function POST(request: Request) {
                                                                                                                                                                                                     }
 
                                                                                                                                                                                                         // 4. Insert tenant_members rows
-                                                                                                                                                                                                            const memberRows = members
+                                                                                                                                                                                                            const memberRows = (members.members ?? []) as Array<{ name: string; color: string }>
                                                                                                                                                                                                                   .filter((m) => m.name?.trim())
                                                                                                                                                                                                                         .map((m, i) => ({
                                                                                                                                                                                                                                 tenant_id: tenantId,
