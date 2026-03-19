@@ -30,11 +30,11 @@ export async function POST(request: Request) {
                                                                                             }
 
                                                                                                 // 2. Insert tenant
-                                                                                                    const { data: tenant, error: tenantError } = (await supabase
+                                                                                                   const { data: tenant, error: tenantError } = await (supabase as any)
                                                                                                           .from('tenants')
-                                                                                                                .insert({ slug: community.slug, name: community.communityName, custom_domain: null })
+                                                                                                                .insert({ slug: community.slug, name: community.communityName, custom_domain: null } as any)
                                                                                                                       .select('id')
-                                                                                                                            .single()) as { data: { id: number } | null; error: unknown }
+                                                                                                                            .single() as { data: { id: number } | null; error: unknown }
 
                                                                                                                                 if (tenantError || !tenant) {
                                                                                                                                       console.error('[onboarding] tenant insert error:', tenantError)
