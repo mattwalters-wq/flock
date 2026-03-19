@@ -31,20 +31,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    const { data: profileRow, error: profileError } = await supabase
+    const { data: profileRow, error: profileError } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .eq('tenant_id', tenant.id)
-      .single()
+      .single() as { data: { role: string | null } | null; error: unknown }
 
     if (profileError || !profileRow) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 403 })
     }
 
-    const role = profileRow.role as string | null
-
-    if (role !== 'band' && role !== 'admin') {
+    if (profileRow.role !== 'band' && profileRow.role !== 'admin') {
       return NextResponse.json(
         { error: 'Only band members and admins can create posts' },
         { status: 403 }
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
     const audioUrl =
       body.audio_url && typeof body.audio_url === 'string' ? body.audio_url : null
 
-    const { data: post, error: insertError } = await supabase
+    const { data: post, error: insertError } = await (supabase as any)
       .from('posts')
       .insert({
         tenant_id: tenant.id,
@@ -76,7 +74,7 @@ export async function POST(request: Request) {
         audio_url: audioUrl,
       })
       .select('id')
-      .single()
+      .single() as { data: { id: string } | null; error: unknown }
 
     if (insertError || !post) {
       console.error('[posts/create] insert error:', insertError)
