@@ -6,7 +6,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell'
 
 export default async function DashboardPage() {
   const slug = await getTenantSlug()
-  const supabase = await createClient(slug)
+  const supabase = await createClient()
 
   // Check session
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,7 +14,7 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // Fetch profile directly without set_tenant RPC
+  // Fetch profile
   const { data: profileRow, error: profileError } = await (supabase as any)
     .from('profiles')
     .select('id, display_name, bio, city, avatar_url, role, band_member, stamp_count, stamp_level, tenant_id')
