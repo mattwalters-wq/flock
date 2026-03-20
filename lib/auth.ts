@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/server'
 export type Profile = {
   id: string
   tenant_id: number
-  email: string
   display_name: string | null
   avatar_url: string | null
   created_at: string
@@ -45,7 +44,7 @@ export async function getProfile(): Promise<Profile | null> {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, tenant_id, email, display_name, avatar_url, created_at')
+    .select('id, tenant_id, display_name, avatar_url, created_at')
     .eq('id', user.id)
     .single() as { data: Profile | null; error: unknown }
 
@@ -65,6 +64,7 @@ export async function requireAuth() {
 
 /**
  * Returns the current user's profile row, scoped to the given tenant.
+ * Email comes from auth.users via supabase.auth.getUser() — not from profiles.
  * Returns null if the user is not authenticated or has no profile for this tenant.
  */
 export async function getTenantUser(tenantId: number): Promise<AuthUser | null> {
@@ -76,15 +76,16 @@ export async function getTenantUser(tenantId: number): Promise<AuthUser | null> 
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('id, tenant_id, email, display_name, avatar_url, created_at')
+    .select('id, tenant_id, display_name, avatar_url, created_at')
     .eq('id', user.id)
     .eq('tenant_id', tenantId)
     .single() as { data: Profile | null; error: unknown }
 
   if (error || !profile) return null
+
   return {
     id: user.id,
-    email: user.email ?? profile.email,
+    email: user.email ?? '',
     profile,
   }
 }
