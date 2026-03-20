@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export interface Database {
   public: {
@@ -42,7 +36,10 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
-      set_tenant: { Args: { slug: string }; Returns: undefined }
+      set_tenant: {
+        Args: { slug: string }
+        Returns: undefined
+      }
     }
     Enums: Record<string, never>
   }
