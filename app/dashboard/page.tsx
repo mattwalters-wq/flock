@@ -29,7 +29,7 @@ export default async function DashboardPage() {
 
   // Set tenant context so RLS policies resolve current_tenant_id() correctly.
   // Without this, profiles_read policy returns no rows and the query silently fails.
-  await supabase.rpc('set_tenant', { p_slug: slug })
+  await supabase.rpc('set_tenant', { slug })
 
   const { data: profileRow, error: profileError } = await (supabase as any)
     .from('profiles')
