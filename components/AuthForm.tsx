@@ -79,7 +79,6 @@ export default function AuthForm({ mode: initialMode, tenant }: Props) {
         const { error: profileError } = await supabase.from('profiles').insert({
           id: data.user.id,
           tenant_id: tenant.id,
-          email,
           display_name: displayName || null,
           stamp_count: 0,
           stamp_level: 1,
