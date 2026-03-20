@@ -42,7 +42,7 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
-      set_tenant: { Args: { slug: string }; Returns: void }
+      set_tenant: { Args: { slug: string }; Returns: undefined }
     }
     Enums: Record<string, never>
   }
