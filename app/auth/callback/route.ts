@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
   }
 
   const tenantSlug = request.headers.get('x-tenant-slug')
-
   if (tenantSlug) {
     const { data: tenantRow } = await supabase
       .from('tenants')
@@ -33,7 +32,6 @@ export async function GET(request: NextRequest) {
         {
           id: data.user.id,
           tenant_id: tenantRow.id,
-          email: data.user.email ?? '',
           display_name: data.user.user_metadata?.full_name ?? data.user.user_metadata?.name ?? null,
           avatar_url: data.user.user_metadata?.avatar_url ?? null,
           stamp_count: 0,
