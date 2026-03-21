@@ -146,7 +146,7 @@ export function MembersManager({ tenant }: MembersManagerProps) {
         {members.map(member => (
           <div key={member.id} className="member-card">
             <div className="member-card-header">
-              <div className="member-color-dot" style={{ background: member.accent_color }} />
+              <div className="member-color-dot" style={{ background: member.accent_color ?? '#888' }} />
               <span className="member-name-label">{member.name}</span>
             </div>
             <div className="member-field">
@@ -170,11 +170,11 @@ export function MembersManager({ tenant }: MembersManagerProps) {
               <div className="member-color-row">
                 <input
                   type="color"
-                  value={member.accent_color}
+                  value={member.accent_color ?? '#888888'}
                   onChange={e => updateMember(member.id, 'accent_color', e.target.value)}
                 />
                 <span style={{ fontSize: 12, color: 'var(--color-slate)', fontFamily: 'monospace' }}>
-                  {member.accent_color}
+                  {member.accent_color ?? '#888888'}
                 </span>
               </div>
             </div>
