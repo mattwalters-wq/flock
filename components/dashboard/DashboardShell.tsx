@@ -25,7 +25,10 @@ export function DashboardShell({ tenant, profile }: DashboardShellProps) {
               <span className="dash-logo-dot" aria-hidden="true" />
               <h1 className="dash-title">Dashboard</h1>
             </div>
-            <span className="dash-artist-name">{artistName}</span>
+            <div className="dash-header-right">
+              <span className="dash-artist-name">{artistName}</span>
+              <a href="/api/auth/signout" className="dash-signout">Sign out</a>
+            </div>
           </div>
         </header>
         <main className="dash-main">
@@ -77,6 +80,11 @@ function DashboardStyles({ palette }: { palette: Tenant['config']['palette'] }) 
         align-items: center;
         gap: 10px;
       }
+      .dash-header-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
       .dash-logo-dot {
         display: block;
         width: 10px;
@@ -99,7 +107,18 @@ function DashboardStyles({ palette }: { palette: Tenant['config']['palette'] }) 
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 180px;
+        max-width: 140px;
+      }
+      .dash-signout {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-slate);
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .dash-signout:hover {
+        color: var(--color-ink);
+        text-decoration: underline;
       }
       .dash-main {
         padding: 24px 16px 0;
