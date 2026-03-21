@@ -14,6 +14,9 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
+  // Set tenant context for RLS
+  await (supabase as any).rpc('set_tenant', { slug })
+
   // Fetch profile
   const { data: profileRow, error: profileError } = await (supabase as any)
     .from('profiles')
@@ -26,7 +29,7 @@ export default async function DashboardPage() {
   }
 
   // Check role
-  if (profileRow.role !== 'band' && profileRow.role !== 'admin') {
+  if (profileRow.role !== 'admin' && profileRow.role !== 'member') {
     redirect('/')
   }
 
