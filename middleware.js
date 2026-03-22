@@ -1,40 +1,47 @@
 import { NextResponse } from 'next/server';
 
-const BYPASS_PATHS = ['/_next/', '/favicon.ico', '/api/auth', '/start', '/og-image'];
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 const DEV_TENANT_SLUG = process.env.DEV_TENANT_SLUG || 'the-stamps';
 
 export function middleware(request) {
-  const { pathname, host } = new URL(request.url);
+  const { pathname } = new URL(request.url);
+  const host = request.headers.get('host') || '';
 
-  // Bypass for static assets and certain routes
-  if (BYPASS_PATHS.some(p => pathname.startsWith(p))) {
+  // Always bypass these
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/') ||
+    pathname === '/favicon.ico' ||
+    pathname.includes('.')
+  ) {
     return NextResponse.next();
   }
 
-  let tenantSlug = null;
-
-  if (host === 'localhost:3000' || host.startsWith('localhost:')) {
-    tenantSlug = DEV_TENANT_SLUG;
-  } else if (host.endsWith(`.${APP_DOMAIN}`)) {
-    tenantSlug = host.replace(`.${APP_DOMAIN}`, '');
-  } else if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
-    // Root domain - redirect to /start unless already going there
-    if (!pathname.startsWith('/start')) {
-      return NextResponse.redirect(new URL('/start', request.url));
-    }
+  // Root domain (fans-flock.com or www.fans-flock.com) - serve /start directly
+  if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
+    // No tenant context needed for root domain - just pass through
     return NextResponse.next();
-  } else {
-    // Custom domain - will be resolved by the page via DB lookup
-    tenantSlug = '__custom__';
   }
 
-  if (!tenantSlug) {
-    return NextResponse.redirect(new URL(`https://${APP_DOMAIN}/start`));
+  // Localhost dev
+  if (host.startsWith('localhost')) {
+    const response = NextResponse.next();
+    response.headers.set('x-tenant-slug', DEV_TENANT_SLUG);
+    return response;
   }
 
+  // Subdomain (artist.fans-flock.com)
+  if (host.endsWith(`.${APP_DOMAIN}`)) {
+    const tenantSlug = host.replace(`.${APP_DOMAIN}`, '');
+    const response = NextResponse.next();
+    response.headers.set('x-tenant-slug', tenantSlug);
+    response.headers.set('x-host', host);
+    return response;
+  }
+
+  // Custom domain
   const response = NextResponse.next();
-  response.headers.set('x-tenant-slug', tenantSlug);
+  response.headers.set('x-tenant-slug', '__custom__');
   response.headers.set('x-host', host);
   return response;
 }
