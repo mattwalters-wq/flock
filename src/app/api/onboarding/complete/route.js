@@ -19,6 +19,7 @@ export async function POST(request) {
       user_metadata: { display_name: account.fullName },
     });
 
+        console.log('[onboarding] authError:', JSON.stringify(authError, null, 2));
     if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
     const userId = authData.user.id;
 
