@@ -10,6 +10,7 @@ export async function POST(request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY,
     );
 
+        console.log('[onboarding] key prefix:', process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 20));
     // 1. Create auth user
     const { data: authData, error: authError } = await db.auth.admin.createUser({
       email: account.email,
