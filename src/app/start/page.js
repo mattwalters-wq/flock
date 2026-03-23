@@ -357,13 +357,34 @@ function MarketingPage() {
       <section id="pricing" style={{ padding: '100px 24px', background: 'rgba(245,239,230,0.02)', borderTop: '1px solid rgba(245,239,230,0.06)' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>pricing</div>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16 }}>simple. honest. no surprises.</h2>
-          <p style={{ fontSize: 15, color: 'rgba(245,239,230,0.5)', marginBottom: 48 }}>We don't take a cut of your merch or ticket sales.</p>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 24 }}>instagram is free.<br /><span style={{ color: 'rgba(245,239,230,0.35)' }}>so is handing them everything.</span></h2>
+          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.6)', lineHeight: 1.8, maxWidth: 580, marginBottom: 16 }}>
+            Every post you make on their platform makes them richer and you more dependent. You're paying with your fan list, your relationship data, your reach, and your leverage.
+          </p>
+          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.6)', lineHeight: 1.8, maxWidth: 580, marginBottom: 56 }}>
+            Flock costs $29/month. In exchange, you own everything. No revenue share. No cuts. No one else's algorithm deciding whether your fans see you today.
+          </p>
+
+          {/* Cost comparison callout */}
+          <div style={{ background: 'rgba(139,26,43,0.08)', border: '1px solid rgba(139,26,43,0.2)', borderRadius: 14, padding: '28px 32px', marginBottom: 40, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 24 }}>
+            {[
+              { label: 'one facebook ad', cost: '$30+', result: 'reaches 200 people once' },
+              { label: 'patreon at $5k/mo', cost: '$650/mo', result: 'just in fees' },
+              { label: 'flock', cost: '$29/mo', result: 'your fans. yours forever.' },
+            ].map(c => (
+              <div key={c.label}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(245,239,230,0.4)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>{c.label}</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: c.label === 'flock' ? '#8B1A2B' : '#F5EFE6', marginBottom: 4 }}>{c.cost}</div>
+                <div style={{ fontSize: 12, color: 'rgba(245,239,230,0.5)', lineHeight: 1.5 }}>{c.result}</div>
+              </div>
+            ))}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
             {[
-              { name: 'indie', price: '$39', period: '/month', desc: 'For solo artists getting started', features: ['1 community', 'up to 500 fans', 'custom fan currency', 'all core features', 'email support'], cta: 'start free trial', highlight: false },
-              { name: 'pro', price: '$79', period: '/month', desc: 'For artists serious about their community', features: ['1 community', 'unlimited fans', 'custom domain', 'all core features', 'fan map & analytics', 'priority support'], cta: 'start free trial', highlight: true },
-              { name: 'label', price: "let's talk", period: '', desc: 'For labels and managers with multiple artists', features: ['multiple communities', 'white-label', 'custom integrations', 'dedicated support', 'SLA'], cta: 'get in touch', highlight: false },
+              { name: 'indie', price: '$29', period: '/month', desc: 'For solo artists getting started. Less than a Spotify subscription.', features: ['1 community', 'up to 500 fans', 'custom fan currency', 'all core features', 'show check-ins', 'email support'], cta: 'start free trial', highlight: false },
+              { name: 'pro', price: '$69', period: '/month', desc: 'For artists serious about their community. Unlimited everything.', features: ['1 community', 'unlimited fans', 'custom domain', 'all core features', 'fan map & analytics', 'priority support'], cta: 'start free trial', highlight: true },
+              { name: 'label', price: "let's talk", period: '', desc: 'For labels and managers running multiple artists.', features: ['multiple communities', 'white-label', 'custom integrations', 'dedicated support', 'SLA'], cta: 'get in touch', highlight: false },
             ].map(plan => (
               <div key={plan.name} style={{ background: plan.highlight ? 'rgba(139,26,43,0.12)' : 'rgba(245,239,230,0.04)', border: `1px solid ${plan.highlight ? 'rgba(139,26,43,0.4)' : 'rgba(245,239,230,0.08)'}`, borderRadius: 16, padding: '32px 28px' }}>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: plan.highlight ? '#8B1A2B' : 'rgba(245,239,230,0.4)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 16 }}>{plan.name}</div>
@@ -379,7 +400,7 @@ function MarketingPage() {
               </div>
             ))}
           </div>
-          <div style={{ textAlign: 'center', marginTop: 32, fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>14-day free trial · no credit card required · cancel anytime</div>
+          <div style={{ textAlign: 'center', marginTop: 32, fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>14-day free trial · no credit card required · cancel anytime · no revenue share ever</div>
         </div>
       </section>
 
