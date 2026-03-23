@@ -7,7 +7,7 @@ export function middleware(request) {
   const { pathname } = new URL(request.url);
   const host = request.headers.get('host') || '';
 
-  // Always bypass these
+  // Always bypass static assets and API routes
   if (
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/api/') ||
@@ -17,9 +17,8 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Root domain (fans-flock.com or www.fans-flock.com) - serve /start directly
+  // Root domain - pass through entirely, layout.js handles it
   if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
-    // No tenant context needed for root domain - just pass through
     return NextResponse.next();
   }
 
