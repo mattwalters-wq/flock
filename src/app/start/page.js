@@ -284,6 +284,9 @@ function MarketingPage() {
           <a href="/start?join=1" className="cta-btn">launch your community ✦</a>
           <a href="#how" className="ghost-btn">see how it works</a>
         </div>
+        <div className="fade-4" style={{ marginTop: 28 }}>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#C9922A', background: 'rgba(201,146,42,0.1)', border: '1px solid rgba(201,146,42,0.25)', borderRadius: 20, padding: '8px 18px', letterSpacing: '0.5px' }}>✦ pricing coming soon · join free while we build</span>
+        </div>
       </section>
 
       {/* PROBLEM */}
@@ -313,15 +316,15 @@ function MarketingPage() {
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>the solution</div>
           <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16 }}>your community.<br />your currency.<br />your rules.</h2>
-          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.7, maxWidth: 520, marginBottom: 64 }}>Every artist gets a fully branded fan community with a custom loyalty system - their own economy, their own language, their own world.</p>
+          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.7, maxWidth: 520, marginBottom: 64 }}>Every artist gets a fully branded fan community with a custom loyalty system - their own economy, their own language, their own world. Oh, and it replaces your Linktree, your website, and your newsletter tool. All rolled into one.</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 64 }}>
             {[
-              { icon: '◎', title: 'your own subdomain', desc: 'artist.fans-flock.com or your own domain. Fans never see "flock".' },
-              { icon: '✦', title: 'custom fan currency', desc: 'Call them stamps, points, chips, pins, echoes, drops - whatever fits your world.' },
-              { icon: '○', title: 'member feeds', desc: 'Solo or band. Each member gets their own feed tab.' },
-              { icon: '♫', title: 'show check-ins', desc: 'Fans check in at shows with a code and earn currency.' },
-              { icon: '♛', title: 'reward tiers', desc: 'Postcards, merch, signed vinyl, zoom calls, meet and greets.' },
-              { icon: '✉', title: 'direct email', desc: 'Send to every fan who opted in. No algorithm. No throttle.' },
+              { icon: '◎', title: 'your home on the internet', desc: 'A real URL that\'s yours. artist.fans-flock.com or your own domain. Replaces your Linktree, your bio link, your website - and actually does something.' },
+              { icon: '✦', title: 'custom fan currency', desc: 'Call them stamps, points, chips, pins, echoes, drops - whatever fits your world. Your fans earn it, spend it, flex it.' },
+              { icon: '○', title: 'member feeds', desc: 'Solo or band. Each member gets their own feed tab. Fans follow the people, not just the project.' },
+              { icon: '♫', title: 'show check-ins', desc: 'Fans check in at shows with a code and earn currency. You get attendance data. Everyone wins.' },
+              { icon: '♛', title: 'reward tiers', desc: 'Design a loyalty ladder. Postcards, merch, signed vinyl, zoom calls, meet and greets.' },
+              { icon: '✉', title: 'direct email', desc: 'Send to every fan who opted in. No algorithm. No throttle. Your words in their inbox.' },
             ].map(f => (
               <div key={f.title} className="feature-card">
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: '#C9922A', marginBottom: 14 }}>{f.icon}</div>
@@ -329,6 +332,30 @@ function MarketingPage() {
                 <div style={{ fontSize: 13, color: 'rgba(245,239,230,0.5)', lineHeight: 1.6 }}>{f.desc}</div>
               </div>
             ))}
+          </div>
+
+          {/* Replaces callout */}
+          <div style={{ background: 'rgba(245,239,230,0.03)', border: '1px solid rgba(245,239,230,0.08)', borderRadius: 14, padding: '32px', textAlign: 'center' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'rgba(245,239,230,0.4)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 20 }}>flock replaces all of this</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {[
+                { name: 'Linktree', price: '$9/mo', desc: 'bio link' },
+                { name: 'Patreon', price: '10% cut', desc: 'memberships' },
+                { name: 'Mailchimp', price: '$20/mo', desc: 'email list' },
+                { name: 'Squarespace', price: '$23/mo', desc: 'website' },
+                { name: 'Discord', price: 'your data', desc: 'community' },
+              ].map(r => (
+                <div key={r.name} style={{ background: 'rgba(245,239,230,0.04)', border: '1px solid rgba(245,239,230,0.08)', borderRadius: 10, padding: '14px 18px', minWidth: 120, position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: -8, right: -8, background: '#8B1A2B', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff' }}>✕</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{r.name}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', marginBottom: 2 }}>{r.price}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(245,239,230,0.3)' }}>{r.desc}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 24, fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'rgba(245,239,230,0.4)' }}>
+              all of that, in one place, for one price · and you own the data
+            </div>
           </div>
         </div>
       </section>
@@ -362,14 +389,14 @@ function MarketingPage() {
             Every post you make on their platform makes them richer and you more dependent. You're paying with your fan list, your relationship data, your reach, and your leverage.
           </p>
           <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.6)', lineHeight: 1.8, maxWidth: 580, marginBottom: 56 }}>
-            Flock costs $29/month. In exchange, you own everything. No revenue share. No cuts. No one else's algorithm deciding whether your fans see you today.
+            Flock will cost $29/month. In exchange, you own everything. No revenue share. No cuts. No one else's algorithm deciding whether your fans see you today.
           </p>
 
-          {/* Cost comparison callout */}
-          <div style={{ background: 'rgba(139,26,43,0.08)', border: '1px solid rgba(139,26,43,0.2)', borderRadius: 14, padding: '28px 32px', marginBottom: 40, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 24 }}>
+          {/* Cost comparison */}
+          <div style={{ background: 'rgba(139,26,43,0.08)', border: '1px solid rgba(139,26,43,0.2)', borderRadius: 14, padding: '28px 32px', marginBottom: 48, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 24 }}>
             {[
               { label: 'one facebook ad', cost: '$30+', result: 'reaches 200 people once' },
-              { label: 'patreon at $5k/mo', cost: '$650/mo', result: 'just in fees' },
+              { label: 'patreon at $5k/mo', cost: '$650/mo', result: 'just in platform fees' },
               { label: 'flock', cost: '$29/mo', result: 'your fans. yours forever.' },
             ].map(c => (
               <div key={c.label}>
@@ -380,13 +407,15 @@ function MarketingPage() {
             ))}
           </div>
 
+          {/* Coming soon plans */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
             {[
-              { name: 'indie', price: '$29', period: '/month', desc: 'For solo artists getting started. Less than a Spotify subscription.', features: ['1 community', 'up to 500 fans', 'custom fan currency', 'all core features', 'show check-ins', 'email support'], cta: 'start free trial', highlight: false },
-              { name: 'pro', price: '$69', period: '/month', desc: 'For artists serious about their community. Unlimited everything.', features: ['1 community', 'unlimited fans', 'custom domain', 'all core features', 'fan map & analytics', 'priority support'], cta: 'start free trial', highlight: true },
-              { name: 'label', price: "let's talk", period: '', desc: 'For labels and managers running multiple artists.', features: ['multiple communities', 'white-label', 'custom integrations', 'dedicated support', 'SLA'], cta: 'get in touch', highlight: false },
+              { name: 'indie', price: '$29', period: '/month', desc: 'For solo artists. Less than a Spotify subscription.', features: ['1 community', 'up to 500 fans', 'custom fan currency', 'replaces your Linktree + website', 'show check-ins', 'direct email to fans'], highlight: false },
+              { name: 'pro', price: '$69', period: '/month', desc: 'For artists serious about their community.', features: ['1 community', 'unlimited fans', 'custom domain', 'all core features', 'fan map & analytics', 'priority support'], highlight: true },
+              { name: 'label', price: "let's talk", period: '', desc: 'For labels and managers running multiple artists.', features: ['multiple communities', 'white-label', 'custom integrations', 'dedicated support', 'SLA'], highlight: false },
             ].map(plan => (
-              <div key={plan.name} style={{ background: plan.highlight ? 'rgba(139,26,43,0.12)' : 'rgba(245,239,230,0.04)', border: `1px solid ${plan.highlight ? 'rgba(139,26,43,0.4)' : 'rgba(245,239,230,0.08)'}`, borderRadius: 16, padding: '32px 28px' }}>
+              <div key={plan.name} style={{ background: plan.highlight ? 'rgba(139,26,43,0.12)' : 'rgba(245,239,230,0.04)', border: `1px solid ${plan.highlight ? 'rgba(139,26,43,0.4)' : 'rgba(245,239,230,0.08)'}`, borderRadius: 16, padding: '32px 28px', position: 'relative', opacity: 0.85 }}>
+                <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(201,146,42,0.15)', border: '1px solid rgba(201,146,42,0.3)', borderRadius: 10, padding: '3px 10px', fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#C9922A', letterSpacing: '1px' }}>coming soon</div>
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: plan.highlight ? '#8B1A2B' : 'rgba(245,239,230,0.4)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 16 }}>{plan.name}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
                   <span style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-1px' }}>{plan.price}</span>
@@ -396,11 +425,15 @@ function MarketingPage() {
                 <div style={{ marginBottom: 28 }}>
                   {plan.features.map(f => <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', fontSize: 13, color: 'rgba(245,239,230,0.7)' }}><span style={{ color: '#8B1A2B', fontFamily: "'DM Mono', monospace" }}>✓</span> {f}</div>)}
                 </div>
-                <a href="/start?join=1" style={{ display: 'block', textAlign: 'center', width: '100%', padding: plan.highlight ? '14px' : '12px', background: plan.highlight ? '#8B1A2B' : 'transparent', color: '#F5EFE6', border: plan.highlight ? 'none' : '1px solid rgba(245,239,230,0.25)', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>{plan.cta}</a>
               </div>
             ))}
           </div>
-          <div style={{ textAlign: 'center', marginTop: 32, fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>14-day free trial · no credit card required · cancel anytime · no revenue share ever</div>
+
+          <div style={{ textAlign: 'center', marginTop: 40, padding: '24px', background: 'rgba(245,239,230,0.03)', borderRadius: 12, border: '1px solid rgba(245,239,230,0.06)' }}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>free while we're building</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: 'rgba(245,239,230,0.4)', marginBottom: 20 }}>sign up now, get in early, shape what we build next</div>
+            <a href="/start?join=1" className="cta-btn" style={{ fontSize: 14, padding: '14px 36px' }}>launch your community free ✦</a>
+          </div>
         </div>
       </section>
 
