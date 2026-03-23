@@ -1,0 +1,67 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#8B1A2B" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0E0C0F" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="20%" cy="80%" r="40%">
+      <stop offset="0%" stop-color="#C9922A" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#0E0C0F" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0E0C0F"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+
+  <!-- Subtle grid lines -->
+  <line x1="0" y1="315" x2="1200" y2="315" stroke="#F5EFE6" stroke-opacity="0.03" stroke-width="1"/>
+  <line x1="600" y1="0" x2="600" y2="630" stroke="#F5EFE6" stroke-opacity="0.03" stroke-width="1"/>
+
+  <!-- Top border accent -->
+  <rect x="0" y="0" width="1200" height="2" fill="#8B1A2B" opacity="0.6"/>
+
+  <!-- Logo mark -->
+  <rect x="88" y="68" width="52" height="52" rx="12" fill="#8B1A2B"/>
+  <text x="114" y="102" font-family="Georgia, serif" font-size="26" fill="#F5EFE6" text-anchor="middle">✦</text>
+
+  <!-- flock wordmark -->
+  <text x="156" y="105" font-family="'DM Sans', -apple-system, sans-serif" font-size="32" font-weight="700" fill="#F5EFE6" letter-spacing="-0.5">flock</text>
+
+  <!-- Eyebrow -->
+  <text x="88" y="200" font-family="'DM Mono', 'Courier New', monospace" font-size="13" fill="#8B1A2B" letter-spacing="3" text-transform="uppercase">✦ FAN COMMUNITIES FOR INDEPENDENT ARTISTS</text>
+
+  <!-- Main headline -->
+  <text x="88" y="286" font-family="'DM Sans', -apple-system, sans-serif" font-size="72" font-weight="700" fill="#F5EFE6" letter-spacing="-2">social media</text>
+  <text x="88" y="366" font-family="'DM Sans', -apple-system, sans-serif" font-size="72" font-weight="700" fill="#8B1A2B" letter-spacing="-2">broke</text>
+  <text x="240" y="366" font-family="'DM Sans', -apple-system, sans-serif" font-size="72" font-weight="700" fill="#F5EFE6" letter-spacing="-2"> the relationship.</text>
+
+  <!-- Subline -->
+  <text x="88" y="432" font-family="'DM Sans', -apple-system, sans-serif" font-size="22" fill="#F5EFE6" opacity="0.5">Your community. Your currency. Your fans. Yours forever.</text>
+
+  <!-- Divider -->
+  <line x1="88" y1="480" x2="400" y2="480" stroke="#F5EFE6" stroke-opacity="0.1" stroke-width="1"/>
+
+  <!-- Feature pills -->
+  <rect x="88" y="500" width="140" height="34" rx="17" fill="#F5EFE6" fill-opacity="0.06" stroke="#F5EFE6" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="158" y="522" font-family="'DM Mono', 'Courier New', monospace" font-size="11" fill="#F5EFE6" fill-opacity="0.6" text-anchor="middle" letter-spacing="0.5">fan currency</text>
+
+  <rect x="240" y="500" width="130" height="34" rx="17" fill="#F5EFE6" fill-opacity="0.06" stroke="#F5EFE6" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="305" y="522" font-family="'DM Mono', 'Courier New', monospace" font-size="11" fill="#F5EFE6" fill-opacity="0.6" text-anchor="middle" letter-spacing="0.5">your domain</text>
+
+  <rect x="382" y="500" width="130" height="34" rx="17" fill="#F5EFE6" fill-opacity="0.06" stroke="#F5EFE6" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="447" y="522" font-family="'DM Mono', 'Courier New', monospace" font-size="11" fill="#F5EFE6" fill-opacity="0.6" text-anchor="middle" letter-spacing="0.5">direct email</text>
+
+  <rect x="524" y="500" width="130" height="34" rx="17" fill="#F5EFE6" fill-opacity="0.06" stroke="#F5EFE6" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="589" y="522" font-family="'DM Mono', 'Courier New', monospace" font-size="11" fill="#F5EFE6" fill-opacity="0.6" text-anchor="middle" letter-spacing="0.5">show check-ins</text>
+
+  <!-- URL -->
+  <text x="88" y="594" font-family="'DM Mono', 'Courier New', monospace" font-size="14" fill="#8B1A2B" letter-spacing="1">fans-flock.com</text>
+
+  <!-- Right side decorative element -->
+  <circle cx="1020" cy="315" r="180" fill="none" stroke="#F5EFE6" stroke-opacity="0.03" stroke-width="1"/>
+  <circle cx="1020" cy="315" r="120" fill="none" stroke="#F5EFE6" stroke-opacity="0.04" stroke-width="1"/>
+  <circle cx="1020" cy="315" r="60" fill="none" stroke="#8B1A2B" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="1020" y="330" font-family="Georgia, serif" font-size="48" fill="#8B1A2B" fill-opacity="0.3" text-anchor="middle">✦</text>
+</svg>

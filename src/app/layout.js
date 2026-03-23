@@ -41,6 +41,21 @@ export default async function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
         <title>{tenantName} · flock</title>
+        <meta name="description" content={`${tenantName} fan community. Earn points, unlock rewards, connect directly with the artists.`} />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={`${tenantName} · flock`} />
+        <meta property="og:title" content={`${tenantName} · fan community`} />
+        <meta property="og:description" content={`Join the ${tenantName} fan community. Earn points, unlock rewards, connect directly with the artists.`} />
+        <meta property="og:image" content="https://fans-flock.com/og-community.png" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${tenantName} · fan community`} />
+        <meta name="twitter:description" content={`Join the ${tenantName} fan community. Earn points, unlock rewards, connect directly with the artists.`} />
+        <meta name="twitter:image" content="https://fans-flock.com/og-community.png" />
+
         <style dangerouslySetInnerHTML={{ __html: cssVars }} />
       </head>
       <body>

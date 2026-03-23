@@ -242,6 +242,26 @@ function OnboardingForm() {
 
 // ============ MARKETING PAGE ============
 function MarketingPage() {
+  useEffect(() => {
+    // Set meta tags for link previews
+    const setMeta = (prop, content, attr = 'property') => {
+      let el = document.querySelector(`meta[${attr}="${prop}"]`);
+      if (!el) { el = document.createElement('meta'); el.setAttribute(attr, prop); document.head.appendChild(el); }
+      el.setAttribute('content', content);
+    };
+    document.title = 'flock · fan communities for independent artists';
+    setMeta('description', 'Social media broke the artist-fan relationship. Flock gives it back. Your community, your currency, your rules.', 'name');
+    setMeta('og:type', 'website');
+    setMeta('og:title', 'flock · fan communities for independent artists');
+    setMeta('og:description', 'Social media broke the artist-fan relationship. Flock gives it back. Your community, your currency, your rules.');
+    setMeta('og:image', 'https://fans-flock.com/og.png');
+    setMeta('og:url', 'https://fans-flock.com/start');
+    setMeta('twitter:card', 'summary_large_image', 'name');
+    setMeta('twitter:title', 'flock · fan communities for independent artists', 'name');
+    setMeta('twitter:description', 'Social media broke the artist-fan relationship. Flock gives it back.', 'name');
+    setMeta('twitter:image', 'https://fans-flock.com/og.png', 'name');
+  }, []);
+
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#0E0C0F', color: '#F5EFE6', minHeight: '100vh' }}>
       <style>{`
