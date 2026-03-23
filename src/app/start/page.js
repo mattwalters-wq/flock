@@ -57,6 +57,12 @@ function OnboardingForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'something went wrong'); setLoading(false); return; }
+
+      // Sign the user in before redirecting to their new community
+      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      await sb.auth.signInWithPassword({ email: account.email, password: account.password });
+
+      // Redirect to their new community - they'll land logged in
       window.location.href = `https://${community.slug}.${APP_DOMAIN}?welcome=1`;
     } catch (e) { setError(e.message); setLoading(false); }
   };
