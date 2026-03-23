@@ -56,7 +56,7 @@ function Overview({ supabase, tenantId }) {
     { label: 'members', value: stats.members, color: SAGE },
     { label: 'posts', value: stats.posts, color: RUBY },
     { label: 'shows', value: stats.shows, color: WARM_GOLD },
-    { label: 'stamps awarded', value: stats.totalStamps, color: '#6B5B8D' },
+    { label: 'points awarded', value: stats.totalStamps, color: '#6B5B8D' },
     { label: 'pending rewards', value: stats.pendingClaims, color: stats.pendingClaims > 0 ? RUBY : SLATE },
   ];
 
@@ -369,7 +369,7 @@ function StampsManager({ supabase, tenantId }) {
     <div>
       <Heading size={22} style={{ marginBottom: 18 }}>stamps</Heading>
 
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>stamp actions</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>point actions</div>
       <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, marginBottom: 24 }}>
         {actions.map((action, i) => (
           <div key={action.id} style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: i < actions.length - 1 ? `1px solid ${BORDER}` : 'none', opacity: action.is_active ? 1 : 0.5 }}>

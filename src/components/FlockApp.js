@@ -781,7 +781,7 @@ export function FlockApp() {
   const mainTabs = [
     { id: 'feed', label: 'feed', icon: '◎' },
     { id: 'shows', label: 'shows', icon: '♫' },
-    { id: 'stamps', label: 'stamps', icon: '✦' },
+    { id: 'stamps', label: 'points', icon: '✦' },
     { id: 'you', label: 'you', icon: '○' },
   ];
 
@@ -1014,9 +1014,9 @@ export function FlockApp() {
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
             <div style={{ background: INK, borderRadius: 10, padding: '30px 22px', textAlign: 'center', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 50% 0%, ${RUBY}15, transparent 70%)` }} />
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12, position: 'relative' }}>your collection</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12, position: 'relative' }}>your points</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 56, fontWeight: 700, color: CREAM, position: 'relative' }}>{userStamps}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '77', marginTop: 6, position: 'relative' }}>stamps collected · {currentLevel.name}</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '77', marginTop: 6, position: 'relative' }}>points collected · {currentLevel.name}</div>
               {nextLevel && (
                 <>
                   <div style={{ marginTop: 18, background: CREAM + '15', borderRadius: 2, height: 4, overflow: 'hidden', position: 'relative' }}>
@@ -1049,7 +1049,7 @@ export function FlockApp() {
                       {claimed ? (
                         <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>✦ {claimStatus || 'claimed'}</span>
                       ) : (
-                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward ✦</button>
+                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward</button>
                       )}
                     </div>
                   )}
@@ -1059,7 +1059,7 @@ export function FlockApp() {
 
             {stampActions.length > 0 && (
               <>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 18, marginBottom: 10 }}>earn stamps</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 18, marginBottom: 10 }}>earn points</div>
                 <div style={{ background: SURFACE, borderRadius: 10, padding: '16px 18px', border: `1px solid ${BORDER}`, marginBottom: 18 }}>
                   {stampActions.map((action, i) => (
                     <div key={action.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < stampActions.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
@@ -1074,7 +1074,7 @@ export function FlockApp() {
 
             {topCollectors.length > 0 && (
               <>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>top collectors</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>top fans</div>
                 <div style={{ background: SURFACE, borderRadius: 10, padding: '12px 18px', border: `1px solid ${BORDER}` }}>
                   {topCollectors.map((u, i) => (
                     <div key={u.display_name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < topCollectors.length - 1 ? `1px solid ${BORDER}` : 'none' }}>

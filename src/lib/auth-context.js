@@ -12,6 +12,7 @@ export function AuthProvider({ children, tenantId }) {
   const supabase = getSupabase();
 
   const fetchProfile = async (userId) => {
+    if (!tenantId) return null;
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -39,25 +40,35 @@ export function AuthProvider({ children, tenantId }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        const p = await fetchProfile(u.id);
-        setProfile(p);
+        // Small delay to allow profile creation trigger to fire
+        setTimeout(async () => {
+          const p = await fetchProfile(u.id);
+          setProfile(p);
+        }, 500);
       } else {
         setProfile(null);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [tenantId]);
 
   const signInWithEmail = async (email, password) => {
     return await supabase.auth.signInWithPassword({ email, password });
   };
 
   const signUpWithEmail = async (email, password, displayName) => {
-    return await supabase.auth.signUp({
+    // Sign up without email confirmation required
+    const result = await supabase.auth.signUp({
       email, password,
-      options: { data: { display_name: displayName, tenant_id: tenantId } },
+      options: {
+        data: { display_name: displayName, tenant_id: tenantId },
+        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      },
     });
+    // If signup succeeded and we have a session, we're good
+    // If email confirmation is required, the user needs to confirm
+    return result;
   };
 
   const signInWithGoogle = async () => {
