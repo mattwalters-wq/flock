@@ -1,26 +1,8 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  background: var(--cream, #F5EFE6);
-  color: var(--ink, #1A1018);
-}
-
-input, textarea, button, select {
-  font-family: inherit;
-}
-
-img {
-  max-width: 100%;
-  display: block;
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--cream, #F5EFE6); color: var(--ink, #1A1018); }
+input, textarea, button, select { font-family: inherit; }
+img { max-width: 100%; display: block; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }

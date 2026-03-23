@@ -21,9 +21,7 @@ export async function getTenantBySlug(slug) {
   ]);
 
   const config = {};
-  (configResult.data || []).forEach(({ key, value }) => {
-    config[key] = value;
-  });
+  (configResult.data || []).forEach(({ key, value }) => { config[key] = value; });
 
   const result = {
     ...tenant,
