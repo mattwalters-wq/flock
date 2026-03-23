@@ -7,7 +7,7 @@ export function middleware(request) {
   const { pathname } = new URL(request.url);
   const host = request.headers.get('host') || '';
 
-  // Always bypass static assets and API routes
+  // Bypass static assets and API routes
   if (
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/api/') ||
@@ -17,7 +17,7 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Root domain - pass through entirely, layout.js handles it
+  // Root domain - pass through, /start handles marketing + onboarding
   if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
     return NextResponse.next();
   }

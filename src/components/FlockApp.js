@@ -1,8 +1,7 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 
-// ============ HELPERS ============
 function timeAgo(dateStr) {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (seconds < 60) return 'just now';
@@ -15,277 +14,79 @@ function timeAgo(dateStr) {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-const DEFAULT_STAMP_LEVELS = [
+const DEFAULT_LEVELS = [
   { name: 'First Press', key: 'first_press', stamps: 0, icon: '◐', reward: null, rewardDesc: 'welcome to the community' },
   { name: 'B-Side', key: 'b_side', stamps: 50, icon: '◑', reward: 'postcard', rewardDesc: 'handwritten digital postcard from the artist' },
-  { name: 'Deep Cut', key: 'deep_cut', stamps: 150, icon: '●', reward: 'tshirt', rewardDesc: 'exclusive community t-shirt shipped to your door' },
+  { name: 'Deep Cut', key: 'deep_cut', stamps: 150, icon: '●', reward: 'tshirt', rewardDesc: 'exclusive community t-shirt' },
   { name: 'Inner Sleeve', key: 'inner_sleeve', stamps: 300, icon: '◉', reward: 'vinyl', rewardDesc: 'signed vinyl or limited edition release' },
   { name: 'Stamped', key: 'stamped', stamps: 500, icon: '✦', reward: 'zoom', rewardDesc: 'monthly group hangout with the artist' },
-  { name: 'Inner Circle', key: 'inner_circle', stamps: 1000, icon: '♛', reward: 'meetgreet', rewardDesc: 'meet and greet at a show + name in the liner notes' },
+  { name: 'Inner Circle', key: 'inner_circle', stamps: 1000, icon: '♛', reward: 'meetgreet', rewardDesc: 'meet and greet at a show' },
 ];
 
-// ============ EDIT PROFILE MODAL ============
-function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
-  const [displayName, setDisplayName] = useState(profile?.display_name || '');
-  const [bio, setBio] = useState(profile?.bio || '');
-  const [city, setCity] = useState(profile?.city || '');
-  const [saving, setSaving] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || null);
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [emailNotifications, setEmailNotifications] = useState(profile?.email_notifications !== false);
-
-  const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
-  const SLATE = 'var(--slate)'; const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)';
-  const BLUSH = 'var(--blush)';
-
-  const handleAvatarSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('image must be under 2MB'); return; }
-    setAvatarFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setAvatarPreview(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    let avatarUrl = profile?.avatar_url || null;
-
-    if (avatarFile) {
-      const ext = avatarFile.name.split('.').pop();
-      const fileName = `avatars/${tenantId}/${profile.id}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(fileName, avatarFile, { cacheControl: '3600', upsert: true });
-
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from('media').getPublicUrl(fileName);
-        avatarUrl = urlData?.publicUrl;
-      }
-    }
-
-    await onSave({ display_name: displayName, bio, city, avatar_url: avatarUrl, email_notifications: emailNotifications });
-    setSaving(false);
-    onClose();
-  };
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(26,26,26,0.6)', backdropFilter: 'blur(8px)', padding: 20,
-    }} onClick={onClose}>
-      <div style={{
-        background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto',
-        animation: 'fadeIn 0.3s ease-out',
-      }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, marginBottom: 20, textTransform: 'lowercase' }}>edit profile</div>
-
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <label style={{ cursor: 'pointer', display: 'inline-block', position: 'relative' }}>
-            <input type="file" accept="image/*" onChange={handleAvatarSelect} style={{ display: 'none' }} />
-            {avatarPreview ? (
-              <img src={avatarPreview} alt="avatar" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', border: `2px solid ${BORDER}` }} />
-            ) : (
-              <div style={{ width: 72, height: 72, borderRadius: 10, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontFamily: "'DM Mono', monospace", color: SLATE }}>
-                {displayName?.charAt(0)?.toLowerCase() || '○'}
-              </div>
-            )}
-            <div style={{ position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: '50%', background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, border: `2px solid ${CREAM}` }}>✎</div>
-          </label>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '88', marginTop: 8 }}>tap to change photo</div>
-        </div>
-
-        {[
-          { label: 'display name', value: displayName, onChange: setDisplayName, maxLength: 24 },
-          { label: 'city', value: city, onChange: setCity, placeholder: 'e.g. melbourne, london, toronto' },
-        ].map(({ label, value, onChange, maxLength, placeholder }) => (
-          <div key={label} style={{ marginBottom: 14 }}>
-            <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>{label}</label>
-            <input type="text" value={value} onChange={(e) => onChange(e.target.value)} maxLength={maxLength} placeholder={placeholder}
-              style={{ width: '100%', padding: '11px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
-          </div>
-        ))}
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>bio</label>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={160} rows={3}
-            placeholder="tell people a bit about yourself..."
-            style={{ width: '100%', padding: '11px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", resize: 'vertical', lineHeight: 1.5 }} />
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', marginTop: 4, textAlign: 'right' }}>{bio.length}/160</div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', marginBottom: 20, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-          <div>
-            <div style={{ fontSize: 13, color: INK, fontWeight: 500 }}>email notifications</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, marginTop: 2 }}>get emailed when the artist posts</div>
-          </div>
-          <button onClick={() => setEmailNotifications(!emailNotifications)} style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: emailNotifications ? RUBY : BORDER, position: 'relative', transition: 'background 0.2s' }}>
-            <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: emailNotifications ? 22 : 2, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }} />
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
-          <button onClick={handleSave} disabled={saving || !displayName.trim()} style={{ padding: '10px 20px', background: INK, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: saving || !displayName.trim() ? 0.5 : 1 }}>
-            {saving ? 'saving...' : 'save'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ CLAIM REWARD MODAL ============
-function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClose }) {
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [country, setCountry] = useState('');
-  const [postcode, setPostcode] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-
-  const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const BORDER = 'var(--border)';
-  const SLATE = 'var(--slate)'; const WARM_GOLD = 'var(--warm-gold)'; const SURFACE = 'var(--surface)';
-
-  const needsShipping = ['tshirt', 'vinyl'].includes(level.reward);
-
-  const handleClaim = async () => {
-    if (needsShipping && (!name || !address || !city || !country || !postcode)) {
-      setError('please fill in all shipping fields');
-      return;
-    }
-    setSubmitting(true);
-    setError('');
-
-    const { error: insertError } = await supabase.from('reward_claims').insert({
-      user_id: userId,
-      tenant_id: tenantId,
-      level_key: level.key,
-      reward_type: level.reward,
-      shipping_name: needsShipping ? name : null,
-      shipping_address: needsShipping ? address : null,
-      shipping_city: needsShipping ? city : null,
-      shipping_country: needsShipping ? country : null,
-      shipping_postcode: needsShipping ? postcode : null,
-    });
-
-    if (insertError) { setError(insertError.message); setSubmitting(false); return; }
-    onClaimed();
-  };
-
-  const Field = ({ label, value, onChange, placeholder }) => (
-    <div style={{ marginBottom: 10 }}>
-      <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '0.5px', display: 'block', marginBottom: 4 }}>{label}</label>
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: '100%', padding: '9px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
-    </div>
-  );
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,26,26,0.6)', backdropFilter: 'blur(8px)', padding: 20 }} onClick={onClose}>
-      <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease-out' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>{level.icon}</div>
-          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 22, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>claim your reward</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD, marginTop: 6 }}>{level.name} · {level.stamps} ✦</div>
-        </div>
-        <div style={{ background: SURFACE, borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${BORDER}` }}>
-          <div style={{ fontSize: 13, color: INK, lineHeight: 1.5 }}>{level.rewardDesc}</div>
-        </div>
-        {needsShipping && (
-          <>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 10 }}>shipping details</div>
-            <Field label="full name" value={name} onChange={setName} placeholder="your name" />
-            <Field label="address" value={address} onChange={setAddress} placeholder="street address" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-              <Field label="city" value={city} onChange={setCity} placeholder="city" />
-              <Field label="postcode" value={postcode} onChange={setPostcode} placeholder="postcode" />
-            </div>
-            <Field label="country" value={country} onChange={setCountry} placeholder="country" />
-          </>
-        )}
-        {error && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--ruby)', marginBottom: 10 }}>{error}</div>}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
-          <button onClick={handleClaim} disabled={submitting} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }}>
-            {submitting ? 'claiming...' : 'claim ✦'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============ USER PROFILE MODAL ============
-function UserProfileModal({ userId, supabase, tenantId, onClose, stampLevels }) {
-  const [prof, setProf] = useState(null);
-  const [loading, setLoading] = useState(true);
+// ============ POLL WIDGET ============
+function PollWidget({ postId, options, supabase, currentUserId, tenantId }) {
+  const [votes, setVotes] = useState({});
+  const [hasVoted, setHasVoted] = useState(false);
+  const [myVote, setMyVote] = useState(null);
 
   useEffect(() => {
-    if (!userId || !supabase) return;
+    if (!supabase || !postId) return;
     (async () => {
-      const { data } = await supabase.from('profiles').select('*').eq('id', userId).eq('tenant_id', tenantId).single();
-      setProf(data);
-      setLoading(false);
+      const { data } = await supabase.from('poll_votes').select('*').eq('post_id', postId).eq('tenant_id', tenantId);
+      if (data) {
+        const voteMap = {};
+        data.forEach(v => { voteMap[v.option_index] = (voteMap[v.option_index] || 0) + 1; });
+        setVotes(voteMap);
+        const mine = data.find(v => v.user_id === currentUserId);
+        if (mine) { setHasVoted(true); setMyVote(mine.option_index); }
+      }
     })();
-  }, [userId, supabase, tenantId]);
+  }, [postId, supabase, currentUserId, tenantId]);
 
-  if (!userId) return null;
-  const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
-  const SLATE = 'var(--slate)'; const SURFACE = 'var(--surface)'; const BLUSH = 'var(--blush)';
-  const WARM_GOLD = 'var(--warm-gold)';
+  const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
+  const RUBY = 'var(--ruby)'; const BORDER = 'var(--border)'; const INK = 'var(--ink)';
+  const SURFACE = 'var(--surface)'; const CREAM = 'var(--cream)';
 
-  const currentLevel = prof ? (stampLevels || DEFAULT_STAMP_LEVELS).filter(l => (prof.stamp_count || 0) >= l.stamps).pop() : null;
+  const handleVote = async (index) => {
+    if (hasVoted || !currentUserId) return;
+    setHasVoted(true); setMyVote(index);
+    setVotes(prev => ({ ...prev, [index]: (prev[index] || 0) + 1 }));
+    await supabase.from('poll_votes').insert({ post_id: postId, user_id: currentUserId, option_index: index, tenant_id: tenantId });
+  };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(26,16,24,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: SURFACE, borderRadius: 14, padding: '28px 24px', maxWidth: 340, width: '100%', textAlign: 'center', position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: SLATE, fontFamily: "'DM Mono', monospace" }}>×</button>
-        {loading ? (
-          <div style={{ padding: 30, fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading...</div>
-        ) : prof ? (
-          <>
-            {prof.avatar_url ? (
-              <img src={prof.avatar_url} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover', margin: '0 auto 12px', display: 'block' }} />
-            ) : (
-              <div style={{ width: 64, height: 64, borderRadius: 12, background: BLUSH + '33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, margin: '0 auto 12px', color: RUBY }}>
-                {prof.display_name?.charAt(0) || '✦'}
-              </div>
-            )}
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>{prof.display_name}</div>
-            {prof.role === 'band' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY, border: `1px solid ${RUBY}44`, padding: '2px 8px', borderRadius: 3, letterSpacing: '0.8px', display: 'inline-block', marginTop: 6 }}>artist</span>}
-            {prof.bio && <p style={{ fontSize: 12, color: SLATE, marginTop: 8, lineHeight: 1.5, fontStyle: 'italic' }}>{prof.bio}</p>}
-            {prof.city && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: BLUSH, marginTop: 4 }}>📍 {prof.city}</div>}
-            {currentLevel && (
-              <div style={{ display: 'inline-block', marginTop: 10, background: RUBY + '11', border: `1px solid ${RUBY}22`, borderRadius: 20, padding: '3px 12px' }}>
-                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY }}>{currentLevel.icon} {currentLevel.name.toLowerCase()}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 16 }}>
-              <div><div style={{ fontSize: 22, fontWeight: 700, color: RUBY }}>{prof.stamp_count || 0}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5 }}>stamps</div></div>
-              <div><div style={{ fontSize: 22, fontWeight: 700, color: WARM_GOLD }}>{prof.show_count || 0}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5 }}>shows</div></div>
+    <div style={{ marginBottom: 14 }}>
+      {options.map((opt, i) => {
+        const count = votes[i] || 0;
+        const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+        const isMyVote = myVote === i;
+        return (
+          <button key={i} onClick={() => handleVote(i)} disabled={hasVoted} style={{
+            display: 'block', width: '100%', marginBottom: 6, padding: '10px 14px',
+            background: hasVoted ? CREAM : SURFACE, border: `1px solid ${isMyVote ? RUBY + '44' : BORDER}`,
+            borderRadius: 8, cursor: hasVoted ? 'default' : 'pointer', textAlign: 'left',
+            position: 'relative', overflow: 'hidden',
+          }}>
+            {hasVoted && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: isMyVote ? RUBY + '15' : BORDER + '55', transition: 'width 0.5s ease' }} />}
+            <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, color: INK, fontWeight: isMyVote ? 600 : 400 }}>{opt}{isMyVote ? ' ✦' : ''}</span>
+              {hasVoted && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--slate)' }}>{pct}%</span>}
             </div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66', marginTop: 14 }}>
-              joined {new Date(prof.joined_at || prof.created_at).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })}
-            </div>
-          </>
-        ) : <div style={{ padding: 30, fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>user not found</div>}
-      </div>
+          </button>
+        );
+      })}
+      {totalVotes > 0 && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'var(--slate)' + '77', marginTop: 4 }}>{totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}</div>}
     </div>
   );
 }
 
-// ============ COMMENTS PANEL ============
+// ============ COMMENTS ============
 function CommentsPanel({ postId, postAuthorId, supabase, currentUserId, currentProfile, tenantId, onClose, onCommentAdded, onViewProfile }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [replyTo, setReplyTo] = useState(null);
-  const [commentImage, setCommentImage] = useState(null);
-  const [commentImagePreview, setCommentImagePreview] = useState(null);
 
   const INK = 'var(--ink)'; const RUBY = 'var(--ruby)'; const SLATE = 'var(--slate)';
   const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)'; const BLUSH = 'var(--blush)';
@@ -295,48 +96,29 @@ function CommentsPanel({ postId, postAuthorId, supabase, currentUserId, currentP
 
   const loadComments = async () => {
     setLoading(true);
-    try {
-      const { data } = await supabase.from('comments').select('*').eq('post_id', postId).eq('tenant_id', tenantId).order('created_at', { ascending: true });
-      const commentsData = data || [];
-      const authorIds = [...new Set(commentsData.map(c => c.author_id))];
-      let profileMap = {};
-      if (authorIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, display_name, role, band_member, avatar_url').in('id', authorIds);
-        if (profiles) profiles.forEach(p => { profileMap[p.id] = p; });
-      }
-      setComments(commentsData.map(c => ({ ...c, profiles: profileMap[c.author_id] || null })));
-    } catch (e) { console.error('Comments error:', e); }
+    const { data } = await supabase.from('comments').select('*').eq('post_id', postId).eq('tenant_id', tenantId).order('created_at', { ascending: true });
+    const commentsData = data || [];
+    const authorIds = [...new Set(commentsData.map(c => c.author_id))];
+    let profileMap = {};
+    if (authorIds.length > 0) {
+      const { data: profiles } = await supabase.from('profiles').select('id, display_name, role, band_member').in('id', authorIds);
+      if (profiles) profiles.forEach(p => { profileMap[p.id] = p; });
+    }
+    setComments(commentsData.map(c => ({ ...c, profiles: profileMap[c.author_id] || null })));
     setLoading(false);
   };
 
   const handleComment = async () => {
-    if ((!newComment.trim() && !commentImage) || posting || !currentUserId) return;
+    if (!newComment.trim() || posting || !currentUserId) return;
     setPosting(true);
-
-    let imageUrl = null;
-    if (commentImage) {
-      const ext = commentImage.name.split('.').pop();
-      const path = `comments/${tenantId}/${currentUserId}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('media').upload(path, commentImage, { upsert: true });
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-        imageUrl = urlData?.publicUrl || null;
-      }
-    }
-
     const insertData = { post_id: postId, author_id: currentUserId, content: newComment.trim(), tenant_id: tenantId };
-    if (imageUrl) insertData.image_url = imageUrl;
     if (replyTo) insertData.parent_id = replyTo.id;
-
     const { error } = await supabase.from('comments').insert(insertData);
     if (!error) {
-      setNewComment(''); setCommentImage(null); setCommentImagePreview(null); setReplyTo(null);
+      setNewComment(''); setReplyTo(null);
       loadComments();
-      if (currentProfile?.role === 'fan') {
-        supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'comment_created', p_tenant_id: tenantId }).catch(() => {});
-      }
+      if (onCommentAdded) onCommentAdded();
     }
-    if (onCommentAdded) onCommentAdded();
     setPosting(false);
   };
 
@@ -345,29 +127,27 @@ function CommentsPanel({ postId, postAuthorId, supabase, currentUserId, currentP
 
   const renderComment = (c, depth = 0) => {
     const prof = c.profiles || {};
+    const displayName = prof.display_name || 'fan';
     const isBand = prof.role === 'band';
-    const displayName = isBand ? (prof.display_name || 'artist') : (prof.display_name || 'fan');
     const canDelete = c.author_id === currentUserId || currentProfile?.role === 'admin' || currentProfile?.role === 'band';
     const replies = getReplies(c.id);
-    const indent = Math.min(depth, 2) * 16;
 
     const body = (
       <>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-          <span onClick={() => onViewProfile && onViewProfile(c.author_id)} style={{ fontSize: 12, fontWeight: 600, color: INK, cursor: 'pointer' }}>{displayName?.toLowerCase()}</span>
-          {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: RUBY, border: `1px solid ${RUBY}44`, padding: '0px 5px', borderRadius: 2 }}>artist</span>}
+          <span onClick={() => onViewProfile?.(c.author_id)} style={{ fontSize: 12, fontWeight: 600, color: INK, cursor: 'pointer' }}>{displayName?.toLowerCase()}</span>
+          {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: RUBY, border: `1px solid ${RUBY}44`, padding: '0 5px', borderRadius: 2 }}>artist</span>}
           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '88', marginLeft: 'auto' }}>{timeAgo(c.created_at)}</span>
-          <button onClick={() => setReplyTo({ id: c.id, name: displayName, authorId: c.author_id })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE + '55', fontSize: 10, fontFamily: "'DM Mono', monospace", padding: '0 2px' }}>reply</button>
-          {canDelete && <button onClick={async () => { await supabase.from('comments').delete().eq('id', c.id); setComments(prev => prev.filter(x => x.id !== c.id && x.parent_id !== c.id)); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: RUBY + '55', fontSize: 13, padding: '0 2px' }}>×</button>}
+          <button onClick={() => setReplyTo({ id: c.id, name: displayName, authorId: c.author_id })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE + '55', fontSize: 10, fontFamily: "'DM Mono', monospace" }}>reply</button>
+          {canDelete && <button onClick={async () => { await supabase.from('comments').delete().eq('id', c.id); setComments(prev => prev.filter(x => x.id !== c.id && x.parent_id !== c.id)); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: RUBY + '55', fontSize: 13 }}>×</button>}
         </div>
-        {c.content && <p style={{ fontSize: 12.5, color: INK + 'CC', lineHeight: 1.5, margin: 0 }}>{c.content}</p>}
-        {c.image_url && <img src={c.image_url} alt="" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, marginTop: 6, display: 'block' }} />}
+        <p style={{ fontSize: 12.5, color: INK + 'CC', lineHeight: 1.5, margin: 0 }}>{c.content}</p>
       </>
     );
 
     return (
       <div key={c.id}>
-        <div style={{ paddingLeft: indent, padding: `8px 0 8px ${indent}px`, borderBottom: depth === 0 ? `1px solid ${BORDER}` : 'none' }}>
+        <div style={{ paddingLeft: Math.min(depth, 2) * 16, padding: `8px 0 8px ${Math.min(depth, 2) * 16}px`, borderBottom: depth === 0 ? `1px solid ${BORDER}` : 'none' }}>
           {depth > 0 ? <div style={{ borderLeft: `2px solid ${BLUSH}44`, paddingLeft: 10 }}>{body}</div> : body}
         </div>
         {replies.map(r => renderComment(r, depth + 1))}
@@ -376,32 +156,23 @@ function CommentsPanel({ postId, postAuthorId, supabase, currentUserId, currentP
   };
 
   return (
-    <div style={{ background: SURFACE, borderRadius: '0 0 10px 10px', padding: '16px', marginTop: -4, marginBottom: 10, border: `1px solid ${BORDER}`, borderTop: 'none' }}>
+    <div style={{ background: SURFACE, borderRadius: '0 0 10px 10px', padding: 16, marginTop: -4, marginBottom: 10, border: `1px solid ${BORDER}`, borderTop: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, letterSpacing: '0.5px' }}>{comments.length} {comments.length === 1 ? 'comment' : 'comments'}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE, fontFamily: "'DM Mono', monospace" }}>×</button>
+        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>{comments.length} {comments.length === 1 ? 'comment' : 'comments'}</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE }}>×</button>
       </div>
-      {loading ? <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, padding: '8px 0' }}>loading...</div> : topLevel.map(c => renderComment(c, 0))}
+      {loading ? <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading...</div> : topLevel.map(c => renderComment(c, 0))}
       {replyTo && (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: BLUSH + '22', borderRadius: 6, fontSize: 11, color: SLATE }}>
           <span>replying to <strong style={{ color: INK }}>{replyTo.name?.toLowerCase()}</strong></span>
           <button onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE, fontSize: 13, marginLeft: 'auto' }}>×</button>
         </div>
       )}
-      {commentImagePreview && (
-        <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }}>
-          <img src={commentImagePreview} alt="preview" style={{ maxWidth: '100%', maxHeight: 120, borderRadius: 6, border: `1px solid ${BORDER}` }} />
-          <button onClick={() => { setCommentImage(null); setCommentImagePreview(null); }} style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%', background: INK + 'CC', color: CREAM, border: 'none', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-        </div>
-      )}
       <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
-        <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleComment()}
+        <input type="text" value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleComment()}
           placeholder={replyTo ? `reply to ${replyTo.name?.toLowerCase()}...` : 'reply...'}
           style={{ flex: 1, padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
-        <label style={{ cursor: 'pointer', padding: '4px 6px', color: SLATE + '88', fontSize: 13 }}>
-          <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; setCommentImage(f); const r = new FileReader(); r.onload = ev => setCommentImagePreview(ev.target.result); r.readAsDataURL(f); }} style={{ display: 'none' }} />+
-        </label>
-        <button onClick={handleComment} disabled={(!newComment.trim() && !commentImage) || posting} style={{ padding: '9px 14px', background: (newComment.trim() || commentImage) ? RUBY : BORDER, color: (newComment.trim() || commentImage) ? CREAM : SLATE + '66', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: (newComment.trim() || commentImage) ? 'pointer' : 'default' }}>
+        <button onClick={handleComment} disabled={!newComment.trim() || posting} style={{ padding: '9px 14px', background: newComment.trim() ? RUBY : BORDER, color: newComment.trim() ? CREAM : SLATE + '66', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: newComment.trim() ? 'pointer' : 'default' }}>
           {posting ? '...' : 'reply'}
         </button>
       </div>
@@ -410,7 +181,7 @@ function CommentsPanel({ postId, postAuthorId, supabase, currentUserId, currentP
 }
 
 // ============ POST CARD ============
-function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, onRefresh, onViewProfile }) {
+function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, currencyName, onRefresh, onViewProfile }) {
   const [liked, setLiked] = useState(post.user_has_liked || false);
   const [likeCount, setLikeCount] = useState(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
@@ -427,56 +198,43 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
   const memberKey = post.profiles?.band_member;
   const memberInfo = memberKey ? memberMap[memberKey] : null;
   const memberColor = memberInfo?.accentColor;
-  const isOwnPost = post.author_id === currentUserId;
   const canModerate = currentProfile?.role === 'admin' || currentProfile?.role === 'band';
-  const canDelete = isOwnPost || canModerate;
+  const canDelete = post.author_id === currentUserId || canModerate;
   const displayName = post.profiles?.display_name || 'unknown';
 
   const handleLike = async () => {
     if (!currentUserId) return;
     const newLiked = !liked;
-    setLiked(newLiked);
-    setLikeCount(c => c + (newLiked ? 1 : -1));
-    if (newLiked) {
-      await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUserId, tenant_id: tenantId });
-    } else {
-      await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', currentUserId);
-    }
+    setLiked(newLiked); setLikeCount(c => c + (newLiked ? 1 : -1));
+    if (newLiked) await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUserId, tenant_id: tenantId });
+    else await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', currentUserId);
   };
-
-  const handleDelete = async () => {
-    await supabase.from('posts').delete().eq('id', post.id);
-    setShowMenu(false);
-    if (onRefresh) onRefresh();
-  };
-
-  const avatar = post.profiles?.avatar_url;
 
   return (
     <>
       <div style={{
         background: SURFACE, borderRadius: 10, padding: '18px 20px', marginBottom: showComments ? 0 : 10,
-        border: `1px solid ${BORDER}`, position: 'relative',
-        borderLeft: isBand && memberColor ? `3px solid ${memberColor}` : undefined,
+        border: `1px solid ${post.is_highlight ? WARM_GOLD + '44' : BORDER}`,
+        borderLeft: isBand && memberColor ? `3px solid ${memberColor}` : post.is_highlight ? `3px solid ${WARM_GOLD}` : undefined,
       }}>
+        {post.is_pinned && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: WARM_GOLD, border: `1px solid ${WARM_GOLD}44`, padding: '2px 8px', borderRadius: 3, display: 'inline-block', marginBottom: 8 }}>pinned</div>}
+        {post.is_highlight && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: WARM_GOLD, border: `1px solid ${WARM_GOLD}44`, padding: '2px 8px', borderRadius: 3, display: 'inline-block', marginBottom: 8, marginLeft: post.is_pinned ? 6 : 0 }}>✦ highlight</div>}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          {avatar && !isBand && !isAdmin ? (
-            <img src={avatar} alt="" style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover' }} />
+          {post.profiles?.avatar_url && !isBand && !isAdmin ? (
+            <img src={post.profiles.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover' }} />
           ) : (
-            <div style={{
-              width: 34, height: 34, borderRadius: 6,
-              background: isBand && memberColor ? memberColor : (isBand || isAdmin) ? INK : BLUSH + '33',
-              color: (isBand || isAdmin) ? CREAM : SLATE,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontFamily: "'DM Mono', monospace", fontWeight: 600,
-            }}>{(isBand || isAdmin) ? '✦' : displayName.charAt(0).toLowerCase()}</div>
+            <div style={{ width: 34, height: 34, borderRadius: 6, background: isBand && memberColor ? memberColor : (isBand || isAdmin) ? INK : BLUSH + '33', color: (isBand || isAdmin) ? CREAM : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>
+              {(isBand || isAdmin) ? '✦' : displayName.charAt(0).toLowerCase()}
+            </div>
           )}
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span onClick={() => onViewProfile && onViewProfile(post.author_id)} style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: INK, cursor: 'pointer' }}>
+              <span onClick={() => onViewProfile?.(post.author_id)} style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: INK, cursor: 'pointer' }}>
                 {isBand ? (memberInfo?.name?.toLowerCase() || displayName?.toLowerCase()) : displayName?.toLowerCase()}
               </span>
               {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, fontWeight: 500, color: memberColor || RUBY, border: `1px solid ${(memberColor || RUBY)}55`, padding: '1px 6px', borderRadius: 2, letterSpacing: '0.8px', textTransform: 'uppercase' }}>artist</span>}
+              {post.tag && post.tag !== 'general' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: BLUSH, border: `1px solid ${BLUSH}44`, padding: '1px 5px', borderRadius: 2 }}>{post.tag}</span>}
             </div>
             <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '99' }}>{timeAgo(post.created_at)}</span>
           </div>
@@ -484,28 +242,31 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
             <div style={{ position: 'relative' }}>
               <button onClick={() => setShowMenu(!showMenu)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', fontFamily: "'DM Mono', monospace", fontSize: 16, color: SLATE + '55', lineHeight: 1 }}>···</button>
               {showMenu && (
-                <div style={{ position: 'absolute', right: 0, top: 28, background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 10, minWidth: 120 }}>
+                <div style={{ position: 'absolute', right: 0, top: 28, background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 10, minWidth: 140 }}>
                   {canModerate && (
-                    <button onClick={async () => { await supabase.from('posts').update({ is_pinned: !post.is_pinned }).eq('id', post.id); onRefresh(); setShowMenu(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: WARM_GOLD, textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>
-                      {post.is_pinned ? 'unpin post' : 'pin post'}
-                    </button>
+                    <>
+                      <button onClick={async () => { await supabase.from('posts').update({ is_pinned: !post.is_pinned }).eq('id', post.id); onRefresh?.(); setShowMenu(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: WARM_GOLD, textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>
+                        {post.is_pinned ? 'unpin' : 'pin post'}
+                      </button>
+                      <button onClick={async () => { await supabase.from('posts').update({ is_highlight: !post.is_highlight }).eq('id', post.id); onRefresh?.(); setShowMenu(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: WARM_GOLD, textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>
+                        {post.is_highlight ? 'remove highlight' : '✦ highlight'}
+                      </button>
+                    </>
                   )}
-                  {canDelete && (
-                    <button onClick={handleDelete} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: RUBY, textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>delete post</button>
-                  )}
+                  <button onClick={async () => { await supabase.from('posts').delete().eq('id', post.id); setShowMenu(false); onRefresh?.(); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: RUBY, textAlign: 'left', fontFamily: "'DM Sans', sans-serif" }}>delete</button>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13.5, lineHeight: 1.65, color: INK + 'CC', margin: '0 0 14px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.content}</p>
+        {post.content && <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13.5, lineHeight: 1.65, color: INK + 'CC', margin: '0 0 14px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.content}</p>}
 
-        {(post.images && post.images.length > 1) ? (
+        {post.poll_options?.length > 0 && <PollWidget postId={post.id} options={post.poll_options} supabase={supabase} currentUserId={currentUserId} tenantId={tenantId} />}
+
+        {(post.images?.length > 1) ? (
           <div style={{ marginBottom: 14, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            {post.images.map((url, i) => (
-              <img key={i} src={url} alt="" onClick={() => setLightboxUrl(url)} style={{ width: post.images.length === 2 ? 'calc(50% - 2px)' : 'calc(33.33% - 3px)', height: 160, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER}`, cursor: 'pointer' }} />
-            ))}
+            {post.images.map((url, i) => <img key={i} src={url} alt="" onClick={() => setLightboxUrl(url)} style={{ width: post.images.length === 2 ? 'calc(50% - 2px)' : 'calc(33.33% - 3px)', height: 160, objectFit: 'cover', borderRadius: 6, border: `1px solid ${BORDER}`, cursor: 'pointer' }} />)}
           </div>
         ) : post.image_url && (
           <div style={{ marginBottom: 14 }}>
@@ -517,7 +278,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
           <div style={{ marginBottom: 14, background: CREAM, borderRadius: 10, padding: '12px 14px', border: `1px solid ${BORDER}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               <span style={{ fontSize: 16, color: RUBY }}>♫</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, letterSpacing: '0.5px' }}>audio</span>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>audio</span>
             </div>
             <audio controls preload="metadata" style={{ width: '100%', height: 36, borderRadius: 8 }}>
               <source src={post.audio_url} />
@@ -526,9 +287,8 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
         )}
 
         <div style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
-          <button onClick={handleLike} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'DM Mono', monospace", fontSize: 12, color: liked ? RUBY : SLATE + '88', fontWeight: liked ? 600 : 400, padding: 0 }}>
-            <span style={{ fontSize: 14 }}>{liked ? '♥' : '♡'}</span>
-            <span>{likeCount}</span>
+          <button onClick={handleLike} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'DM Mono', monospace", fontSize: 12, color: liked ? RUBY : SLATE + '88', padding: 0 }}>
+            <span style={{ fontSize: 14 }}>{liked ? '♥' : '♡'}</span><span>{likeCount}</span>
           </button>
           <button onClick={() => setShowComments(!showComments)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: "'DM Mono', monospace", fontSize: 12, color: showComments ? INK : SLATE + '88', padding: 0 }}>
             ↩ {commentCount}
@@ -538,20 +298,185 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
 
       {lightboxUrl && (
         <div onClick={() => setLightboxUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <img src={lightboxUrl} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 6, objectFit: 'contain' }} />
+          <img src={lightboxUrl} alt="" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 6, objectFit: 'contain' }} />
           <button onClick={() => setLightboxUrl(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 22, width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
       )}
 
       {showComments && (
-        <CommentsPanel
-          postId={post.id} postAuthorId={post.author_id} supabase={supabase}
-          currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId}
-          onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)}
-          onViewProfile={onViewProfile}
-        />
+        <CommentsPanel postId={post.id} postAuthorId={post.author_id} supabase={supabase} currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId} onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)} onViewProfile={onViewProfile} />
       )}
     </>
+  );
+}
+
+// ============ USER PROFILE MODAL ============
+function UserProfileModal({ userId, supabase, tenantId, onClose, levels, currencyName }) {
+  const [prof, setProf] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const INK = 'var(--ink)'; const RUBY = 'var(--ruby)'; const SLATE = 'var(--slate)';
+  const SURFACE = 'var(--surface)'; const BLUSH = 'var(--blush)'; const WARM_GOLD = 'var(--warm-gold)';
+  const CREAM = 'var(--cream)';
+
+  useEffect(() => {
+    if (!userId || !supabase) return;
+    supabase.from('profiles').select('*').eq('id', userId).eq('tenant_id', tenantId).single().then(({ data }) => { setProf(data); setLoading(false); });
+  }, [userId]);
+
+  if (!userId) return null;
+  const currentLevel = prof ? (levels || DEFAULT_LEVELS).filter(l => (prof.stamp_count || 0) >= l.stamps).pop() : null;
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(26,16,24,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: SURFACE, borderRadius: 14, padding: '28px 24px', maxWidth: 340, width: '100%', textAlign: 'center', position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: SLATE }}>×</button>
+        {loading ? <div style={{ padding: 30, fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading...</div> : prof ? (
+          <>
+            {prof.avatar_url ? <img src={prof.avatar_url} alt="" style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover', margin: '0 auto 12px', display: 'block' }} /> : (
+              <div style={{ width: 64, height: 64, borderRadius: 12, background: BLUSH + '33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, margin: '0 auto 12px', color: RUBY }}>{prof.display_name?.charAt(0) || '✦'}</div>
+            )}
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>{prof.display_name}</div>
+            {prof.bio && <p style={{ fontSize: 12, color: SLATE, marginTop: 8, lineHeight: 1.5, fontStyle: 'italic' }}>{prof.bio}</p>}
+            {prof.city && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: BLUSH, marginTop: 4 }}>📍 {prof.city}</div>}
+            {currentLevel && <div style={{ display: 'inline-block', marginTop: 10, background: RUBY + '11', border: `1px solid ${RUBY}22`, borderRadius: 20, padding: '3px 12px' }}><span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY }}>{currentLevel.icon} {currentLevel.name.toLowerCase()}</span></div>}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 16 }}>
+              <div><div style={{ fontSize: 22, fontWeight: 700, color: RUBY }}>{prof.stamp_count || 0}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5 }}>{currencyName}</div></div>
+              <div><div style={{ fontSize: 22, fontWeight: 700, color: WARM_GOLD }}>{prof.show_count || 0}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5 }}>shows</div></div>
+            </div>
+          </>
+        ) : <div style={{ padding: 30, fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>not found</div>}
+      </div>
+    </div>
+  );
+}
+
+// ============ CLAIM REWARD MODAL ============
+function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClose }) {
+  const [name, setName] = useState(''); const [address, setAddress] = useState('');
+  const [city, setCity] = useState(''); const [country, setCountry] = useState('');
+  const [postcode, setPostcode] = useState(''); const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const needsShipping = ['tshirt', 'vinyl'].includes(level.reward);
+  const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const BORDER = 'var(--border)';
+  const SLATE = 'var(--slate)'; const WARM_GOLD = 'var(--warm-gold)'; const SURFACE = 'var(--surface)';
+  const RUBY = 'var(--ruby)';
+
+  const handleClaim = async () => {
+    if (needsShipping && (!name || !address || !city || !country || !postcode)) { setError('please fill in all shipping fields'); return; }
+    setSubmitting(true);
+    const { error: e } = await supabase.from('reward_claims').insert({ user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending', shipping_name: needsShipping ? name : null, shipping_address: needsShipping ? address : null, shipping_city: needsShipping ? city : null, shipping_country: needsShipping ? country : null, shipping_postcode: needsShipping ? postcode : null });
+    if (e) { setError(e.message); setSubmitting(false); return; }
+    onClaimed();
+  };
+
+  const F = ({ label, value, onChange, placeholder }) => (
+    <div style={{ marginBottom: 10 }}>
+      <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 4 }}>{label}</label>
+      <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ width: '100%', padding: '9px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
+    </div>
+  );
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,26,26,0.6)', backdropFilter: 'blur(8px)', padding: 20 }} onClick={onClose}>
+      <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease-out' }} onClick={e => e.stopPropagation()}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>{level.icon}</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>claim your reward</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD, marginTop: 6 }}>{level.name} · {level.stamps} ✦</div>
+        </div>
+        <div style={{ background: SURFACE, borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: 13, color: INK, lineHeight: 1.5 }}>{level.rewardDesc}</div>
+        </div>
+        {needsShipping && (
+          <>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 10 }}>shipping details</div>
+            <F label="full name" value={name} onChange={setName} placeholder="your name" />
+            <F label="address" value={address} onChange={setAddress} placeholder="street address" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+              <F label="city" value={city} onChange={setCity} placeholder="city" />
+              <F label="postcode" value={postcode} onChange={setPostcode} placeholder="postcode" />
+            </div>
+            <F label="country" value={country} onChange={setCountry} placeholder="country" />
+          </>
+        )}
+        {error && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, marginBottom: 12 }}>{error}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+          <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
+          <button onClick={handleClaim} disabled={submitting} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }}>
+            {submitting ? 'claiming...' : 'claim ✦'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ EDIT PROFILE MODAL ============
+function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
+  const [displayName, setDisplayName] = useState(profile?.display_name || '');
+  const [bio, setBio] = useState(profile?.bio || '');
+  const [city, setCity] = useState(profile?.city || '');
+  const [saving, setSaving] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(profile?.avatar_url || null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [emailNotifications, setEmailNotifications] = useState(profile?.email_notifications !== false);
+
+  const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
+  const SLATE = 'var(--slate)'; const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)';
+
+  const handleSave = async () => {
+    setSaving(true);
+    let avatarUrl = profile?.avatar_url || null;
+    if (avatarFile) {
+      const ext = avatarFile.name.split('.').pop();
+      const { error: upErr } = await supabase.storage.from('media').upload(`avatars/${tenantId}/${profile.id}.${ext}`, avatarFile, { cacheControl: '3600', upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(`avatars/${tenantId}/${profile.id}.${ext}`);
+        avatarUrl = urlData?.publicUrl;
+      }
+    }
+    await onSave({ display_name: displayName, bio, city, avatar_url: avatarUrl, email_notifications: emailNotifications });
+    setSaving(false); onClose();
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,26,26,0.6)', backdropFilter: 'blur(8px)', padding: 20 }} onClick={onClose}>
+      <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, marginBottom: 20, textTransform: 'lowercase' }}>edit profile</div>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <label style={{ cursor: 'pointer', display: 'inline-block', position: 'relative' }}>
+            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 2 * 1024 * 1024) { alert('image must be under 2MB'); return; } setAvatarFile(f); const r = new FileReader(); r.onload = ev => setAvatarPreview(ev.target.result); r.readAsDataURL(f); }} style={{ display: 'none' }} />
+            {avatarPreview ? <img src={avatarPreview} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', border: `2px solid ${BORDER}` }} /> : <div style={{ width: 72, height: 72, borderRadius: 10, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: SLATE }}>{displayName?.charAt(0)?.toLowerCase() || '○'}</div>}
+            <div style={{ position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: '50%', background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✎</div>
+          </label>
+        </div>
+        {[{ label: 'display name', value: displayName, onChange: setDisplayName }, { label: 'city', value: city, onChange: setCity }].map(({ label, value, onChange }) => (
+          <div key={label} style={{ marginBottom: 14 }}>
+            <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>{label}</label>
+            <input type="text" value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '11px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+          </div>
+        ))}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>bio</label>
+          <textarea value={bio} onChange={e => setBio(e.target.value)} maxLength={160} rows={3} style={{ width: '100%', padding: '11px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", resize: 'vertical', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', marginBottom: 20, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
+          <div>
+            <div style={{ fontSize: 13, color: INK, fontWeight: 500 }}>email notifications</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, marginTop: 2 }}>get emailed when the artist posts</div>
+          </div>
+          <button onClick={() => setEmailNotifications(!emailNotifications)} style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: emailNotifications ? RUBY : BORDER, position: 'relative', transition: 'background 0.2s' }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: emailNotifications ? 22 : 2, transition: 'left 0.2s' }} />
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
+          <button onClick={handleSave} disabled={saving || !displayName.trim()} style={{ padding: '10px 20px', background: INK, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: saving || !displayName.trim() ? 0.5 : 1 }}>
+            {saving ? 'saving...' : 'save'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -571,6 +496,9 @@ export function FlockApp() {
   const [postImagePreviews, setPostImagePreviews] = useState([]);
   const [postAudio, setPostAudio] = useState(null);
   const [postAudioName, setPostAudioName] = useState(null);
+  const [postTag, setPostTag] = useState('general');
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollOptions, setPollOptions] = useState(['', '']);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [claimingLevel, setClaimingLevel] = useState(null);
@@ -584,17 +512,28 @@ export function FlockApp() {
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [myAttendance, setMyAttendance] = useState(new Set());
   const [viewingProfile, setViewingProfile] = useState(null);
-  const [STAMP_LEVELS, setStampLevels] = useState(DEFAULT_STAMP_LEVELS);
+  const [STAMP_LEVELS, setStampLevels] = useState(DEFAULT_LEVELS);
   const [memberMap, setMemberMap] = useState({});
+  const [members, setMembers] = useState([]);
   const [expandedRegion, setExpandedRegion] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [currencyName, setCurrencyName] = useState('points');
+  const [currencyIcon, setCurrencyIcon] = useState('✦');
 
-  // Colours from CSS vars
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
   const BLUSH = 'var(--blush)'; const WARM_GOLD = 'var(--warm-gold)'; const SLATE = 'var(--slate)';
   const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)';
 
-  // Load tenant data
+  const POST_TAGS = [
+    { key: 'general', label: 'general', icon: '✦' },
+    { key: 'music', label: 'music', icon: '♫' },
+    { key: 'gig', label: 'gig', icon: '◎' },
+    { key: 'selfie', label: 'selfie', icon: '◉' },
+    { key: 'question', label: 'question', icon: '?' },
+    { key: 'poll', label: 'poll', icon: '◈' },
+  ];
+
+  // Load tenant data + config
   useEffect(() => {
     if (!supabase || !tenantId) return;
     (async () => {
@@ -606,32 +545,34 @@ export function FlockApp() {
         ]);
         const config = {};
         (configRes.data || []).forEach(({ key, value }) => { config[key] = value; });
-        const members = membersRes.data || [];
+        const mems = membersRes.data || [];
         const map = {};
-        members.forEach(m => { map[m.slug] = { name: m.name, slug: m.slug, accentColor: m.accent_color || '#888', bio: m.bio || '' }; });
-        setTenant({ ...t, config, members });
+        mems.forEach(m => { map[m.slug] = { name: m.name, slug: m.slug, accentColor: m.accent_color || '#888', bio: m.bio || '' }; });
+        setTenant({ ...t, config });
+        setMembers(mems);
         setMemberMap(map);
+        // Currency config
+        if (config.currency_name) setCurrencyName(config.currency_name);
+        if (config.currency_icon) setCurrencyIcon(config.currency_icon);
       }
     })();
   }, [supabase, tenantId]);
 
-  // Load stamp tiers
+  // Load reward tiers
   useEffect(() => {
     if (!supabase || !tenantId) return;
-    (async () => {
-      const { data } = await supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('sort_order');
-      if (data && data.length > 0) {
-        setStampLevels(data.map(t => ({ name: t.name, key: t.key, stamps: t.stamps, icon: t.icon, reward: t.reward_type, rewardDesc: t.reward_desc })));
-      }
-    })();
+    supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('sort_order').then(({ data }) => {
+      if (data?.length) setStampLevels(data.map(t => ({ name: t.name, key: t.key, stamps: t.stamps, icon: t.icon, reward: t.reward_type, rewardDesc: t.reward_desc })));
+    });
   }, [supabase, tenantId]);
 
   const fetchPosts = useCallback(async (feed = feedView) => {
     if (!supabase || !tenantId) return;
     setLoadingPosts(true);
     try {
-      let query = supabase.from('posts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(30);
-      if (feed !== 'community') query = query.eq('feed_type', feed);
+      let query = supabase.from('posts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(50);
+      if (feed === 'highlights') query = supabase.from('posts').select('*').eq('tenant_id', tenantId).eq('is_highlight', true).order('created_at', { ascending: false }).limit(30);
+      else if (feed !== 'community') query = query.eq('feed_type', feed);
       else query = query.eq('feed_type', 'community');
 
       const { data } = await query;
@@ -662,11 +603,7 @@ export function FlockApp() {
     const { data } = await supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date');
     if (data) {
       const grouped = {};
-      data.forEach(show => {
-        const region = show.region || 'other';
-        if (!grouped[region]) grouped[region] = [];
-        grouped[region].push(show);
-      });
+      data.forEach(show => { const r = show.region || 'other'; if (!grouped[r]) grouped[r] = []; grouped[r].push(show); });
       setShows(grouped);
     }
     if (user) {
@@ -679,7 +616,7 @@ export function FlockApp() {
     if (!supabase || !tenantId) return;
     const { data: actions } = await supabase.from('stamp_actions').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('points');
     if (actions) setStampActions(actions);
-    const { data: topUsers } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(5);
+    const { data: topUsers } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10);
     if (topUsers) setTopCollectors(topUsers);
     if (user) {
       const { data: claims } = await supabase.from('reward_claims').select('*').eq('user_id', user.id).eq('tenant_id', tenantId);
@@ -690,22 +627,19 @@ export function FlockApp() {
   const fetchNotifications = useCallback(async () => {
     if (!user || !supabase || !tenantId) return;
     const { data } = await supabase.from('notifications').select('*').eq('user_id', user.id).eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(30);
-    if (data) {
-      setNotifications(data);
-      setUnreadCount(data.filter(n => !n.is_read).length);
-    }
+    if (data) { setNotifications(data); setUnreadCount(data.filter(n => !n.is_read).length); }
   }, [user, supabase, tenantId]);
 
   useEffect(() => { if (supabase && tenantId) fetchPosts(); }, [feedView, supabase, tenantId]);
   useEffect(() => {
     if (mainTab === 'shows') fetchShows();
-    if (mainTab === 'stamps') fetchStampData();
+    if (mainTab === 'points') fetchStampData();
     if (mainTab === 'you') refreshProfile();
     fetchNotifications();
   }, [mainTab]);
 
   const handlePost = async () => {
-    if ((!newPost.trim() && postImages.length === 0 && !postAudio) || posting) return;
+    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
     setPosting(true);
 
     let imageUrl = null; let imageUrls = []; let audioUrl = null;
@@ -733,25 +667,21 @@ export function FlockApp() {
 
     const canPostToMemberFeed = profile?.role === 'band' && profile?.band_member === feedView;
     const canPostToAnyFeed = profile?.role === 'admin';
-    const actualFeedType = feedView === 'community' || canPostToMemberFeed || canPostToAnyFeed ? feedView : 'community';
+    const actualFeedType = (feedView === 'community' || feedView === 'highlights' || canPostToMemberFeed || canPostToAnyFeed) ? (feedView === 'highlights' ? 'community' : feedView) : 'community';
 
-    const insertData = { author_id: user.id, content: newPost.trim() || '', feed_type: actualFeedType, image_url: imageUrl, tenant_id: tenantId };
+    const insertData = { author_id: user.id, content: newPost.trim() || '', feed_type: actualFeedType, image_url: imageUrl, tenant_id: tenantId, tag: postTag !== 'general' ? postTag : null };
     if (imageUrls.length > 1) insertData.images = imageUrls;
     if (audioUrl) insertData.audio_url = audioUrl;
+    if (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2) insertData.poll_options = pollOptions.filter(o => o.trim());
 
     const { error } = await supabase.from('posts').insert(insertData);
     if (!error) {
       setNewPost(''); setPostImages([]); setPostImagePreviews([]); setPostAudio(null); setPostAudioName(null);
-      if (profile?.role === 'fan') {
-        supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
-      }
+      setPostTag('general'); setShowPollCreator(false); setPollOptions(['', '']);
+      if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
       await fetchPosts();
       if (profile?.role === 'band' || profile?.role === 'admin') {
-        fetch('/api/email/band-post', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType: actualFeedType }),
-        }).catch(() => {});
+        fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType: actualFeedType }) }).catch(() => {});
       }
     }
     setPosting(false);
@@ -759,15 +689,11 @@ export function FlockApp() {
 
   const handleCheckin = async () => {
     if (!checkinCode.trim() || !checkinShow || checkinLoading) return;
-    setCheckinLoading(true);
-    setCheckinStatus('');
+    setCheckinLoading(true); setCheckinStatus('');
     const { data, error } = await supabase.rpc('checkin_show', { p_show_id: checkinShow.id, p_code: checkinCode.trim(), p_tenant_id: tenantId });
     if (error) setCheckinStatus(error.message);
-    else if (data === 'success') {
-      setCheckinStatus('success');
-      setMyAttendance(prev => new Set([...prev, checkinShow.id]));
-      refreshProfile();
-    } else setCheckinStatus(data);
+    else if (data === 'success') { setCheckinStatus('success'); setMyAttendance(prev => new Set([...prev, checkinShow.id])); refreshProfile(); }
+    else setCheckinStatus(data);
     setCheckinLoading(false);
   };
 
@@ -775,13 +701,18 @@ export function FlockApp() {
   const currentLevel = STAMP_LEVELS.slice().reverse().find(l => userStamps >= l.stamps) || STAMP_LEVELS[0];
   const nextLevel = STAMP_LEVELS.find(l => l.stamps > userStamps);
   const tenantName = tenant?.name || 'flock';
-  const members = tenant?.members || [];
-  const REGION_ORDER = ['australia', 'europe', 'uk', 'north_america'];
+  const REGION_ORDER = ['australia', 'europe', 'uk', 'north_america', 'other'];
+
+  const feedTabs = [
+    { id: 'community', label: 'everyone', icon: '✦' },
+    ...members.map(m => ({ id: m.slug, label: m.name?.toLowerCase(), icon: m.name?.charAt(0)?.toLowerCase(), color: m.accent_color })),
+    { id: 'highlights', label: 'highlights', icon: '◉' },
+  ];
 
   const mainTabs = [
     { id: 'feed', label: 'feed', icon: '◎' },
     { id: 'shows', label: 'shows', icon: '♫' },
-    { id: 'stamps', label: 'stamps', icon: '✦' },
+    { id: 'points', label: currencyName, icon: currencyIcon },
     { id: 'you', label: 'you', icon: '○' },
   ];
 
@@ -791,32 +722,31 @@ export function FlockApp() {
 
       {showEditProfile && <EditProfileModal profile={profile} supabase={supabase} tenantId={tenantId} onSave={updateProfile} onClose={() => setShowEditProfile(false)} />}
       {claimingLevel && <ClaimRewardModal level={claimingLevel} supabase={supabase} userId={user?.id} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
-      {viewingProfile && <UserProfileModal userId={viewingProfile} supabase={supabase} tenantId={tenantId} onClose={() => setViewingProfile(null)} stampLevels={STAMP_LEVELS} />}
+      {viewingProfile && <UserProfileModal userId={viewingProfile} supabase={supabase} tenantId={tenantId} onClose={() => setViewingProfile(null)} levels={STAMP_LEVELS} currencyName={currencyName} />}
 
       {/* Check-in Modal */}
       {checkinShow && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,26,26,0.6)', backdropFilter: 'blur(8px)', padding: 20 }} onClick={() => setCheckinShow(null)}>
-          <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 340, animation: 'fadeIn 0.3s ease-out', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>✦</div>
+          <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 340, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>{currencyIcon}</div>
             <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, marginBottom: 4, textTransform: 'lowercase' }}>check in</div>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 20 }}>{checkinShow.venue}, {checkinShow.city}</div>
             {checkinStatus === 'success' ? (
               <div style={{ padding: '16px 0' }}>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>✦</div>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>{currencyIcon}</div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 4 }}>you're in!</div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>+50 stamps earned</div>
-                <button onClick={() => setCheckinShow(null)} style={{ marginTop: 16, padding: '10px 24px', background: INK, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>nice ✦</button>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>+50 {currencyName} earned</div>
+                <button onClick={() => setCheckinShow(null)} style={{ marginTop: 16, padding: '10px 24px', background: INK, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>nice {currencyIcon}</button>
               </div>
             ) : (
               <>
                 <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>enter the code shown at the venue</div>
-                <input type="text" value={checkinCode} onChange={e => setCheckinCode(e.target.value.toUpperCase().slice(0, 6))} onKeyDown={e => e.key === 'Enter' && handleCheckin()} placeholder="CODE" maxLength={6}
-                  style={{ width: 160, padding: '14px', background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 8, fontSize: 24, color: INK, outline: 'none', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontWeight: 700, letterSpacing: '6px' }} autoFocus />
+                <input type="text" value={checkinCode} onChange={e => setCheckinCode(e.target.value.toUpperCase().slice(0, 6))} onKeyDown={e => e.key === 'Enter' && handleCheckin()} placeholder="CODE" maxLength={6} autoFocus style={{ width: 160, padding: '14px', background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 8, fontSize: 24, color: INK, outline: 'none', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontWeight: 700, letterSpacing: '6px' }} />
                 {checkinStatus && checkinStatus !== 'success' && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, marginTop: 10 }}>{checkinStatus}</div>}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
                   <button onClick={() => setCheckinShow(null)} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
                   <button onClick={handleCheckin} disabled={checkinLoading || !checkinCode.trim()} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: checkinLoading || !checkinCode.trim() ? 0.5 : 1 }}>
-                    {checkinLoading ? '...' : 'check in ✦'}
+                    {checkinLoading ? '...' : `check in ${currencyIcon}`}
                   </button>
                 </div>
               </>
@@ -830,11 +760,11 @@ export function FlockApp() {
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>{tenantName}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications && user) { supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('tenant_id', tenantId).eq('is_read', false).then(() => setUnreadCount(0)); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', fontFamily: "'DM Mono', monospace", fontSize: 16, color: BLUSH, padding: '4px' }}>
+            <button onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications && user) supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('tenant_id', tenantId).eq('is_read', false).then(() => setUnreadCount(0)); }} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', fontFamily: "'DM Mono', monospace", fontSize: 16, color: BLUSH, padding: '4px' }}>
               ◈
               {unreadCount > 0 && <span style={{ position: 'absolute', top: -2, right: -4, background: RUBY, color: '#fff', fontSize: 9, fontWeight: 700, width: 16, height: 16, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
             </button>
-            <div onClick={() => setMainTab('stamps')} style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: RUBY, background: RUBY + '11', padding: '5px 12px', borderRadius: 8, fontWeight: 500, cursor: 'pointer' }}>✦ {userStamps}</div>
+            <div onClick={() => setMainTab('points')} style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: RUBY, background: RUBY + '11', padding: '5px 12px', borderRadius: 8, fontWeight: 500, cursor: 'pointer' }}>{currencyIcon} {userStamps}</div>
           </div>
         </div>
       </div>
@@ -842,21 +772,17 @@ export function FlockApp() {
       {/* CONTENT */}
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', position: 'relative' }}>
 
-        {/* Notifications panel */}
+        {/* Notifications */}
         {showNotifications && (
           <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, margin: '10px 0', padding: '4px 0', animation: 'fadeIn 0.2s ease-out', maxHeight: 360, overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${BORDER}` }}>
               <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase' }}>notifications</span>
               <button onClick={() => setShowNotifications(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE }}>×</button>
             </div>
-            {notifications.length === 0 ? (
-              <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>no notifications yet</div>
-            ) : notifications.map(n => (
+            {notifications.length === 0 ? <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>no notifications yet</div> : notifications.map(n => (
               <div key={n.id} style={{ padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, background: n.is_read ? 'transparent' : WARM_GOLD + '08' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: n.type === 'stamp' ? WARM_GOLD : n.type === 'like' ? RUBY : SLATE, flexShrink: 0, marginTop: 1 }}>
-                    {n.type === 'stamp' ? '✦' : n.type === 'like' ? '♥' : n.type === 'comment' ? '↩' : '◈'}
-                  </span>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: n.type === 'stamp' ? WARM_GOLD : n.type === 'like' ? RUBY : SLATE, flexShrink: 0 }}>{n.type === 'stamp' ? currencyIcon : n.type === 'like' ? '♥' : n.type === 'comment' ? '↩' : '◈'}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: n.is_read ? 400 : 600, color: INK, lineHeight: 1.4 }}>{n.title}</div>
                     <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', marginTop: 4 }}>{timeAgo(n.created_at)}</div>
@@ -870,17 +796,15 @@ export function FlockApp() {
         {/* FEED TAB */}
         {mainTab === 'feed' && (
           <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-            {/* Feed tabs */}
-            <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, marginTop: 10, marginBottom: 14, background: SURFACE, borderRadius: '10px 10px 0 0', overflowX: 'auto' }}>
-              <button onClick={() => setFeedView('community')} style={{ flex: 1, padding: '12px 6px 10px', background: feedView === 'community' ? SURFACE : 'transparent', border: 'none', borderBottom: feedView === 'community' ? `2.5px solid ${RUBY}` : '2.5px solid transparent', cursor: 'pointer', fontSize: 11, fontWeight: feedView === 'community' ? 700 : 500, color: feedView === 'community' ? INK : SLATE, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <span style={{ fontSize: 16 }}>✦</span>everyone
-              </button>
-              {members.map(m => {
-                const isActive = feedView === m.slug;
+            {/* Feed tab bar */}
+            <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, marginTop: 10, marginBottom: 14, background: SURFACE, borderRadius: '10px 10px 0 0', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              {feedTabs.map(tab => {
+                const isActive = feedView === tab.id;
+                const color = tab.color || RUBY;
                 return (
-                  <button key={m.slug} onClick={() => setFeedView(m.slug)} style={{ flex: 1, padding: '12px 6px 10px', background: isActive ? SURFACE : 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${m.accent_color || RUBY}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: isActive ? (m.accent_color || RUBY) : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s' }}>{m.name?.charAt(0)?.toLowerCase()}</div>
-                    <span style={{ fontSize: 11, fontWeight: isActive ? 700 : 500, color: isActive ? (m.accent_color || RUBY) : SLATE }}>{m.name?.toLowerCase()}</span>
+                  <button key={tab.id} onClick={() => setFeedView(tab.id)} style={{ flex: tab.id === 'highlights' ? '0 0 auto' : 1, padding: '12px 10px 10px', background: isActive ? SURFACE : 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 60, whiteSpace: 'nowrap' }}>
+                    {tab.id === 'community' ? <span style={{ fontSize: 16 }}>✦</span> : tab.id === 'highlights' ? <span style={{ fontSize: 14, color: isActive ? WARM_GOLD : SLATE + '66' }}>◉</span> : <div style={{ width: 30, height: 30, borderRadius: 7, background: isActive ? color : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s' }}>{tab.icon}</div>}
+                    <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? color : SLATE, fontFamily: isActive ? "'DM Sans', sans-serif" : "'DM Mono', monospace" }}>{tab.label}</span>
                   </button>
                 );
               })}
@@ -889,17 +813,30 @@ export function FlockApp() {
             {/* Post composer */}
             <div style={{ background: SURFACE, borderRadius: 10, padding: '14px 16px', marginBottom: 12, border: `1px solid ${BORDER}` }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover', marginTop: 2 }} />
-                ) : (
-                  <div style={{ width: 30, height: 30, borderRadius: 6, background: BLUSH + '33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontFamily: "'DM Mono', monospace", color: SLATE, marginTop: 2, flexShrink: 0 }}>
-                    {profile?.display_name?.charAt(0)?.toLowerCase() || '○'}
-                  </div>
-                )}
-                <textarea placeholder="say something..." value={newPost} onChange={e => setNewPost(e.target.value)}
-                  rows={newPost.length > 80 || newPost.includes('\n') ? 4 : 1}
-                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: INK, background: 'transparent', resize: 'none', fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5, padding: '4px 0' }} />
+                {profile?.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover', marginTop: 2 }} /> : <div style={{ width: 30, height: 30, borderRadius: 6, background: BLUSH + '33', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontFamily: "'DM Mono', monospace", color: SLATE, marginTop: 2, flexShrink: 0 }}>{profile?.display_name?.charAt(0)?.toLowerCase() || '○'}</div>}
+                <textarea placeholder={feedView === 'highlights' ? 'post to community...' : 'say something...'} value={newPost} onChange={e => setNewPost(e.target.value)} rows={newPost.length > 80 || newPost.includes('\n') ? 4 : 1} style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: INK, background: 'transparent', resize: 'none', fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5, padding: '4px 0' }} />
               </div>
+
+              {/* Tag selector */}
+              <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
+                {POST_TAGS.map(t => (
+                  <button key={t.key} onClick={() => { setPostTag(t.key); if (t.key === 'poll') setShowPollCreator(true); else setShowPollCreator(false); }} style={{ padding: '3px 8px', borderRadius: 10, border: `1px solid ${postTag === t.key ? RUBY + '44' : BORDER}`, background: postTag === t.key ? RUBY + '08' : 'transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 9, color: postTag === t.key ? RUBY : SLATE + '88' }}>
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Poll creator */}
+              {showPollCreator && (
+                <div style={{ marginTop: 10, padding: '10px 12px', background: CREAM, borderRadius: 8, border: `1px solid ${BORDER}` }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, marginBottom: 6 }}>poll options</div>
+                  {pollOptions.map((opt, i) => (
+                    <input key={i} type="text" value={opt} onChange={e => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} placeholder={`option ${i + 1}`} style={{ display: 'block', width: '100%', padding: '7px 10px', marginBottom: 4, background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+                  ))}
+                  {pollOptions.length < 5 && <button onClick={() => setPollOptions([...pollOptions, ''])} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, padding: '4px 0' }}>+ add option</button>}
+                </div>
+              )}
+
               {postImagePreviews.length > 0 && (
                 <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {postImagePreviews.map((preview, i) => (
@@ -914,27 +851,22 @@ export function FlockApp() {
                 <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, background: CREAM, borderRadius: 8, padding: '8px 12px', border: `1px solid ${BORDER}` }}>
                   <span style={{ fontSize: 14, color: RUBY }}>♫</span>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{postAudioName}</span>
-                  <button onClick={() => { setPostAudio(null); setPostAudioName(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE + '88', padding: '0 2px' }}>×</button>
+                  <button onClick={() => { setPostAudio(null); setPostAudioName(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE + '88' }}>×</button>
                 </div>
               )}
+
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
-                <label style={{ cursor: postImages.length >= 6 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 3, padding: '4px 8px', color: postImages.length >= 6 ? SLATE + '33' : SLATE + '88', fontSize: 11, fontFamily: "'DM Mono', monospace' " }} title="add images">
-                  <input type="file" accept="image/*" multiple onChange={e => {
-                    const files = Array.from(e.target.files || []);
-                    const toAdd = files.slice(0, 6 - postImages.length);
-                    setPostImages(prev => [...prev, ...toAdd]);
-                    toAdd.forEach(file => { const r = new FileReader(); r.onload = ev => setPostImagePreviews(prev => [...prev, ev.target.result]); r.readAsDataURL(file); });
-                    e.target.value = '';
-                  }} style={{ display: 'none' }} disabled={postImages.length >= 6} />
+                <label style={{ cursor: postImages.length >= 6 ? 'default' : 'pointer', padding: '4px 8px', color: postImages.length >= 6 ? SLATE + '33' : SLATE + '88', fontSize: 11, fontFamily: "'DM Mono', monospace" }}>
+                  <input type="file" accept="image/*" multiple onChange={e => { const files = Array.from(e.target.files || []); const toAdd = files.slice(0, 6 - postImages.length); setPostImages(prev => [...prev, ...toAdd]); toAdd.forEach(f => { const r = new FileReader(); r.onload = ev => setPostImagePreviews(prev => [...prev, ev.target.result]); r.readAsDataURL(f); }); e.target.value = ''; }} style={{ display: 'none' }} disabled={postImages.length >= 6} />
                   {postImages.length > 0 ? `📷 ${postImages.length}/6` : '📷'}
                 </label>
                 {(profile?.role === 'band' || profile?.role === 'admin') && (
-                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px 6px', color: SLATE + '88', fontSize: 13, fontFamily: "'DM Mono', monospace'" }} title="add audio">
+                  <label style={{ cursor: 'pointer', padding: '4px 6px', color: SLATE + '88', fontSize: 13, fontFamily: "'DM Mono', monospace" }}>
                     <input type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 20 * 1024 * 1024) { alert('audio must be under 20MB'); return; } setPostAudio(f); setPostAudioName(f.name); }} style={{ display: 'none' }} />
                     ♫
                   </label>
                 )}
-                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio)} style={{ background: (newPost.trim() || postImages.length > 0 || postAudio) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio) ? CREAM : SLATE + '66', cursor: (newPost.trim() || postImages.length > 0 || postAudio) ? 'pointer' : 'default' }}>
+                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))} style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
                   {posting ? '...' : 'post'}
                 </button>
               </div>
@@ -944,11 +876,11 @@ export function FlockApp() {
               <div style={{ textAlign: 'center', padding: 40, fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE }}>loading...</div>
             ) : posts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE, lineHeight: 1.6 }}>
-                {feedView !== 'community' ? 'no posts here yet. check back soon ✦' : 'no posts yet. be the first ✦'}
+                {feedView === 'highlights' ? 'no highlights yet. pin your best posts ✦' : 'no posts yet. be the first ✦'}
               </div>
             ) : posts.map((post, i) => (
               <div key={post.id} style={{ animation: `fadeIn 0.35s ease-out ${i * 0.04}s both` }}>
-                <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} onRefresh={fetchPosts} onViewProfile={id => setViewingProfile(id)} />
+                <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} onRefresh={fetchPosts} onViewProfile={id => setViewingProfile(id)} />
               </div>
             ))}
           </div>
@@ -986,17 +918,11 @@ export function FlockApp() {
                               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + 'AA' }}>{show.venue}</div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                              {attended ? (
-                                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD }}>✦ attended</span>
-                              ) : isPast ? (
-                                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66' }}>past</span>
-                              ) : show.checkin_code && !sold ? (
-                                <button onClick={() => { setCheckinShow(show); setCheckinCode(''); setCheckinStatus(''); }} style={{ background: WARM_GOLD, color: INK, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Mono', monospace'" }}>check in</button>
-                              ) : sold ? (
-                                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY }}>sold out</span>
-                              ) : show.ticket_url ? (
-                                <a href={show.ticket_url} target="_blank" rel="noopener noreferrer" style={{ background: INK, color: CREAM, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 10, fontWeight: 600, textDecoration: 'none' }}>tickets</a>
-                              ) : null}
+                              {attended ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD }}>{currencyIcon} attended</span> :
+                               isPast ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66' }}>past</span> :
+                               show.checkin_code && !sold ? <button onClick={() => { setCheckinShow(show); setCheckinCode(''); setCheckinStatus(''); }} style={{ background: WARM_GOLD, color: INK, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>check in</button> :
+                               sold ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY }}>sold out</span> :
+                               show.ticket_url ? <a href={show.ticket_url} target="_blank" rel="noopener noreferrer" style={{ background: INK, color: CREAM, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 10, fontWeight: 600, textDecoration: 'none' }}>tickets</a> : null}
                             </div>
                           </div>
                         </div>
@@ -1009,18 +935,18 @@ export function FlockApp() {
           </div>
         )}
 
-        {/* STAMPS TAB */}
-        {mainTab === 'stamps' && (
+        {/* POINTS/STAMPS TAB */}
+        {mainTab === 'points' && (
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
             <div style={{ background: INK, borderRadius: 10, padding: '30px 22px', textAlign: 'center', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 50% 0%, ${RUBY}15, transparent 70%)` }} />
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12, position: 'relative' }}>your collection</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12, position: 'relative' }}>your {currencyName}</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 56, fontWeight: 700, color: CREAM, position: 'relative' }}>{userStamps}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '77', marginTop: 6, position: 'relative' }}>stamps collected · {currentLevel.name}</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '77', marginTop: 6, position: 'relative' }}>{currencyName} collected · {currentLevel.name}</div>
               {nextLevel && (
                 <>
                   <div style={{ marginTop: 18, background: CREAM + '15', borderRadius: 2, height: 4, overflow: 'hidden', position: 'relative' }}>
-                    <div style={{ width: `${(userStamps / nextLevel.stamps) * 100}%`, height: '100%', background: `linear-gradient(90deg, ${RUBY}, ${WARM_GOLD})`, borderRadius: 2 }} />
+                    <div style={{ width: `${Math.min((userStamps / nextLevel.stamps) * 100, 100)}%`, height: '100%', background: `linear-gradient(90deg, ${RUBY}, ${WARM_GOLD})`, borderRadius: 2 }} />
                   </div>
                   <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CREAM + '55', marginTop: 6, position: 'relative' }}>{nextLevel.stamps - userStamps} to {nextLevel.name} {nextLevel.icon}</div>
                 </>
@@ -1035,22 +961,18 @@ export function FlockApp() {
               return (
                 <div key={level.key} style={{ background: unlocked ? SURFACE : CREAM, borderRadius: 10, padding: '16px 18px', marginBottom: 8, border: `1px solid ${unlocked ? WARM_GOLD + '33' : BORDER}`, opacity: unlocked ? 1 : 0.45 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 8, background: unlocked ? INK : BORDER, color: unlocked ? WARM_GOLD : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontFamily: "'DM Mono', monospace'" }}>{level.icon}</div>
+                    <div style={{ width: 42, height: 42, borderRadius: 8, background: unlocked ? INK : BORDER, color: unlocked ? WARM_GOLD : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontFamily: "'DM Mono', monospace" }}>{level.icon}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color: INK }}>{level.name}</span>
-                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: unlocked ? WARM_GOLD : SLATE }}>{level.stamps > 0 ? `${level.stamps} ✦` : '✓'}</span>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: unlocked ? WARM_GOLD : SLATE }}>{level.stamps > 0 ? `${level.stamps} ${currencyIcon}` : '✓'}</span>
                       </div>
                       <div style={{ fontSize: 11.5, color: SLATE, marginTop: 3, lineHeight: 1.4 }}>{level.rewardDesc}</div>
                     </div>
                   </div>
                   {unlocked && level.reward && (
                     <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BORDER}` }}>
-                      {claimed ? (
-                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>✦ {claimStatus || 'claimed'}</span>
-                      ) : (
-                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward ✦</button>
-                      )}
+                      {claimed ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span> : <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>}
                     </div>
                   )}
                 </div>
@@ -1059,13 +981,13 @@ export function FlockApp() {
 
             {stampActions.length > 0 && (
               <>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 18, marginBottom: 10 }}>earn stamps</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 18, marginBottom: 10 }}>how to earn {currencyName}</div>
                 <div style={{ background: SURFACE, borderRadius: 10, padding: '16px 18px', border: `1px solid ${BORDER}`, marginBottom: 18 }}>
                   {stampActions.map((action, i) => (
                     <div key={action.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < stampActions.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: SLATE, width: 20, textAlign: 'center' }}>{action.action_type === 'auto' ? '↗' : '★'}</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: SLATE, width: 20 }}>↗</span>
                       <span style={{ flex: 1, fontSize: 12, color: INK + 'CC' }}>{action.name}</span>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, fontWeight: 500, color: RUBY }}>+{action.points}</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, fontWeight: 500, color: RUBY }}>+{action.points} {currencyIcon}</span>
                     </div>
                   ))}
                 </div>
@@ -1074,13 +996,13 @@ export function FlockApp() {
 
             {topCollectors.length > 0 && (
               <>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>top collectors</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>top fans</div>
                 <div style={{ background: SURFACE, borderRadius: 10, padding: '12px 18px', border: `1px solid ${BORDER}` }}>
                   {topCollectors.map((u, i) => (
-                    <div key={u.display_name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < topCollectors.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: i === 0 ? WARM_GOLD : SLATE, width: 20, textAlign: 'center' }}>{i + 1}</span>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < topCollectors.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: i === 0 ? WARM_GOLD : SLATE, width: 20 }}>{i + 1}</span>
                       <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: INK }}>{u.display_name?.toLowerCase()}</span>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>{u.stamp_count} ✦</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>{u.stamp_count} {currencyIcon}</span>
                     </div>
                   ))}
                 </div>
@@ -1093,9 +1015,7 @@ export function FlockApp() {
         {mainTab === 'you' && profile && (
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
             <div style={{ background: `linear-gradient(145deg, ${RUBY}15, ${BLUSH}15, ${SURFACE})`, borderRadius: 12, padding: '32px 22px 28px', textAlign: 'center', border: `1px solid ${BORDER}`, marginBottom: 14, position: 'relative', overflow: 'hidden' }}>
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt="" style={{ width: 80, height: 80, borderRadius: 12, objectFit: 'cover', margin: '0 auto 16px', display: 'block', border: `3px solid ${BLUSH}44` }} />
-              ) : (
+              {profile.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: 80, height: 80, borderRadius: 12, objectFit: 'cover', margin: '0 auto 16px', display: 'block', border: `3px solid ${BLUSH}44` }} /> : (
                 <div style={{ width: 80, height: 80, borderRadius: 12, background: `linear-gradient(135deg, ${RUBY}22, ${BLUSH}22)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 700, margin: '0 auto 16px', color: RUBY, border: `3px solid ${BLUSH}33` }}>
                   {profile.display_name?.charAt(0)?.toLowerCase() || '✦'}
                 </div>
@@ -1107,7 +1027,7 @@ export function FlockApp() {
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY }}>{currentLevel.icon} {currentLevel.name.toLowerCase()}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginTop: 20 }}>
-                <div><div style={{ fontSize: 28, fontWeight: 700, color: RUBY }}>{userStamps}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5, textTransform: 'uppercase' }}>stamps</div></div>
+                <div><div style={{ fontSize: 28, fontWeight: 700, color: RUBY }}>{userStamps}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5, textTransform: 'uppercase' }}>{currencyName}</div></div>
                 <div><div style={{ fontSize: 28, fontWeight: 700, color: WARM_GOLD }}>{profile.show_count || 0}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5, textTransform: 'uppercase' }}>shows</div></div>
                 <div><div style={{ fontSize: 28, fontWeight: 700, color: BLUSH }}>{profile.referral_count || 0}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5, textTransform: 'uppercase' }}>referrals</div></div>
               </div>
@@ -1115,23 +1035,17 @@ export function FlockApp() {
 
             <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
               {(profile.role === 'admin' || profile.role === 'band') && (
-                <div onClick={() => window.location.href = '/dashboard'} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08' }}
-                  onMouseEnter={e => e.currentTarget.style.background = WARM_GOLD + '15'}
-                  onMouseLeave={e => e.currentTarget.style.background = WARM_GOLD + '08'}>
+                <div onClick={() => window.location.href = '/dashboard'} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08' }} onMouseEnter={e => e.currentTarget.style.background = WARM_GOLD + '15'} onMouseLeave={e => e.currentTarget.style.background = WARM_GOLD + '08'}>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 15, color: WARM_GOLD, width: 24, textAlign: 'center' }}>◈</span>
                   <span style={{ fontSize: 13, color: INK, flex: 1, fontWeight: 600 }}>dashboard</span>
                   <span style={{ fontFamily: "'DM Mono', monospace", color: WARM_GOLD, fontSize: 14 }}>→</span>
                 </div>
               )}
-              <div onClick={() => setShowEditProfile(true)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }}
-                onMouseEnter={e => e.currentTarget.style.background = CREAM}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <div onClick={() => setShowEditProfile(true)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = CREAM} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 15, color: SLATE, width: 24, textAlign: 'center' }}>✎</span>
                 <span style={{ fontSize: 13, color: INK, flex: 1 }}>edit profile</span>
                 <span style={{ fontFamily: "'DM Mono', monospace", color: SLATE + '55', fontSize: 14 }}>→</span>
               </div>
-
-              {/* Referral */}
               {profile.referral_code && (
                 <div style={{ padding: '14px 18px', borderBottom: `1px solid ${BORDER}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
@@ -1141,16 +1055,13 @@ export function FlockApp() {
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="text" readOnly value={typeof window !== 'undefined' ? `${window.location.origin}/join/${profile.referral_code}` : '...'} style={{ flex: 1, padding: '8px 10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace", outline: 'none' }} />
                     <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/join/${profile.referral_code}`).then(() => { setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000); }); }} style={{ padding: '8px 14px', background: copiedLink ? WARM_GOLD : INK, color: CREAM, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}>
-                      {copiedLink ? 'copied ✦' : 'copy'}
+                      {copiedLink ? `copied ${currencyIcon}` : 'copy'}
                     </button>
                   </div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', marginTop: 6 }}>you both earn 25 stamps when they join</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', marginTop: 6 }}>you both earn 25 {currencyName} when they join</div>
                 </div>
               )}
-
-              <div onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer' }}
-                onMouseEnter={e => e.currentTarget.style.background = CREAM}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <div onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = CREAM} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 15, color: RUBY, width: 24, textAlign: 'center' }}>↪</span>
                 <span style={{ fontSize: 13, color: RUBY, flex: 1 }}>sign out</span>
               </div>
@@ -1163,7 +1074,7 @@ export function FlockApp() {
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: SURFACE + 'F0', backdropFilter: 'blur(16px)', borderTop: `1px solid ${BORDER}`, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', justifyContent: 'space-around', padding: '6px 0 12px' }}>
           {mainTabs.map(tab => (
-            <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 20px', minWidth: 56 }}>
+            <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56 }}>
               <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: mainTab === tab.id ? RUBY : SLATE + '66' }}>{tab.icon}</span>
               <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: mainTab === tab.id ? 500 : 400, color: mainTab === tab.id ? INK : SLATE + '66' }}>{tab.label}</span>
             </button>
