@@ -1,11 +1,6 @@
 import { getServiceSupabase } from './supabase-server';
 
-// Cache tenants in memory during a request lifecycle
-const tenantCache = new Map();
-
 export async function getTenantBySlug(slug) {
-  if (tenantCache.has(slug)) return tenantCache.get(slug);
-
   const db = getServiceSupabase();
   const { data: tenant } = await db
     .from('tenants')
@@ -23,14 +18,11 @@ export async function getTenantBySlug(slug) {
   const config = {};
   (configResult.data || []).forEach(({ key, value }) => { config[key] = value; });
 
-  const result = {
+  return {
     ...tenant,
     config,
     members: membersResult.data || [],
   };
-
-  tenantCache.set(slug, result);
-  return result;
 }
 
 export async function getTenantByDomain(domain) {

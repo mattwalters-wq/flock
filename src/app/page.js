@@ -13,13 +13,19 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [loading]);
 
-  // No tenant = root domain, but we shouldn't reach here since
-  // root domain serves the marketing page via layout redirect
+  // No tenant = either root domain or tenant failed to resolve
+  // Show landing page rather than redirecting (avoids loops)
   if (!tenantId) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/start';
-    }
-    return null;
+    return (
+      <div style={{ minHeight: '100vh', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✦</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#1A1018', marginBottom: 8, textTransform: 'lowercase' }}>flock</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#6A5A62', marginBottom: 24 }}>fan communities for independent artists</div>
+          <a href="/start" style={{ background: '#8B1A2B', color: '#fff', padding: '12px 28px', borderRadius: 10, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>get started</a>
+        </div>
+      </div>
+    );
   }
 
   if (loading && !timedOut) {

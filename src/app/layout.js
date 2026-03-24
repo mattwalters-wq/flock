@@ -8,6 +8,8 @@ export default async function RootLayout({ children }) {
   const tenantSlug = headersList.get('x-tenant-slug');
   const host = headersList.get('x-host') || '';
 
+  console.log('[layout] host:', host, 'tenantSlug:', tenantSlug);
+
   let tenant = null;
   if (tenantSlug === '__custom__') {
     tenant = await getTenantByDomain(host);
