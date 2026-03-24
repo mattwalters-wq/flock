@@ -266,7 +266,7 @@ function MarketingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           <a href="#how" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>how it works</a>
           <a href="#pricing" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>pricing</a>
-          <a href="/start?join=1" className="cta-btn" style={{ padding: '10px 22px', fontSize: 13 }}>get started</a>
+          <a href="https://the-stamps.fans-flock.com/login" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13, marginRight: 8 }}>sign in</a> <a href="/start?join=1" className="cta-btn" style={{ padding: '10px 22px', fontSize: 13 }}>get started</a>
         </div>
       </nav>
 
