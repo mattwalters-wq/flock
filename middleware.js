@@ -32,6 +32,12 @@ export function middleware(request) {
   // Subdomain (artist.fans-flock.com)
   if (host.endsWith(`.${APP_DOMAIN}`)) {
     const tenantSlug = host.replace(`.${APP_DOMAIN}`, '');
+
+    // /start is the marketing page - redirect subdomains away from it
+    if (pathname === '/start' || pathname.startsWith('/start?')) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
     const response = NextResponse.next();
     response.headers.set('x-tenant-slug', tenantSlug);
     response.headers.set('x-host', host);
