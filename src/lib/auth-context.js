@@ -4,19 +4,35 @@ import { getSupabase } from '@/lib/supabase-browser';
 
 const AuthContext = createContext({});
 
-export function AuthProvider({ children, tenantId }) {
+export function AuthProvider({ children, tenantId: serverTenantId }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tenantId, setTenantId] = useState(serverTenantId || null);
   const mounted = useRef(false);
   const supabase = getSupabase();
 
-  const fetchProfile = async (userId) => {
+  // Resolve tenant client-side from subdomain - doesn't depend on server headers
+  useEffect(() => {
+    if (tenantId) return; // already set from server
+    const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+    const host = window.location.hostname;
+    if (host.endsWith(`.${APP_DOMAIN}`)) {
+      const slug = host.replace(`.${APP_DOMAIN}`, '');
+      supabase.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => {
+        if (data?.id) setTenantId(data.id);
+      });
+    }
+  }, []);
+
+  const fetchProfile = async (userId, tid) => {
+    const id = tid || tenantId;
+    if (!id) return null;
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', id)
       .single();
     return data;
   };
@@ -49,16 +65,11 @@ export function AuthProvider({ children, tenantId }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithEmail = async (email, password) => {
-    return await supabase.auth.signInWithPassword({ email, password });
-  };
-
-  const signUpWithEmail = async (email, password, displayName) => {
-    return await supabase.auth.signUp({
-      email, password,
-      options: { data: { display_name: displayName, tenant_id: tenantId } },
-    });
-  };
+  // Re-fetch profile once tenantId resolves (client-side resolution case)
+  useEffect(() => {
+    if (!tenantId || !user || profile) return;
+    fetchProfile(user.id, tenantId).then(p => { if (p) setProfile(p); });
+  }, [tenantId, user]);
 
   const signInWithGoogle = async () => {
     return await supabase.auth.signInWithOAuth({
@@ -74,7 +85,7 @@ export function AuthProvider({ children, tenantId }) {
   };
 
   const updateProfile = async (updates) => {
-    if (!user) return { error: 'Not authenticated' };
+    if (!user || !tenantId) return { error: 'Not authenticated' };
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
@@ -87,16 +98,15 @@ export function AuthProvider({ children, tenantId }) {
   };
 
   const refreshProfile = async () => {
-    if (user) {
-      const p = await fetchProfile(user.id);
+    if (user && tenantId) {
+      const p = await fetchProfile(user.id, tenantId);
       if (p) setProfile(p);
     }
   };
 
   const value = useMemo(() => ({
     user, profile, loading, tenantId, supabase,
-    signInWithEmail, signUpWithEmail, signInWithGoogle,
-    signOut, updateProfile, refreshProfile,
+    signInWithGoogle, signOut, updateProfile, refreshProfile,
   }), [user, profile, loading, tenantId]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
