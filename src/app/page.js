@@ -1,41 +1,77 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { getSupabase } from '@/lib/supabase-browser';
 import { LandingPage } from '@/components/LandingPage';
 import { FlockApp } from '@/components/FlockApp';
 
 export default function Home() {
-  const { user, loading, tenantId } = useAuth();
-  const [timedOut, setTimedOut] = useState(false);
+  const [state, setState] = useState('loading'); // loading | landing | app
+  const [tenantId, setTenantId] = useState(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => { if (loading) setTimedOut(true); }, 3000);
-    return () => clearTimeout(timer);
-  }, [loading]);
+    const sb = getSupabase();
+    const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+    const host = window.location.hostname;
 
-  // No tenant = either root domain or tenant failed to resolve
-  // Show landing page rather than redirecting (avoids loops)
-  if (!tenantId) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>✦</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1A1018', marginBottom: 8, textTransform: 'lowercase' }}>flock</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#6A5A62', marginBottom: 24 }}>fan communities for independent artists</div>
-          <a href="/start" style={{ background: '#8B1A2B', color: '#fff', padding: '12px 28px', borderRadius: 10, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>get started</a>
-        </div>
-      </div>
-    );
-  }
+    // Resolve tenant from subdomain client-side
+    const resolveTenant = async () => {
+      if (host.endsWith(`.${APP_DOMAIN}`)) {
+        const slug = host.replace(`.${APP_DOMAIN}`, '');
+        const { data: tenant } = await sb.from('tenants').select('id').eq('slug', slug).single();
+        if (tenant?.id) {
+          setTenantId(tenant.id);
+          return tenant.id;
+        }
+      }
+      return null;
+    };
 
-  if (loading && !timedOut) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: 'var(--slate)', animation: 'fadeIn 0.5s ease-out' }}>✦</div>
-      </div>
-    );
-  }
+    const init = async () => {
+      const tid = await resolveTenant();
+      const { data: { session } } = await sb.auth.getSession();
 
-  if (!user) return <LandingPage />;
+      if (!session?.user) {
+        setState('landing');
+        return;
+      }
+
+      // Signed in - check profile exists
+      if (tid) {
+        const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single();
+        if (!profile) {
+          // Create profile on first login
+          const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
+          await sb.from('profiles').insert({
+            id: session.user.id, tenant_id: tid, display_name: displayName,
+            avatar_url: session.user.user_metadata?.avatar_url || null,
+            role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
+          }).catch(() => {});
+        }
+      }
+
+      setState('app');
+    };
+
+    init();
+
+    // Listen for auth changes (magic link landing)
+    const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setState('app');
+      } else if (event === 'SIGNED_OUT') {
+        setState('landing');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (state === 'loading') return (
+    <div style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: 'var(--ruby)' }}>✦</div>
+    </div>
+  );
+
+  if (state === 'landing') return <LandingPage />;
   return <FlockApp />;
 }

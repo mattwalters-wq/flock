@@ -18,17 +18,16 @@ export function LandingPage() {
 
   // Resolve tenant from subdomain client-side - doesn't depend on server headers
   useEffect(() => {
+    const sb = getSupabase();
     const host = window.location.hostname;
     const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     if (host.endsWith(`.${appDomain}`)) {
       const slug = host.replace(`.${appDomain}`, '');
-      const sb = getSupabase();
       sb.from('tenants').select('id, name').eq('slug', slug).single().then(({ data }) => {
         if (data) { setTenantName(data.name); setTenantId(data.id); }
       });
     }
     // Check if already signed in - redirect to home
-    const sb = getSupabase();
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) window.location.href = '/';
     });
@@ -52,7 +51,20 @@ export function LandingPage() {
     const sb = getSupabase();
     const { data, error: err } = await sb.auth.signInWithPassword({ email: email.trim(), password });
     if (err) { setError(err.message); setLoading(false); return; }
-    if (data?.session) window.location.href = '/';
+    if (data?.session) {
+      // Ensure profile exists - create if missing
+      if (tenantId) {
+        const { data: existing } = await sb.from('profiles').select('id').eq('id', data.user.id).eq('tenant_id', tenantId).single();
+        if (!existing) {
+          const displayName = data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'fan';
+          await sb.from('profiles').insert({
+            id: data.user.id, tenant_id: tenantId, display_name: displayName,
+            role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
+          }).catch(() => {});
+        }
+      }
+      window.location.href = '/';
+    }
   };
 
   const signInWithGoogle = async () => {
