@@ -627,6 +627,16 @@ export function FlockApp({ tenantId: propTenantId }) {
       (cfgRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
       if (cfg.currency_name) setCurrencyName(cfg.currency_name);
       if (cfg.currency_icon) setCurrencyIcon(cfg.currency_icon);
+      // Apply colours + font client-side
+      if (typeof document !== 'undefined') {
+        if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
+        if (cfg.color_cream) document.documentElement.style.setProperty('--cream', cfg.color_cream);
+        if (cfg.color_ink) document.documentElement.style.setProperty('--ink', cfg.color_ink);
+        const fontMap = { dm_sans: "'DM Sans', sans-serif", playfair: "'Playfair Display', serif", space_grotesk: "'Space Grotesk', sans-serif", libre_baskerville: "'Libre Baskerville', serif", syne: "'Syne', sans-serif" };
+        const font = fontMap[cfg.font_key];
+        if (font) document.documentElement.style.setProperty('--font-heading', font);
+      }
+      if (cfg.currency_icon) setCurrencyIcon(cfg.currency_icon);
 
       const mems = memRes.data || [];
       const map = {};

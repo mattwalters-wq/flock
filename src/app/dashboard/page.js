@@ -518,58 +518,273 @@ function Fans({ supabase, tenantId, currencyName, currencyIcon }) {
 }
 
 // ============ SETTINGS ============
+const FONT_OPTIONS = [
+  { key: 'dm_sans', label: 'DM Sans', desc: 'clean & modern', heading: "'DM Sans', sans-serif", body: "'DM Sans', sans-serif" },
+  { key: 'playfair', label: 'Playfair Display', desc: 'elegant & editorial', heading: "'Playfair Display', serif", body: "'DM Sans', sans-serif" },
+  { key: 'space_grotesk', label: 'Space Grotesk', desc: 'techy & distinctive', heading: "'Space Grotesk', sans-serif", body: "'Space Grotesk', sans-serif" },
+  { key: 'libre_baskerville', label: 'Libre Baskerville', desc: 'literary & warm', heading: "'Libre Baskerville', serif", body: "'DM Sans', sans-serif" },
+  { key: 'syne', label: 'Syne', desc: 'bold & expressive', heading: "'Syne', sans-serif", body: "'DM Sans', sans-serif" },
+];
+
+const PALETTE_PRESETS = [
+  { key: 'default', label: 'Flock Default', ruby: '#8B1A2B', cream: '#F5EFE6', ink: '#1A1018' },
+  { key: 'midnight', label: 'Midnight', ruby: '#6B5ECD', cream: '#F0EEF8', ink: '#1A1830' },
+  { key: 'forest', label: 'Forest', ruby: '#2D6A4F', cream: '#F0F5F0', ink: '#1A2B1F' },
+  { key: 'terracotta', label: 'Terracotta', ruby: '#C1440E', cream: '#FBF0EB', ink: '#2B1810' },
+  { key: 'slate', label: 'Slate', ruby: '#4A6FA5', cream: '#EEF2F8', ink: '#1A2030' },
+  { key: 'custom', label: 'Custom', ruby: null, cream: null, ink: null },
+];
+
 function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
-  const [cfg, setCfg] = useState({ currency_name: currencyName, currency_icon: currencyIcon });
+  const [cfg, setCfg] = useState({
+    currency_name: currencyName,
+    currency_icon: currencyIcon,
+    color_ruby: '#8B1A2B',
+    color_cream: '#F5EFE6',
+    color_ink: '#1A1018',
+    font_key: 'dm_sans',
+    banner_url: '',
+    tagline: '',
+    social_instagram: '',
+    social_spotify: '',
+    social_apple_music: '',
+    social_tiktok: '',
+    social_youtube: '',
+    social_website: '',
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [link, setLink] = useState('');
   const [copied, setCopied] = useState(false);
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerPreview, setBannerPreview] = useState(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [activeSection, setActiveSection] = useState('branding');
 
   useEffect(() => {
-    setCfg({ currency_name: currencyName, currency_icon: currencyIcon });
     if (typeof window !== 'undefined') setLink(window.location.origin);
-  }, [currencyName, currencyIcon]);
+    if (!supabase || !tenantId) return;
+    supabase.from('tenant_config').select('key, value').eq('tenant_id', tenantId).then(({ data }) => {
+      if (data) {
+        const loaded = {};
+        data.forEach(({ key, value }) => { loaded[key] = value; });
+        setCfg(prev => ({ ...prev, ...loaded }));
+        if (loaded.banner_url) setBannerPreview(loaded.banner_url);
+      }
+    });
+  }, [supabase, tenantId]);
 
   const save = async () => {
     setSaving(true);
-    for (const [key, value] of Object.entries(cfg)) {
-      await supabase.from('tenant_config').upsert({ tenant_id: tenantId, key, value }, { onConflict: 'tenant_id,key' });
+    let bannerUrl = cfg.banner_url;
+
+    if (bannerFile) {
+      setUploadingBanner(true);
+      const ext = bannerFile.name.split('.').pop();
+      const path = `banners/${tenantId}/banner.${ext}`;
+      const { error: upErr } = await supabase.storage.from('media').upload(path, bannerFile, { cacheControl: '3600', upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+        bannerUrl = urlData?.publicUrl || bannerUrl;
+      }
+      setUploadingBanner(false);
     }
+
+    const toSave = { ...cfg, banner_url: bannerUrl };
+    for (const [key, value] of Object.entries(toSave)) {
+      if (value !== null && value !== undefined) {
+        await supabase.from('tenant_config').upsert({ tenant_id: tenantId, key, value }, { onConflict: 'tenant_id,key' });
+      }
+    }
+
+    // Apply colours live without reload
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--ruby', toSave.color_ruby || '#8B1A2B');
+      document.documentElement.style.setProperty('--cream', toSave.color_cream || '#F5EFE6');
+      document.documentElement.style.setProperty('--ink', toSave.color_ink || '#1A1018');
+    }
+
     setSaved(true); setSaving(false);
-    setTimeout(() => setSaved(false), 2000);
+    setTimeout(() => setSaved(false), 2500);
   };
+
+  const applyPreset = (preset) => {
+    if (preset.key === 'custom') return;
+    setCfg(p => ({ ...p, color_ruby: preset.ruby, color_cream: preset.cream, color_ink: preset.ink }));
+  };
+
+  const selectedFont = FONT_OPTIONS.find(f => f.key === cfg.font_key) || FONT_OPTIONS[0];
+
+  const Section = ({ id, label, children }) => (
+    <div style={{ marginBottom: 12 }}>
+      <button onClick={() => setActiveSection(activeSection === id ? null : id)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: activeSection === id ? INK : SURFACE, border: `1px solid ${BORDER}`, borderRadius: activeSection === id ? '10px 10px 0 0' : 10, cursor: 'pointer' }}>
+        <Mono size={10} color={activeSection === id ? CREAM + '88' : SLATE} style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>{label}</Mono>
+        <Mono size={12} color={activeSection === id ? CREAM + '55' : SLATE}>{activeSection === id ? '−' : '+'}</Mono>
+      </button>
+      {activeSection === id && (
+        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '20px 18px' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+
+  const Field = ({ label, field, placeholder, type = 'text', prefix }) => (
+    <div style={{ marginBottom: 14 }}>
+      <Mono style={{ marginBottom: 6 }}>{label}</Mono>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+        {prefix && <div style={{ padding: '10px 12px', background: BORDER, borderRadius: '8px 0 0 8px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, border: `1px solid ${BORDER}`, borderRight: 'none' }}>{prefix}</div>}
+        <input type={type} value={cfg[field] || ''} onChange={e => setCfg(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder}
+          style={{ flex: 1, padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: prefix ? '0 8px 8px 0' : 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', width: '100%' }} />
+      </div>
+    </div>
+  );
 
   return (
     <div>
-      <H style={{ marginBottom: 20 }}>settings</H>
+      <H style={{ marginBottom: 6 }}>settings</H>
+      <div style={{ fontSize: 13, color: SLATE, marginBottom: 24, lineHeight: 1.5 }}>customise how your community looks and feels. changes apply instantly for all fans.</div>
 
-      <div style={{ background: SURFACE, borderRadius: 10, padding: '20px', border: `1px solid ${BORDER}`, marginBottom: 14 }}>
-        <Mono style={{ marginBottom: 16, letterSpacing: '1.5px', textTransform: 'uppercase' }}>fan currency</Mono>
-        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 10, marginBottom: 16 }}>
+      {/* Community link - always visible at top */}
+      <div style={{ background: INK, borderRadius: 12, padding: '20px 18px', marginBottom: 20 }}>
+        <Mono size={9} color={CREAM + '55'} style={{ letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>your link in bio</Mono>
+        <div style={{ fontSize: 18, fontWeight: 700, color: CREAM, fontFamily: "'DM Sans', sans-serif", marginBottom: 12, wordBreak: 'break-all' }}>{link}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
+            style={{ flex: 1, padding: '10px', background: copied ? WARM_GOLD : RUBY, color: copied ? INK : CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+            {copied ? 'copied ✓' : 'copy link'}
+          </button>
+          <a href={link} target="_blank" rel="noopener noreferrer"
+            style={{ padding: '10px 16px', background: CREAM + '15', color: CREAM + '88', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center' }}>
+            visit ↗
+          </a>
+        </div>
+        <Mono size={9} color={CREAM + '44'} style={{ marginTop: 10 }}>put this everywhere · instagram bio · twitter · linktree · email signature</Mono>
+      </div>
+
+      <Section id="branding" label="colours & fonts">
+        {/* Colour presets */}
+        <Mono style={{ marginBottom: 10 }}>colour preset</Mono>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+          {PALETTE_PRESETS.filter(p => p.key !== 'custom').map(preset => (
+            <button key={preset.key} onClick={() => applyPreset(preset)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: cfg.color_ruby === preset.ruby ? INK : CREAM, border: `1px solid ${cfg.color_ruby === preset.ruby ? INK : BORDER}`, borderRadius: 8, cursor: 'pointer' }}>
+              <div style={{ display: 'flex', gap: 3 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: preset.ink }} />
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: preset.ruby }} />
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: preset.cream, border: '1px solid #ddd' }} />
+              </div>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: cfg.color_ruby === preset.ruby ? CREAM : SLATE }}>{preset.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Custom colour pickers */}
+        <Mono style={{ marginBottom: 10 }}>custom colours</Mono>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+          {[
+            { label: 'accent', field: 'color_ruby', desc: 'buttons, highlights' },
+            { label: 'background', field: 'color_cream', desc: 'page background' },
+            { label: 'text', field: 'color_ink', desc: 'headings & body' },
+          ].map(({ label, field, desc }) => (
+            <div key={field} style={{ textAlign: 'center' }}>
+              <div style={{ position: 'relative', display: 'inline-block', marginBottom: 6 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 10, background: cfg[field] || '#888', border: `2px solid ${BORDER}`, position: 'relative', overflow: 'hidden' }}>
+                  <input type="color" value={cfg[field] || '#888888'} onChange={e => setCfg(p => ({ ...p, [field]: e.target.value }))}
+                    style={{ position: 'absolute', inset: -4, width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', padding: 0, border: 'none', cursor: 'pointer', opacity: 0 }} />
+                  <div style={{ position: 'absolute', inset: 0, background: cfg[field] || '#888', pointerEvents: 'none' }} />
+                  <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'rgba(0,0,0,0.3)', borderRadius: 3, padding: '1px 4px', fontFamily: "'DM Mono', monospace", fontSize: 7, color: '#fff', pointerEvents: 'none' }}>✎</div>
+                </div>
+              </div>
+              <Mono size={9} style={{ marginBottom: 2 }}>{label}</Mono>
+              <Mono size={8} color={SLATE + '66'}>{desc}</Mono>
+            </div>
+          ))}
+        </div>
+
+        {/* Font selector */}
+        <Mono style={{ marginBottom: 10 }}>font style</Mono>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 6 }}>
+          {FONT_OPTIONS.map(font => (
+            <button key={font.key} onClick={() => setCfg(p => ({ ...p, font_key: font.key }))}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', background: cfg.font_key === font.key ? INK : CREAM, border: `1px solid ${cfg.font_key === font.key ? INK : BORDER}`, borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: font.heading, fontSize: 16, fontWeight: 700, color: cfg.font_key === font.key ? CREAM : INK, textTransform: 'lowercase' }}>{font.label}</div>
+                <Mono size={9} color={cfg.font_key === font.key ? CREAM + '55' : SLATE}>{font.desc}</Mono>
+              </div>
+              {cfg.font_key === font.key && <span style={{ color: WARM_GOLD, fontFamily: "'DM Mono', monospace", fontSize: 12 }}>✦</span>}
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section id="banner" label="banner image">
+        <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
+          A banner image shows at the top of your community page. Best size: 1200×400px.
+        </div>
+        {bannerPreview ? (
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <img src={bannerPreview} alt="banner" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, border: `1px solid ${BORDER}`, display: 'block' }} />
+            <button onClick={() => { setBannerPreview(null); setBannerFile(null); setCfg(p => ({ ...p, banner_url: '' })); }}
+              style={{ position: 'absolute', top: 8, right: 8, background: INK + 'CC', color: CREAM, border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>remove</button>
+          </div>
+        ) : (
+          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px', background: CREAM, border: `2px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', marginBottom: 16 }}>
+            <input type="file" accept="image/*" onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
+              setBannerFile(file);
+              const r = new FileReader();
+              r.onload = ev => setBannerPreview(ev.target.result);
+              r.readAsDataURL(file);
+            }} style={{ display: 'none' }} />
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE }}>⊕</div>
+            <Mono>upload banner image</Mono>
+            <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
+          </label>
+        )}
+      </Section>
+
+      <Section id="profile" label="artist profile">
+        <Field label="tagline" field="tagline" placeholder="a short line about you or your music" />
+        <Field label="bio" field="bio" placeholder="a longer description for your community page" />
+      </Section>
+
+      <Section id="socials" label="social & streaming links">
+        <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
+          These appear on your community landing page - the link in bio your fans see before they sign up.
+        </div>
+        <Field label="instagram" field="social_instagram" placeholder="yourhandle" prefix="instagram.com/" />
+        <Field label="tiktok" field="social_tiktok" placeholder="yourhandle" prefix="tiktok.com/@" />
+        <Field label="spotify" field="social_spotify" placeholder="artist URL" prefix="open.spotify.com/" />
+        <Field label="apple music" field="social_apple_music" placeholder="artist URL" />
+        <Field label="youtube" field="social_youtube" placeholder="channel URL" />
+        <Field label="website" field="social_website" placeholder="https://yoursite.com" />
+      </Section>
+
+      <Section id="currency" label="fan currency">
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 10, marginBottom: 6 }}>
           <div>
             <Mono style={{ marginBottom: 6 }}>currency name</Mono>
-            <input type="text" value={cfg.currency_name} onChange={e => setCfg(p => ({ ...p, currency_name: e.target.value }))} placeholder="points, stamps, echoes..."
+            <input type="text" value={cfg.currency_name || ''} onChange={e => setCfg(p => ({ ...p, currency_name: e.target.value }))} placeholder="points, stamps, echoes..."
               style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
           </div>
           <div>
             <Mono style={{ marginBottom: 6 }}>icon</Mono>
-            <input type="text" value={cfg.currency_icon} onChange={e => setCfg(p => ({ ...p, currency_icon: e.target.value.slice(0, 2) }))} placeholder="✦"
+            <input type="text" value={cfg.currency_icon || ''} onChange={e => setCfg(p => ({ ...p, currency_icon: e.target.value.slice(0, 2) }))} placeholder="✦"
               style={{ width: '100%', padding: '10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 20, color: INK, outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Btn onClick={save} disabled={saving}>{saving ? 'saving...' : 'save changes'}</Btn>
-          {saved && <Mono size={11} color={SAGE}>saved ✓</Mono>}
-        </div>
-      </div>
+      </Section>
 
-      <div style={{ background: SURFACE, borderRadius: 10, padding: '20px', border: `1px solid ${BORDER}` }}>
-        <Mono style={{ marginBottom: 12, letterSpacing: '1.5px', textTransform: 'uppercase' }}>your community link</Mono>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input type="text" readOnly value={link} style={{ flex: 1, padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, color: SLATE, fontFamily: "'DM Mono', monospace", outline: 'none' }} />
-          <Btn onClick={() => { navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} variant="ghost">{copied ? 'copied ✓' : 'copy'}</Btn>
-        </div>
-        <Mono size={10} color={SLATE + '77'} style={{ marginTop: 8 }}>share this with fans · they sign up and land straight in your community</Mono>
+      {/* Save button */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 20 }}>
+        <Btn onClick={save} disabled={saving || uploadingBanner} style={{ flex: 1, padding: '14px', fontSize: 14 }}>
+          {saving ? 'saving...' : uploadingBanner ? 'uploading image...' : 'save all changes'}
+        </Btn>
+        {saved && <Mono size={11} color={SAGE}>saved ✓</Mono>}
       </div>
     </div>
   );
