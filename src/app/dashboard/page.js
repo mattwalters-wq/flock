@@ -316,17 +316,43 @@ function Members({ supabase, tenantId }) {
 }
 
 // ============ POINTS MANAGER ============
+function TierForm({ value, onChange, currencyName, currencyIcon, onSave, onCancel, saving, saveLabel = 'add tier' }) {
+  const I = ({ label, field, type = 'text', placeholder, span = 1 }) => (
+    <div style={{ gridColumn: `span ${span}`, marginBottom: 10 }}>
+      <Mono style={{ marginBottom: 4 }}>{label}</Mono>
+      <input type={type} value={value[field] ?? ''} onChange={e => onChange({ ...value, [field]: type === 'number' ? parseInt(e.target.value) || 0 : e.target.value })} placeholder={placeholder}
+        style={{ width: '100%', padding: '8px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: field === 'icon' ? "'DM Mono', monospace" : "'DM Sans', sans-serif", boxSizing: 'border-box', textAlign: field === 'icon' ? 'center' : 'left' }} />
+    </div>
+  );
+  return (
+    <div style={{ background: SURFACE, borderRadius: 10, padding: '16px', border: `1px solid ${BORDER}`, marginBottom: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 10px' }}>
+        <I label="tier name" field="name" placeholder="e.g. Inner Circle" />
+        <I label={`${currencyName} required`} field="stamps" type="number" placeholder="500" />
+        <I label="icon" field="icon" placeholder="✦" />
+      </div>
+      <I label="reward description" field="reward_desc" placeholder="what fans get at this level..." span={3} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Btn onClick={onSave} disabled={!value.name || !value.reward_desc || saving}>{saving ? 'saving...' : saveLabel}</Btn>
+        <Btn onClick={onCancel} variant="ghost">cancel</Btn>
+      </div>
+    </div>
+  );
+}
+
 function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
   const [actions, setActions] = useState([]);
   const [tiers, setTiers] = useState([]);
   const [newTier, setNewTier] = useState({ name: '', stamps: 0, icon: '✦', reward_type: '', reward_desc: '' });
   const [showNewTier, setShowNewTier] = useState(false);
-  const [savingTier, setSavingTier] = useState(false);
+  const [savingNew, setSavingNew] = useState(false);
+  const [editingTier, setEditingTier] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     supabase.from('stamp_actions').select('*').eq('tenant_id', tenantId).order('points').then(({ data }) => setActions(data || []));
     supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).order('sort_order').then(({ data }) => setTiers(data || []));
-  }, []);
+  }, [tenantId]);
 
   const toggleAction = async (a) => {
     await supabase.from('stamp_actions').update({ is_active: !a.is_active }).eq('id', a.id);
@@ -335,11 +361,28 @@ function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
 
   const addTier = async () => {
     if (!newTier.name || !newTier.reward_desc) return;
-    setSavingTier(true);
+    setSavingNew(true);
     await supabase.from('reward_tiers').insert({ ...newTier, tenant_id: tenantId, sort_order: tiers.length, is_active: true, key: newTier.name.toLowerCase().replace(/[^a-z0-9]+/g, '_') });
-    supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).order('sort_order').then(({ data }) => setTiers(data || []));
+    const { data } = await supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).order('sort_order');
+    setTiers(data || []);
     setNewTier({ name: '', stamps: 0, icon: '✦', reward_type: '', reward_desc: '' });
-    setShowNewTier(false); setSavingTier(false);
+    setShowNewTier(false); setSavingNew(false);
+  };
+
+  const saveTier = async () => {
+    if (!editingTier?.name || !editingTier?.reward_desc) return;
+    setSavingEdit(true);
+    await supabase.from('reward_tiers').update({
+      name: editingTier.name, stamps: editingTier.stamps, icon: editingTier.icon,
+      reward_desc: editingTier.reward_desc, reward_type: editingTier.reward_type,
+    }).eq('id', editingTier.id);
+    setTiers(prev => prev.map(t => t.id === editingTier.id ? { ...t, ...editingTier } : t));
+    setEditingTier(null); setSavingEdit(false);
+  };
+
+  const deleteTier = async (id) => {
+    await supabase.from('reward_tiers').delete().eq('id', id);
+    setTiers(p => p.filter(x => x.id !== id));
   };
 
   return (
@@ -364,43 +407,32 @@ function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <Mono style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>reward tiers</Mono>
-        <Btn onClick={() => setShowNewTier(!showNewTier)} variant="ghost" style={{ fontSize: 11, padding: '5px 12px' }}>{showNewTier ? 'cancel' : '+ add tier'}</Btn>
+        <Btn onClick={() => { setShowNewTier(!showNewTier); setEditingTier(null); }} variant="ghost" style={{ fontSize: 11, padding: '5px 12px' }}>{showNewTier ? 'cancel' : '+ add tier'}</Btn>
       </div>
 
       {showNewTier && (
-        <div style={{ background: SURFACE, borderRadius: 10, padding: '16px', border: `1px solid ${BORDER}`, marginBottom: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 10px' }}>
-            {[
-              { label: 'tier name', field: 'name', type: 'text', placeholder: 'e.g. Inner Circle' },
-              { label: `${currencyName} required`, field: 'stamps', type: 'number', placeholder: '500' },
-              { label: 'icon', field: 'icon', type: 'text', placeholder: '✦' },
-            ].map(({ label, field, type, placeholder }) => (
-              <div key={field} style={{ marginBottom: 10 }}>
-                <Mono style={{ marginBottom: 4 }}>{label}</Mono>
-                <input type={type} value={newTier[field]} onChange={e => setNewTier(p => ({ ...p, [field]: type === 'number' ? parseInt(e.target.value) || 0 : e.target.value }))} placeholder={placeholder}
-                  style={{ width: '100%', padding: '8px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: field === 'icon' ? "'DM Mono', monospace" : "'DM Sans', sans-serif", boxSizing: 'border-box', textAlign: field === 'icon' ? 'center' : 'left' }} />
-              </div>
-            ))}
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <Mono style={{ marginBottom: 4 }}>reward description</Mono>
-            <input type="text" value={newTier.reward_desc} onChange={e => setNewTier(p => ({ ...p, reward_desc: e.target.value }))} placeholder="what fans get at this level..."
-              style={{ width: '100%', padding: '8px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
-          </div>
-          <Btn onClick={addTier} disabled={!newTier.name || !newTier.reward_desc || savingTier}>{savingTier ? 'saving...' : 'add tier'}</Btn>
-        </div>
+        <TierForm value={newTier} onChange={setNewTier} currencyName={currencyName} currencyIcon={currencyIcon} onSave={addTier} onCancel={() => setShowNewTier(false)} saving={savingNew} saveLabel="add tier" />
       )}
 
       <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}` }}>
         {tiers.length === 0 ? <Mono style={{ padding: 16, textAlign: 'center' }}>no reward tiers yet</Mono> : tiers.map((t, i) => (
-          <div key={t.id} style={{ padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: i < tiers.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 6, background: INK, color: WARM_GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 15 }}>{t.icon}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{t.name}</div>
-              <div style={{ fontSize: 12, color: SLATE, marginTop: 2 }}>{t.reward_desc}</div>
-            </div>
-            <Mono size={11} color={WARM_GOLD} style={{ minWidth: 60, textAlign: 'right' }}>{t.stamps} {currencyIcon}</Mono>
-            <button onClick={async () => { await supabase.from('reward_tiers').delete().eq('id', t.id); setTiers(p => p.filter(x => x.id !== t.id)); }} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY }}>×</button>
+          <div key={t.id}>
+            {editingTier?.id === t.id ? (
+              <div style={{ padding: '12px 16px', borderBottom: i < tiers.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                <TierForm value={editingTier} onChange={setEditingTier} currencyName={currencyName} currencyIcon={currencyIcon} onSave={saveTier} onCancel={() => setEditingTier(null)} saving={savingEdit} saveLabel="save changes" />
+              </div>
+            ) : (
+              <div style={{ padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: i < tiers.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: INK, color: WARM_GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 16, flexShrink: 0 }}>{t.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: SLATE, marginTop: 2 }}>{t.reward_desc}</div>
+                </div>
+                <Mono size={11} color={WARM_GOLD} style={{ minWidth: 50, textAlign: 'right', flexShrink: 0 }}>{t.stamps} {currencyIcon}</Mono>
+                <button onClick={() => { setEditingTier({ ...t }); setShowNewTier(false); }} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, flexShrink: 0 }}>edit</button>
+                <button onClick={() => deleteTier(t.id)} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, flexShrink: 0 }}>×</button>
+              </div>
+            )}
           </div>
         ))}
       </div>

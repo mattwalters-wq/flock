@@ -17,8 +17,11 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Root domain - pass through, /start handles marketing + onboarding
+  // Root domain - redirect to marketing page
   if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
+    if (pathname === '/' || pathname === '') {
+      return NextResponse.redirect(new URL('/start', request.url));
+    }
     return NextResponse.next();
   }
 
