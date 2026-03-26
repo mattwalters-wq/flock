@@ -395,9 +395,25 @@ function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
           <div key={a.id} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: i < actions.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, color: INK, fontWeight: 500 }}>{a.name}</div>
-              <Mono size={9} color={SLATE + '88'}>{a.action_type} · {a.trigger_key}</Mono>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                <Mono size={9} color={SLATE + '88'}>{a.action_type} · {a.trigger_key}</Mono>
+                {a.daily_cap && <Mono size={9} color={WARM_GOLD}>max {a.daily_cap}x/day</Mono>}
+              </div>
             </div>
             <Mono size={12} color={WARM_GOLD} style={{ minWidth: 50, textAlign: 'right' }}>+{a.points} {currencyIcon}</Mono>
+            <div style={{ display: 'flex', flex: 'column', alignItems: 'center', gap: 6 }}>
+              <select value={a.daily_cap || ''} onChange={async e => {
+                const cap = e.target.value ? parseInt(e.target.value) : null;
+                await supabase.from('stamp_actions').update({ daily_cap: cap }).eq('id', a.id);
+                setActions(prev => prev.map(x => x.id === a.id ? { ...x, daily_cap: cap } : x));
+              }} title="daily cap - max times this earns points per day" style={{ padding: '3px 6px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 10, color: SLATE, fontFamily: "'DM Mono', monospace", cursor: 'pointer' }}>
+                <option value="">no cap</option>
+                <option value="1">1x/day</option>
+                <option value="3">3x/day</option>
+                <option value="5">5x/day</option>
+                <option value="10">10x/day</option>
+              </select>
+            </div>
             <button onClick={() => toggleAction(a)} style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: a.is_active ? RUBY : BORDER, position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
               <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 2, left: a.is_active ? 20 : 2, transition: 'left 0.2s' }} />
             </button>
