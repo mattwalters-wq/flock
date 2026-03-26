@@ -22,6 +22,8 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
   const [stats, setStats] = useState({ members: 0, posts: 0, shows: 0, totalPoints: 0, pendingClaims: 0 });
   const [recentMembers, setRecentMembers] = useState([]);
   const [digestSending, setDigestSending] = useState(false);
+  const [copiedHighlights, setCopiedHighlights] = useState(false);
+  const [copiedCommunity, setCopiedCommunity] = useState(false);
   const [digestResult, setDigestResult] = useState('');
   const [digestIntro, setDigestIntro] = useState('');
   const [showDigest, setShowDigest] = useState(false);
@@ -88,6 +90,49 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
             <Mono size={11} color={WARM_GOLD}>{m.stamp_count || 0} {currencyIcon}</Mono>
           </div>
         ))}
+      </div>
+
+      <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>grow your community</Mono>
+      <div style={{ background: INK, borderRadius: 12, padding: '20px 18px', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 28 }}>✦</div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: CREAM, textTransform: 'lowercase', marginBottom: 4 }}>share your highlights page</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '66', lineHeight: 1.6 }}>
+              a public page your fans can share on instagram, tiktok, anywhere. shows your best posts + upcoming shows. fans join directly from it.
+            </div>
+          </div>
+        </div>
+        <div style={{ background: CREAM + '12', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontFamily: "'DM Mono', monospace", fontSize: 11, color: CREAM + '77', wordBreak: 'break-all' }}>
+          {typeof window !== 'undefined' ? `${window.location.origin}/highlights` : '...'}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => {
+            const url = typeof window !== 'undefined' ? `${window.location.origin}/highlights` : '';
+            navigator.clipboard.writeText(url).then(() => { setCopiedHighlights(true); setTimeout(() => setCopiedHighlights(false), 2000); });
+          }} style={{ flex: 1, padding: '10px', background: RUBY, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+            {copiedHighlights ? 'copied ✓' : 'copy highlights link'}
+          </button>
+          <a href={typeof window !== 'undefined' ? `${window.location.origin}/highlights` : '#'} target="_blank" rel="noopener noreferrer"
+            style={{ padding: '10px 14px', background: CREAM + '12', color: CREAM + '77', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center' }}>
+            preview ↗
+          </a>
+        </div>
+        <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: CREAM + '33' }}>
+          tip: mark your best posts as ✦ highlights so they show up here
+        </div>
+      </div>
+
+      <div style={{ background: SURFACE, borderRadius: 12, padding: '16px 18px', border: `1px solid ${BORDER}`, marginBottom: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>community link</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10 }}>direct signup link - goes straight to join page</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input readOnly value={typeof window !== 'undefined' ? window.location.origin : ''} style={{ flex: 1, padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace", outline: 'none' }} />
+          <Btn onClick={() => {
+            const url = typeof window !== 'undefined' ? window.location.origin : '';
+            navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
+          }} variant="ghost" style={{ fontSize: 11 }}>{copiedCommunity ? 'copied ✓' : 'copy'}</Btn>
+        </div>
       </div>
 
       <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>community digest email</Mono>
