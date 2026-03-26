@@ -5,7 +5,7 @@ import { LandingPage } from '@/components/LandingPage';
 import { FlockApp } from '@/components/FlockApp';
 
 export default function Home() {
-  const [state, setState] = useState('loading'); // loading | landing | app
+  const [state, setState] = useState('loading');
   const [tenantId, setTenantId] = useState(null);
 
   useEffect(() => {
@@ -13,33 +13,24 @@ export default function Home() {
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     const host = window.location.hostname;
 
-    // Resolve tenant from subdomain client-side
-    const resolveTenant = async () => {
+    const init = async () => {
+      // Resolve tenant from subdomain
+      let tid = null;
       if (host.endsWith(`.${APP_DOMAIN}`)) {
         const slug = host.replace(`.${APP_DOMAIN}`, '');
         const { data: tenant } = await sb.from('tenants').select('id').eq('slug', slug).single();
-        if (tenant?.id) {
-          setTenantId(tenant.id);
-          return tenant.id;
-        }
+        tid = tenant?.id || null;
       }
-      return null;
-    };
+      setTenantId(tid);
 
-    const init = async () => {
-      const tid = await resolveTenant();
+      // Check session
       const { data: { session } } = await sb.auth.getSession();
+      if (!session?.user) { setState('landing'); return; }
 
-      if (!session?.user) {
-        setState('landing');
-        return;
-      }
-
-      // Signed in - check profile exists
+      // Ensure profile exists
       if (tid) {
         const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single();
         if (!profile) {
-          // Create profile on first login
           const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
           await sb.from('profiles').insert({
             id: session.user.id, tenant_id: tid, display_name: displayName,
@@ -54,13 +45,10 @@ export default function Home() {
 
     init();
 
-    // Listen for auth changes (magic link landing)
+    // Handle magic link landing
     const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setState('app');
-      } else if (event === 'SIGNED_OUT') {
-        setState('landing');
-      }
+      if (event === 'SIGNED_IN' && session?.user) setState('app');
+      else if (event === 'SIGNED_OUT') setState('landing');
     });
 
     return () => subscription.unsubscribe();
@@ -73,5 +61,5 @@ export default function Home() {
   );
 
   if (state === 'landing') return <LandingPage />;
-  return <FlockApp />;
+  return <FlockApp tenantId={tenantId} />;
 }

@@ -550,8 +550,9 @@ function MemberHeader({ member, memberMap }) {
 
 // ─── MAIN FLOCK APP ──────────────────────────────────────────────────────────
 
-export function FlockApp() {
-  const { user, profile, signOut, supabase, tenantId, refreshProfile, updateProfile } = useAuth();
+export function FlockApp({ tenantId: propTenantId }) {
+  const { user, profile, signOut, supabase, tenantId: authTenantId, refreshProfile, updateProfile } = useAuth();
+  const tenantId = propTenantId || authTenantId;
 
   // Tenant config
   const [tenant, setTenant] = useState(null);

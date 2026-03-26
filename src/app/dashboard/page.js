@@ -577,7 +577,21 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
 
 // ============ MAIN ============
 export default function Dashboard() {
-  const { user, profile, supabase, tenantId, loading } = useAuth();
+  // Resolve tenantId client-side since server headers are unreliable on Vercel
+  const { user, profile, supabase, tenantId: authTenantId, loading } = useAuth();
+  const [clientTenantId, setClientTenantId] = useState(null);
+  const tenantId = clientTenantId || authTenantId;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+    const host = window.location.hostname;
+    if (host.endsWith(`.${APP_DOMAIN}`)) {
+      const slug = host.replace(`.${APP_DOMAIN}`, '');
+      const sb = supabase;
+      if (sb) sb.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => { if (data?.id) setClientTenantId(data.id); });
+    }
+  }, [supabase]);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [tenant, setTenant] = useState(null);
