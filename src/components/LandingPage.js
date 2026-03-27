@@ -12,6 +12,7 @@ export function LandingPage() {
   const [magicSent, setMagicSent] = useState(false);
   const [tenantName, setTenantName] = useState('');
   const [tenantId, setTenantId] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(null);
 
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
   const SLATE = 'var(--slate)'; const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)';
@@ -24,7 +25,19 @@ export function LandingPage() {
     if (host.endsWith(`.${appDomain}`)) {
       const slug = host.replace(`.${appDomain}`, '');
       sb.from('tenants').select('id, name').eq('slug', slug).single().then(({ data }) => {
-        if (data) { setTenantName(data.name); setTenantId(data.id); }
+        if (data) {
+          setTenantName(data.name);
+          setTenantId(data.id);
+          // Load logo and brand colours
+          sb.from('tenant_config').select('key, value').eq('tenant_id', data.id).in('key', ['logo_url', 'color_ruby', 'color_cream', 'color_ink']).then(({ data: cfg }) => {
+            if (cfg) cfg.forEach(({ key, value }) => {
+              if (key === 'logo_url' && value) setLogoUrl(value);
+              if (key === 'color_ruby' && value) document.documentElement.style.setProperty('--ruby', value);
+              if (key === 'color_cream' && value) document.documentElement.style.setProperty('--cream', value);
+              if (key === 'color_ink' && value) document.documentElement.style.setProperty('--ink', value);
+            });
+          });
+        }
       });
     }
     // Check if already signed in - redirect to home
@@ -103,7 +116,13 @@ export function LandingPage() {
       <div style={{ width: '100%', maxWidth: 400, animation: 'fadeIn 0.5s ease-out' }}>
 
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 24 }}>✦</div>
+          {logoUrl ? (
+            <div style={{ margin: '0 auto 16px', display: 'flex', justifyContent: 'center' }}>
+              <img src={logoUrl} alt={tenantName} style={{ height: 56, maxWidth: 200, objectFit: 'contain', display: 'block' }} />
+            </div>
+          ) : (
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 24 }}>✦</div>
+          )}
           <div style={{ fontSize: 28, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>{tenantName || 'flock'}</div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase' }}>fan community</div>
         </div>

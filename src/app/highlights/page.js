@@ -72,6 +72,7 @@ export default function HighlightsPage() {
 
   const tenantName = tenant?.name || 'flock';
   const tagline = config.tagline || `the official fan community for ${tenantName}`;
+  const logoUrl = config.logo_url || null;
   const bannerUrl = config.banner_url || null;
   const joinUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const highlightsUrl = typeof window !== 'undefined' ? window.location.href : '';
@@ -113,10 +114,14 @@ export default function HighlightsPage() {
         </div>
 
         <div style={{ position: 'relative', maxWidth: 560, margin: '0 auto', padding: '64px 24px 48px', animation: 'fadeUp 0.6s ease-out' }}>
-          {/* Artist name */}
-          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 48, fontWeight: 700, color: cream, textTransform: 'lowercase', lineHeight: 1, marginBottom: 12, letterSpacing: '-1px' }}>
-            {tenantName}
-          </div>
+          {/* Artist name or logo */}
+          {logoUrl ? (
+            <img src={logoUrl} alt={tenantName} style={{ height: 56, maxWidth: 260, objectFit: 'contain', display: 'block', marginBottom: 12, filter: 'brightness(0) invert(1)' }} />
+          ) : (
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 48, fontWeight: 700, color: cream, textTransform: 'lowercase', lineHeight: 1, marginBottom: 12, letterSpacing: '-1px' }}>
+              {tenantName}
+            </div>
+          )}
 
           {/* Tagline */}
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: cream + '99', lineHeight: 1.6, marginBottom: 24, maxWidth: 380 }}>

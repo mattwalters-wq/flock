@@ -560,6 +560,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [memberMap, setMemberMap] = useState({});
   const [currencyName, setCurrencyName] = useState('points');
   const [currencyIcon, setCurrencyIcon] = useState('✦');
+  const [logoUrl, setLogoUrl] = useState(null);
   const [STAMP_LEVELS, setStampLevels] = useState(DEFAULT_LEVELS);
 
   // UI state
@@ -627,6 +628,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       (cfgRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
       if (cfg.currency_name) setCurrencyName(cfg.currency_name);
       if (cfg.currency_icon) setCurrencyIcon(cfg.currency_icon);
+      if (cfg.logo_url) setLogoUrl(cfg.logo_url);
       // Apply colours + font client-side
       if (typeof document !== 'undefined') {
         if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
@@ -852,7 +854,11 @@ export function FlockApp({ tenantId: propTenantId }) {
       {/* ── HEADER ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: CREAM + 'EE', backdropFilter: 'blur(16px)', borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>{tenantName}</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>
+            {logoUrl
+              ? <img src={logoUrl} alt={tenantName} style={{ height: 28, maxWidth: 140, objectFit: 'contain', display: 'block' }} />
+              : tenantName}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications && user) { supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('tenant_id', tenantId).eq('is_read', false).then(() => setUnreadCount(0)); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', fontFamily: "'DM Mono', monospace", fontSize: 16, color: RUBY, padding: '4px' }}>
               ◈

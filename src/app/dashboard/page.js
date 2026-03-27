@@ -637,6 +637,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     color_ink: '#1A1018',
     font_key: 'dm_sans',
     banner_url: '',
+    logo_url: '',
     tagline: '',
     social_instagram: '',
     social_spotify: '',
@@ -652,6 +653,8 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
   const [bannerFile, setBannerFile] = useState(null);
   const [bannerPreview, setBannerPreview] = useState(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [activeSection, setActiveSection] = useState('branding');
 
   useEffect(() => {
@@ -663,6 +666,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         data.forEach(({ key, value }) => { loaded[key] = value; });
         setCfg(prev => ({ ...prev, ...loaded }));
         if (loaded.banner_url) setBannerPreview(loaded.banner_url);
+        if (loaded.logo_url) setLogoPreview(loaded.logo_url);
       }
     });
   }, [supabase, tenantId]);
@@ -670,6 +674,17 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
   const save = async () => {
     setSaving(true);
     let bannerUrl = cfg.banner_url;
+    let logoUrl = cfg.logo_url;
+
+    if (logoFile) {
+      const ext = logoFile.name.split('.').pop();
+      const path = `logos/${tenantId}/logo.${ext}`;
+      const { error: upErr } = await supabase.storage.from('media').upload(path, logoFile, { cacheControl: '3600', upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+        logoUrl = urlData?.publicUrl || logoUrl;
+      }
+    }
 
     if (bannerFile) {
       setUploadingBanner(true);
@@ -683,7 +698,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       setUploadingBanner(false);
     }
 
-    const toSave = { ...cfg, banner_url: bannerUrl };
+    const toSave = { ...cfg, banner_url: bannerUrl, logo_url: logoUrl };
     for (const [key, value] of Object.entries(toSave)) {
       if (value !== null && value !== undefined) {
         await supabase.from('tenant_config').upsert({ tenant_id: tenantId, key, value }, { onConflict: 'tenant_id,key' });
@@ -812,9 +827,39 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         </div>
       </Section>
 
-      <Section id="banner" label="banner image">
-        <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
-          A banner image shows at the top of your community page. Best size: 1200×400px.
+      <Section id="banner" label="logo & banner image">
+        <Mono style={{ marginBottom: 10 }}>logo (png with transparent background)</Mono>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+          {logoPreview ? (
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <img src={logoPreview} alt="logo" style={{ height: 56, maxWidth: 180, objectFit: 'contain', borderRadius: 8, background: INK, padding: '8px 12px', display: 'block' }} />
+              <button onClick={() => { setLogoPreview(null); setLogoFile(null); setCfg(p => ({ ...p, logo_url: '' })); }}
+                style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: RUBY, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+          ) : (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: CREAM, border: `2px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer' }}>
+              <input type="file" accept="image/png,image/svg+xml,image/webp" onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) { alert('logo must be under 2MB'); return; }
+                setLogoFile(file);
+                const r = new FileReader();
+                r.onload = ev => setLogoPreview(ev.target.result);
+                r.readAsDataURL(file);
+              }} style={{ display: 'none' }} />
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE }}>⊕</span>
+              <div>
+                <Mono>upload logo</Mono>
+                <Mono size={9} color={SLATE + '66'}>png or svg · transparent bg · max 2MB</Mono>
+              </div>
+            </label>
+          )}
+          {logoPreview && <Mono size={10} color={SAGE}>replaces text name in header and highlights page</Mono>}
+        </div>
+
+        <Mono style={{ marginBottom: 10 }}>banner image</Mono>
+        <div style={{ fontSize: 13, color: SLATE, marginBottom: 12, lineHeight: 1.5 }}>
+          Shows at the top of your highlights page. Best size: 1200×400px.
         </div>
         {bannerPreview ? (
           <div style={{ position: 'relative', marginBottom: 16 }}>
