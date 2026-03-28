@@ -283,7 +283,7 @@ function StepLaunching({ communityName, error, onRetry }) {
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, lineHeight: 1.7, marginBottom: 24, padding: '0 8px' }}>{error}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
         <button onClick={onRetry} style={{ padding: '10px 24px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>← edit details</button>
-        <button onClick={() => window.location.href = '/start'} style={{ padding: '10px 24px', background: RUBY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>start over</button>
+        <button onClick={() => { localStorage.removeItem('flock_onboarding_v1'); window.location.href = '/start?join=1'; }} style={{ padding: '10px 24px', background: RUBY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>start over</button>
       </div>
     </div>
   );
@@ -489,13 +489,13 @@ function OnboardingWizard() {
   const [currency, setCurrency] = useState({ name: 'points', icon: '✦', customName: '', customIcon: '' });
   const [members, setMembers] = useState({ actType: 'solo', members: [{ name: '', color: '#8B1A2B' }] });
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount - but never resume from step 6 (launching)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const d = JSON.parse(saved);
-        if (d.step) setStep(d.step);
+        if (d.step && d.step < 6) setStep(d.step); // never auto-resume mid-launch
         if (d.account) setAccount(d.account);
         if (d.community) setCommunity(d.community);
         if (d.branding) setBranding(d.branding);
