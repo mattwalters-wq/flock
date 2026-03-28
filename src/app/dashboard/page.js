@@ -952,9 +952,11 @@ export default function Dashboard() {
   const [currencyIcon, setCurrencyIcon] = useState('✦');
 
   useEffect(() => {
-    if (!loading && !user) router.push('/');
-    if (!loading && profile && profile.role === 'fan') router.push('/');
-  }, [user, profile, loading]);
+    if (loading) return; // still loading auth
+    if (!user) { router.push('/'); return; }
+    if (!tenantId) return; // wait for tenant to resolve before checking profile
+    if (profile && profile.role === 'fan') router.push('/');
+  }, [user, profile, loading, tenantId]);
 
   useEffect(() => {
     if (!supabase || !tenantId) return;

@@ -1034,8 +1034,16 @@ export function FlockApp({ tenantId: propTenantId }) {
             {loadingPosts ? (
               <div style={{ textAlign: 'center', padding: 40, fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE }}>loading...</div>
             ) : visiblePosts.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 40, fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE, lineHeight: 1.6 }}>
-                {feedView === 'highlights' ? 'no highlights yet' : 'no posts yet · say something ✦'}
+              <div style={{ textAlign: 'center', padding: '48px 20px', animation: 'fadeIn 0.4s ease-out' }}>
+                <div style={{ fontSize: 36, marginBottom: 16 }}>✦</div>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 8 }}>
+                  {feedView === 'highlights' ? 'no highlights yet' : 'nothing here yet'}
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, lineHeight: 1.7, marginBottom: 20 }}>
+                  {profile?.role === 'admin' || profile?.role === 'band'
+                    ? 'write your first post to welcome fans in. they\'ll see it the moment they join.'
+                    : 'the artist hasn\'t posted yet. check back soon.'}
+                </div>
               </div>
             ) : visiblePosts.map((post, i) => (
               <div key={post.id} style={{ animation: `fadeIn 0.3s ease-out ${i * 0.03}s both` }}>
