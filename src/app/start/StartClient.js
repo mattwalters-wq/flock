@@ -284,39 +284,170 @@ function StepLaunching({ communityName, error }) {
 }
 
 function StepLive({ communityName, slug, primaryColor }) {
+  const [subStep, setSubStep] = useState(1); // 1 = socials, 2 = profile, 3 = share
+  const [socials, setSocials] = useState({ instagram: '', tiktok: '', spotify: '', website: '' });
+  const [profile, setProfile] = useState({ tagline: '', bio: '' });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
-  const url = `https://${slug}.${APP_DOMAIN}`;
-  const accent = primaryColor || RUBY;
+  const [captionCopied, setCaptionCopied] = useState(false);
 
+  const accent = primaryColor || RUBY;
+  const url = `https://${slug}.${APP_DOMAIN}`;
+  const highlightsUrl = `${url}/highlights`;
+
+  const saveToDb = async (data) => {
+    setSaving(true);
+    // Get tenant id first
+    const { data: tenant } = await sb().from('tenants').select('id').eq('slug', slug).single();
+    if (tenant?.id) {
+      const entries = Object.entries(data).filter(([, v]) => v?.trim());
+      for (const [key, value] of entries) {
+        await sb().from('tenant_config').upsert({ tenant_id: tenant.id, key, value }, { onConflict: 'tenant_id,key' });
+      }
+    }
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+
+  const instagramCaption = `i just launched my fan community on @flockfans 🎉
+
+this is my new link in bio - everything in one place: exclusive posts, show check-ins, rewards for my biggest fans.
+
+join for free ✦ ${highlightsUrl}`;
+
+  if (subStep === 1) return (
+    <div>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>you're live!</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, lineHeight: 1.6 }}>
+          now let's make your highlights page shareable.<br />
+          <strong style={{ color: accent }}>this replaces your link in bio.</strong>
+        </div>
+      </div>
+
+      <div style={{ background: accent + '11', border: `1px solid ${accent}33`, borderRadius: 12, padding: '14px 16px', marginBottom: 24 }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: accent, fontWeight: 600, marginBottom: 4 }}>your highlights page</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: INK, wordBreak: 'break-all' }}>{highlightsUrl}</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, marginTop: 6 }}>fans see this before they join · add it to instagram bio now</div>
+      </div>
+
+      <div style={{ fontSize: 15, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>step 1 of 2 · add your social links</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 18 }}>these appear on your highlights page so fans can find you everywhere</div>
+
+      {[
+        { label: 'instagram', field: 'instagram', prefix: '@', placeholder: 'yourhandle' },
+        { label: 'tiktok', field: 'tiktok', prefix: '@', placeholder: 'yourhandle' },
+        { label: 'spotify', field: 'spotify', prefix: '', placeholder: 'paste your artist URL' },
+        { label: 'website', field: 'website', prefix: '', placeholder: 'https://yoursite.com' },
+      ].map(({ label, field, prefix, placeholder }) => (
+        <div key={field} style={{ marginBottom: 12 }}>
+          <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 5 }}>{label}</label>
+          <div style={{ display: 'flex', alignItems: 'center', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, overflow: 'hidden' }}>
+            {prefix && <div style={{ padding: '11px 10px 11px 14px', fontFamily: "'DM Mono', monospace", fontSize: 13, color: SLATE + '66', borderRight: `1px solid ${BORDER}`, background: BORDER + '44' }}>{prefix}</div>}
+            <input type="text" value={socials[field]} onChange={e => setSocials(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder}
+              style={{ flex: 1, padding: '11px 14px', background: 'transparent', border: 'none', fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
+          </div>
+        </div>
+      ))}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+        <button onClick={() => setSubStep(2)} style={{ flex: 1, padding: '13px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 13, cursor: 'pointer' }}>skip for now</button>
+        <button onClick={async () => {
+          const toSave = {};
+          if (socials.instagram) toSave.social_instagram = socials.instagram.replace('@', '');
+          if (socials.tiktok) toSave.social_tiktok = socials.tiktok.replace('@', '');
+          if (socials.spotify) toSave.social_spotify = socials.spotify;
+          if (socials.website) toSave.social_website = socials.website;
+          if (Object.keys(toSave).length > 0) await saveToDb(toSave);
+          setSubStep(2);
+        }} disabled={saving} style={{ flex: 2, padding: '13px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {saving ? 'saving...' : 'save & continue →'}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (subStep === 2) return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>step 2 of 2 · your artist profile</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>shows on your highlights page before fans join</div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>tagline</label>
+        <input type="text" value={profile.tagline} onChange={e => setProfile(p => ({ ...p, tagline: e.target.value }))} placeholder="a short line about you or your music" maxLength={100} autoFocus
+          style={{ width: '100%', padding: '12px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '55', marginTop: 4 }}>e.g. "indie pop from melbourne" or "making sad music for happy people"</div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>bio (optional)</label>
+        <textarea value={profile.bio} onChange={e => setProfile(p => ({ ...p, bio: e.target.value }))} placeholder="a bit more about you - who you are, what you make, why fans should join" rows={3} maxLength={300}
+          style={{ width: '100%', padding: '12px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5 }} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => setSubStep(1)} style={{ padding: '13px 18px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 13, cursor: 'pointer' }}>← back</button>
+        <button onClick={async () => {
+          const toSave = {};
+          if (profile.tagline) toSave.tagline = profile.tagline;
+          if (profile.bio) toSave.bio = profile.bio;
+          if (Object.keys(toSave).length > 0) await saveToDb(toSave);
+          setSubStep(3);
+        }} disabled={saving} style={{ flex: 1, padding: '13px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {saving ? 'saving...' : 'finish setup →'}
+        </button>
+      </div>
+      <button onClick={() => setSubStep(3)} style={{ width: '100%', marginTop: 8, padding: '10px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '66' }}>skip</button>
+    </div>
+  );
+
+  // subStep 3 - the share moment
   return (
     <div>
-      <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-        <div style={{ fontSize: 28, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 8 }}>you're live!</div>
-        <Mono>{communityName} is ready for fans</Mono>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ fontSize: 36, marginBottom: 10 }}>✦</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>ready to share</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>your highlights page is live · put it everywhere</div>
       </div>
 
-      <div style={{ background: INK, borderRadius: 14, padding: '20px 18px', marginBottom: 16 }}>
+      {/* Highlights URL */}
+      <div style={{ background: INK, borderRadius: 14, padding: '18px', marginBottom: 12 }}>
         <Mono size={9} color={'#ffffff55'} style={{ marginBottom: 8, letterSpacing: '2px', textTransform: 'uppercase' }}>your link in bio</Mono>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', fontFamily: "'DM Mono', monospace", marginBottom: 14, wordBreak: 'break-all' }}>{url}</div>
-        <button onClick={() => { navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
-          style={{ width: '100%', padding: '12px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-          {copied ? 'copied ✓' : 'copy link'}
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 14, wordBreak: 'break-all' }}>{highlightsUrl}</div>
+        <button onClick={() => { navigator.clipboard.writeText(highlightsUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
+          style={{ width: '100%', padding: '11px', background: accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {copied ? '✓ copied' : 'copy link'}
         </button>
-        <Mono size={9} color={'#ffffff44'} style={{ marginTop: 10, textAlign: 'center' }}>put this in your instagram bio right now</Mono>
       </div>
 
-      <div style={{ background: SURFACE, borderRadius: 14, padding: '18px', border: `1px solid ${BORDER}`, marginBottom: 16 }}>
-        <Mono style={{ marginBottom: 14, letterSpacing: '1.5px', textTransform: 'uppercase' }}>next steps</Mono>
+      {/* Instagram caption */}
+      <div style={{ background: SURFACE, borderRadius: 12, padding: '16px', border: `1px solid ${BORDER}`, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <Mono size={9} style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>ready-to-post caption</Mono>
+          <button onClick={() => { navigator.clipboard.writeText(instagramCaption).then(() => { setCaptionCopied(true); setTimeout(() => setCaptionCopied(false), 2000); }); }}
+            style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: accent, background: 'none', border: `1px solid ${accent}44`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>
+            {captionCopied ? 'copied ✓' : 'copy'}
+          </button>
+        </div>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: INK + 'CC', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{instagramCaption}</div>
+      </div>
+
+      {/* Next steps */}
+      <div style={{ background: SURFACE, borderRadius: 12, padding: '16px', border: `1px solid ${BORDER}`, marginBottom: 16 }}>
+        <Mono size={9} style={{ marginBottom: 12, letterSpacing: '1.5px', textTransform: 'uppercase' }}>do these next</Mono>
         {[
-          { icon: '✦', text: 'write your first post to welcome fans in' },
-          { icon: '♫', text: 'add an upcoming show so fans can check in' },
-          { icon: '◉', text: 'share your highlights link on instagram' },
-          { icon: '⚙', text: 'add your logo and social links in settings' },
+          { icon: '1', text: 'swap your instagram bio link to ' + highlightsUrl },
+          { icon: '2', text: 'write a welcome post inside your community' },
+          { icon: '3', text: 'add an upcoming show so fans can check in' },
+          { icon: '4', text: 'upload your logo in dashboard → settings' },
         ].map((item, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < 3 ? `1px solid ${BORDER}` : 'none' }}>
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: accent, width: 20, textAlign: 'center' }}>{item.icon}</span>
-            <span style={{ fontSize: 13, color: INK }}>{item.text}</span>
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '8px 0', borderBottom: i < 3 ? `1px solid ${BORDER}` : 'none' }}>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: accent, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>{item.icon}</div>
+            <span style={{ fontSize: 12, color: INK, lineHeight: 1.5 }}>{item.text}</span>
           </div>
         ))}
       </div>
@@ -324,9 +455,6 @@ function StepLive({ communityName, slug, primaryColor }) {
       <a href={url} style={{ display: 'block', width: '100%', padding: '14px', background: accent, color: '#fff', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
         go to my community →
       </a>
-      <div style={{ textAlign: 'center', marginTop: 12 }}>
-        <a href={`${url}/highlights`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, textDecoration: 'none' }}>preview your highlights page ↗</a>
-      </div>
     </div>
   );
 }
