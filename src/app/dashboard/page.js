@@ -1119,10 +1119,15 @@ export default function Dashboard() {
       {/* Top bar */}
       <div style={{ background: INK, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: CREAM, textTransform: 'lowercase' }}>{tenant?.name || 'dashboard'}</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CREAM + '44', letterSpacing: '1.5px', textTransform: 'uppercase' }}>dashboard</div>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: CREAM, flexShrink: 0 }}>✦</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: CREAM, textTransform: 'lowercase', lineHeight: 1 }}>{tenant?.name || 'flock'}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CREAM + '44', letterSpacing: '1px' }}>dashboard</div>
+          </div>
         </div>
-        <a href="/" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: CREAM + '66', textDecoration: 'none' }}>← back to community</a>
+        <a href="/" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM, background: CREAM + '15', border: `1px solid ${CREAM}22`, padding: '6px 14px', borderRadius: 8, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+          ← view community
+        </a>
       </div>
 
       {/* Tab bar */}

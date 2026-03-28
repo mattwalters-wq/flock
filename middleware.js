@@ -17,12 +17,14 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Root domain - redirect to marketing page
+  // Root domain (fans-flock.com or www.fans-flock.com) - show marketing page
   if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
-    if (pathname === '/' || pathname === '') {
-      return NextResponse.redirect(new URL('/start', request.url));
+    // Already on /start - let it render
+    if (pathname.startsWith('/start') || pathname.startsWith('/api') || pathname.startsWith('/auth')) {
+      return NextResponse.next();
     }
-    return NextResponse.next();
+    // Everything else on root domain → /start (marketing page)
+    return NextResponse.redirect(new URL('/start', request.url));
   }
 
   // Localhost dev

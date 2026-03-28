@@ -801,11 +801,14 @@ export function FlockApp({ tenantId: propTenantId }) {
     { id: 'highlights', label: 'highlights', icon: '◉', color: RUBY },
   ];
 
+  const isArtist = profile?.role === 'admin' || profile?.role === 'band';
+
   const mainTabs = [
     { id: 'feed', label: 'feed', icon: '◎' },
     { id: 'shows', label: 'shows', icon: '♫' },
     { id: 'points', label: currencyName, icon: currencyIcon },
     { id: 'you', label: 'you', icon: '○' },
+    ...(isArtist ? [{ id: 'dashboard', label: 'dashboard', icon: '⚙', href: '/dashboard' }] : []),
   ];
 
   const visiblePosts = feedTagFilter ? posts.filter(p => p.tag === feedTagFilter) : posts;
@@ -853,6 +856,15 @@ export function FlockApp({ tenantId: propTenantId }) {
 
       {/* ── HEADER ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 100, background: CREAM + 'EE', backdropFilter: 'blur(16px)', borderBottom: `1px solid ${BORDER}` }}>
+        {/* Admin bar */}
+        {(profile?.role === 'admin' || profile?.role === 'band') && (
+          <div style={{ background: INK, padding: '6px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CREAM + '55', letterSpacing: '1px' }}>artist view</div>
+            <a href="/dashboard" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM, background: RUBY, padding: '4px 12px', borderRadius: 6, textDecoration: 'none', fontWeight: 600, letterSpacing: '0.5px' }}>
+              dashboard →
+            </a>
+          </div>
+        )}
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>
             {logoUrl
@@ -1265,10 +1277,15 @@ export function FlockApp({ tenantId: propTenantId }) {
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: SURFACE + 'F0', backdropFilter: 'blur(16px)', borderTop: `1px solid ${BORDER}`, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', justifyContent: 'space-around', padding: '6px 0 12px' }}>
           {mainTabs.map(tab => (
-            <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56 }}>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: mainTab === tab.id ? RUBY : SLATE + '66' }}>{tab.icon}</span>
-              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: mainTab === tab.id ? 500 : 400, color: mainTab === tab.id ? INK : SLATE + '66' }}>{tab.label}</span>
-            </button>
+            tab.href
+              ? <a key={tab.id} href={tab.href} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56, textDecoration: 'none' }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE + '66' }}>{tab.icon}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66' }}>{tab.label}</span>
+                </a>
+              : <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56 }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: mainTab === tab.id ? RUBY : SLATE + '66' }}>{tab.icon}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: mainTab === tab.id ? 500 : 400, color: mainTab === tab.id ? INK : SLATE + '66' }}>{tab.label}</span>
+                </button>
           ))}
         </div>
       </div>
