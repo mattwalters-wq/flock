@@ -10,6 +10,7 @@ export function LandingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [magicSent, setMagicSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [tenantName, setTenantName] = useState('');
   const [tenantId, setTenantId] = useState(null);
   const [logoUrl, setLogoUrl] = useState(null);
@@ -179,8 +180,14 @@ export function LandingPage() {
               {(mode === 'password' || mode === 'signup') && (
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && (mode === 'password' ? signInWithPassword() : signUp())} placeholder="at least 8 characters"
-                    style={{ width: '100%', padding: '11px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+                  <div style={{ position: 'relative' }}>
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && (mode === 'password' ? signInWithPassword() : signUp())} placeholder="at least 8 characters"
+                      style={{ width: '100%', padding: '11px 44px 11px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+                    <button type="button" onClick={() => setShowPassword(p => !p)}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>
+                      {showPassword ? 'hide' : 'show'}
+                    </button>
+                  </div>
                 </div>
               )}
 

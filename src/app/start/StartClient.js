@@ -14,15 +14,27 @@ const Mono = ({ children, size = 10, color = SLATE, style = {} }) => (
   <div style={{ fontFamily: "'DM Mono', monospace", fontSize: size, color, letterSpacing: '0.5px', ...style }}>{children}</div>
 );
 
-const Input = ({ label, type = 'text', value, onChange, placeholder, hint, error, autoFocus }) => (
-  <div style={{ marginBottom: 16 }}>
-    <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>{label}</label>
-    <input type={type} value={value} onChange={onChange} placeholder={placeholder} autoFocus={autoFocus}
-      style={{ width: '100%', padding: '12px 14px', background: CREAM, border: `1px solid ${error ? RUBY : BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
-    {hint && !error && <Mono size={9} color={SLATE + '77'} style={{ marginTop: 5 }}>{hint}</Mono>}
-    {error && <Mono size={9} color={RUBY} style={{ marginTop: 5 }}>{error}</Mono>}
-  </div>
-);
+const Input = ({ label, type = 'text', value, onChange, placeholder, hint, error, autoFocus }) => {
+  const [showPw, setShowPw] = useState(false);
+  const isPassword = type === 'password';
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input type={isPassword && showPw ? 'text' : type} value={value} onChange={onChange} placeholder={placeholder} autoFocus={autoFocus}
+          style={{ width: '100%', padding: isPassword ? '12px 44px 12px 14px' : '12px 14px', background: CREAM, border: `1px solid ${error ? RUBY : BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+        {isPassword && (
+          <button type="button" onClick={() => setShowPw(p => !p)}
+            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>
+            {showPw ? 'hide' : 'show'}
+          </button>
+        )}
+      </div>
+      {hint && !error && <Mono size={9} color={SLATE + '77'} style={{ marginTop: 5 }}>{hint}</Mono>}
+      {error && <Mono size={9} color={RUBY} style={{ marginTop: 5 }}>{error}</Mono>}
+    </div>
+  );
+};
 
 const Btn = ({ children, onClick, disabled, variant = 'primary', style = {} }) => (
   <button onClick={onClick} disabled={disabled}
@@ -49,7 +61,7 @@ const CURRENCY_PRESETS = [
   { name: 'sparks', icon: '✺', desc: 'energetic' },
   { name: 'echoes', icon: '◎', desc: 'musical' },
   { name: 'drops', icon: '●', desc: 'hype' },
-  { name: 'chips', icon: '◈', desc: 'playful' },
+
   { name: 'custom', icon: '✎', desc: 'your idea' },
 ];
 
@@ -111,7 +123,7 @@ function StepCommunity({ initial, onNext, onBack }) {
         <div style={{ fontSize: 26, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>name your community</div>
         <Mono>this becomes your link in bio - the one URL your fans need</Mono>
       </div>
-      <Input label="community name" value={data.name} onChange={e => { const name = e.target.value; setData(p => ({ ...p, name, slug: slugify(name) })); setSlugAvailable(null); }} placeholder="e.g. The Stamps, Emma Donovan" autoFocus error={errors.name} />
+      <Input label="community name" value={data.name} onChange={e => { const name = e.target.value; setData(p => ({ ...p, name, slug: slugify(name) })); setSlugAvailable(null); }} placeholder="e.g. Ed Sheeran, Chappell Roan" autoFocus error={errors.name} />
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>your url</label>
         <div style={{ display: 'flex', alignItems: 'center', background: CREAM, border: `1px solid ${errors.slug ? RUBY : slugAvailable === true ? SAGE : BORDER}`, borderRadius: 10, overflow: 'hidden' }}>
@@ -256,7 +268,7 @@ function StepMembers({ initial, onNext, onBack, primaryColor }) {
   );
 }
 
-function StepLaunching({ communityName, error }) {
+function StepLaunching({ communityName, error, onRetry }) {
   const [dots, setDots] = useState('');
   useEffect(() => {
     if (error) return;
@@ -267,9 +279,12 @@ function StepLaunching({ communityName, error }) {
   if (error) return (
     <div style={{ textAlign: 'center', padding: '20px 0' }}>
       <div style={{ fontSize: 36, marginBottom: 16 }}>✗</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: INK, marginBottom: 8, textTransform: 'lowercase' }}>something went wrong</div>
-      <Mono style={{ marginBottom: 20 }}>{error}</Mono>
-      <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', background: RUBY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>try again</button>
+      <div style={{ fontSize: 20, fontWeight: 700, color: INK, marginBottom: 12, textTransform: 'lowercase' }}>something went wrong</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, lineHeight: 1.7, marginBottom: 24, padding: '0 8px' }}>{error}</div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <button onClick={onRetry} style={{ padding: '10px 24px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>← edit details</button>
+        <button onClick={() => window.location.href = '/start'} style={{ padding: '10px 24px', background: RUBY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>start over</button>
+      </div>
     </div>
   );
 
@@ -515,9 +530,23 @@ function OnboardingWizard() {
         body: JSON.stringify({ account, community, branding, currency: { name: finalCurrencyName, icon: finalCurrencyIcon }, members: finalMembers }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'something went wrong'); return; }
+      if (!res.ok) {
+        const msg = data.error || 'something went wrong';
+        // User already exists - try signing them in instead
+        if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exists')) {
+          const { error: signInErr } = await sb().auth.signInWithPassword({ email: account.email, password: account.password });
+          if (signInErr) {
+            setError('an account with that email already exists. try signing in at fans-flock.com/start instead.');
+          } else {
+            setError('an account with that email already exists and you\'ve been signed in. go to fans-flock.com/start to access your community.');
+          }
+        } else {
+          setError(msg);
+        }
+        return;
+      }
       await sb().auth.signInWithPassword({ email: account.email, password: account.password });
-      localStorage.removeItem(STORAGE_KEY); // Clear saved state on success
+      localStorage.removeItem(STORAGE_KEY);
       goToStep(7);
     } catch (e) {
       setError(e.message);
@@ -554,7 +583,7 @@ function OnboardingWizard() {
           {step === 3 && <StepColours initial={branding} onNext={d => { setBranding(d); save({ branding: d }); goToStep(4); }} onBack={() => goToStep(2)} />}
           {step === 4 && <StepCurrency initial={currency} onNext={d => { setCurrency(d); save({ currency: d }); goToStep(5); }} onBack={() => goToStep(3)} />}
           {step === 5 && <StepMembers initial={members} primaryColor={branding.primaryColor} onNext={d => { setMembers(d); save({ members: d }); launch(d); }} onBack={() => goToStep(4)} />}
-          {step === 6 && <StepLaunching communityName={community.name} error={error} />}
+          {step === 6 && <StepLaunching communityName={community.name} error={error} onRetry={() => goToStep(5)} />}
           {step === 7 && <StepLive communityName={community.name} slug={community.slug} primaryColor={branding.primaryColor} />}
         </div>
 
