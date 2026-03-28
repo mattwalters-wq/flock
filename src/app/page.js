@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '@/lib/supabase-browser';
-import { LandingPage } from '@/components/LandingPage';
+import { PublicPage } from '@/components/PublicPage';
 import { FlockApp } from '@/components/FlockApp';
 
 export default function Home() {
@@ -14,7 +14,6 @@ export default function Home() {
     const host = window.location.hostname;
 
     const init = async () => {
-      // Resolve tenant from subdomain
       let tid = null;
       if (host.endsWith(`.${APP_DOMAIN}`)) {
         const slug = host.replace(`.${APP_DOMAIN}`, '');
@@ -23,11 +22,10 @@ export default function Home() {
       }
       setTenantId(tid);
 
-      // Check session
       const { data: { session } } = await sb.auth.getSession();
-      if (!session?.user) { setState('landing'); return; }
+      if (!session?.user) { setState('public'); return; }
 
-      // Ensure profile exists
+      // Ensure profile exists for this tenant
       if (tid) {
         const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single();
         if (!profile) {
@@ -39,16 +37,14 @@ export default function Home() {
           }).catch(() => {});
         }
       }
-
       setState('app');
     };
 
     init();
 
-    // Handle magic link landing
     const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) setState('app');
-      else if (event === 'SIGNED_OUT') setState('landing');
+      else if (event === 'SIGNED_OUT') setState('public');
     });
 
     return () => subscription.unsubscribe();
@@ -60,6 +56,6 @@ export default function Home() {
     </div>
   );
 
-  if (state === 'landing') return <LandingPage />;
+  if (state === 'public') return <PublicPage tenantId={tenantId} />;
   return <FlockApp tenantId={tenantId} />;
 }
