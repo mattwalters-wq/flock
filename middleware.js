@@ -1,59 +1,30 @@
 import { NextResponse } from 'next/server';
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
-const DEV_TENANT_SLUG = process.env.DEV_TENANT_SLUG || 'the-stamps';
 
 export function middleware(request) {
   const { pathname } = new URL(request.url);
   const host = request.headers.get('host') || '';
 
   // Bypass static assets and API routes
-  if (
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/api/') ||
-    pathname === '/favicon.ico' ||
-    pathname.includes('.')
-  ) {
+  if (pathname.startsWith('/_next/') || pathname.startsWith('/api/') || pathname.includes('.')) {
     return NextResponse.next();
   }
 
-  // Root domain (fans-flock.com or www.fans-flock.com) - show marketing page
-  if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
-    // Already on /start - let it render
-    if (pathname.startsWith('/start') || pathname.startsWith('/api') || pathname.startsWith('/auth')) {
-      return NextResponse.next();
-    }
-    // Everything else on root domain → /start (marketing page)
-    return NextResponse.redirect(new URL('/start', request.url));
-  }
-
-  // Localhost dev
-  if (host.startsWith('localhost')) {
-    const response = NextResponse.next();
-    response.headers.set('x-tenant-slug', DEV_TENANT_SLUG);
-    return response;
-  }
-
-  // Subdomain (artist.fans-flock.com)
+  // Subdomain - strip /start redirect back to home, set tenant header
   if (host.endsWith(`.${APP_DOMAIN}`)) {
     const tenantSlug = host.replace(`.${APP_DOMAIN}`, '');
-
-    // /start is the marketing page - redirect subdomains away from it
     if (pathname === '/start' || pathname.startsWith('/start?')) {
       return NextResponse.redirect(new URL('/', request.url));
     }
-
     const response = NextResponse.next();
     response.headers.set('x-tenant-slug', tenantSlug);
     response.headers.set('x-host', host);
     return response;
   }
 
-  // Custom domain
-  const response = NextResponse.next();
-  response.headers.set('x-tenant-slug', '__custom__');
-  response.headers.set('x-host', host);
-  return response;
+  // Everything else - pass through (page.js handles root domain redirect)
+  return NextResponse.next();
 }
 
 export const config = {

@@ -14,6 +14,12 @@ export default function Home() {
     const host = window.location.hostname;
 
     const init = async () => {
+      // Root domain - redirect to marketing page
+      if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
+        window.location.href = '/start';
+        return;
+      }
+
       let tid = null;
       if (host.endsWith(`.${APP_DOMAIN}`)) {
         const slug = host.replace(`.${APP_DOMAIN}`, '');
@@ -22,20 +28,24 @@ export default function Home() {
       }
       setTenantId(tid);
 
+      // No tenant found - show nothing useful, redirect to marketing
+      if (!tid) {
+        window.location.href = `https://${APP_DOMAIN}/start`;
+        return;
+      }
+
       const { data: { session } } = await sb.auth.getSession();
       if (!session?.user) { setState('public'); return; }
 
       // Ensure profile exists for this tenant
-      if (tid) {
-        const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single();
-        if (!profile) {
-          const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
-          await sb.from('profiles').insert({
-            id: session.user.id, tenant_id: tid, display_name: displayName,
-            avatar_url: session.user.user_metadata?.avatar_url || null,
-            role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-          }).catch(() => {});
-        }
+      const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single();
+      if (!profile) {
+        const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
+        await sb.from('profiles').insert({
+          id: session.user.id, tenant_id: tid, display_name: displayName,
+          avatar_url: session.user.user_metadata?.avatar_url || null,
+          role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
+        }).catch(() => {});
       }
       setState('app');
     };
@@ -51,8 +61,8 @@ export default function Home() {
   }, []);
 
   if (state === 'loading') return (
-    <div style={{ minHeight: '100vh', background: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: 'var(--ruby)' }}>✦</div>
+    <div style={{ minHeight: '100vh', background: 'var(--cream, #F5EFE6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: 'var(--ruby, #8B1A2B)' }}>✦</div>
     </div>
   );
 
