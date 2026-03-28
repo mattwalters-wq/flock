@@ -88,7 +88,7 @@ function StepAccount({ initial, onNext }) {
       <Input label="password" type="password" value={data.password} onChange={e => setData(p => ({ ...p, password: e.target.value }))} placeholder="at least 8 characters" hint="you'll use this to log into your dashboard" error={errors.password} />
       <Btn onClick={() => validate() && onNext(data)} style={{ width: '100%', marginTop: 8 }}>continue →</Btn>
       <div style={{ textAlign: 'center', marginTop: 16 }}>
-        <Mono size={10}>already have a community? <a href="https://fans-flock.com/start" style={{ color: RUBY, textDecoration: 'none', fontWeight: 600 }}>sign in</a></Mono>
+        <Mono size={10}>already have a community? <a href="/login" style={{ color: RUBY, textDecoration: 'none', fontWeight: 600 }}>sign in</a></Mono>
       </div>
     </div>
   );
@@ -634,6 +634,7 @@ export default function StartClient({ showForm: initialShowForm = false }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <a href="#how" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: CREAM + '66', textDecoration: 'none' }}>how it works</a>
+          <a href="/login" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: CREAM + '88', textDecoration: 'none' }}>sign in</a>
           <button onClick={() => setShowForm(true)} style={{ background: RUBY, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>get started</button>
         </div>
       </div>
