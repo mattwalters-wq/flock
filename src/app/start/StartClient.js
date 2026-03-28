@@ -467,9 +467,12 @@ join for free ✦ ${highlightsUrl}`;
         ))}
       </div>
 
-      <a href={url} style={{ display: 'block', width: '100%', padding: '14px', background: accent, color: '#fff', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
-        go to my community →
+      <a href={`${url}/dashboard`} style={{ display: 'block', width: '100%', padding: '14px', background: accent, color: '#fff', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
+        go to my dashboard →
       </a>
+      <div style={{ textAlign: 'center', marginTop: 10 }}>
+        <a href={url} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, textDecoration: 'none' }}>or visit my community →</a>
+      </div>
     </div>
   );
 }
@@ -545,9 +548,16 @@ function OnboardingWizard() {
         }
         return;
       }
-      await sb().auth.signInWithPassword({ email: account.email, password: account.password });
+      const { data: signInData } = await sb().auth.signInWithPassword({ email: account.email, password: account.password });
       localStorage.removeItem(STORAGE_KEY);
       goToStep(7);
+      // Store session token so subdomain can pick it up
+      if (signInData?.session) {
+        sessionStorage.setItem('flock_new_session', JSON.stringify({
+          access_token: signInData.session.access_token,
+          refresh_token: signInData.session.refresh_token,
+        }));
+      }
     } catch (e) {
       setError(e.message);
     }

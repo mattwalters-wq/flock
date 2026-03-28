@@ -1063,7 +1063,18 @@ export function FlockApp({ tenantId: propTenantId }) {
             </div>
 
             {Object.keys(shows).length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 40, fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE }}>no shows announced yet</div>
+              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                <div style={{ fontSize: 36, marginBottom: 16 }}>♫</div>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 8 }}>no shows yet</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, lineHeight: 1.7, marginBottom: 20 }}>
+                  add upcoming shows so fans can check in and earn {currencyName}
+                </div>
+                {(profile?.role === 'admin' || profile?.role === 'band') && (
+                  <a href="/dashboard" style={{ display: 'inline-block', padding: '10px 24px', background: RUBY, color: CREAM, borderRadius: 10, textDecoration: 'none', fontFamily: "'DM Mono', monospace", fontSize: 11, fontWeight: 600 }}>
+                    add shows in dashboard →
+                  </a>
+                )}
+              </div>
             ) : REGION_ORDER.filter(r => shows[r]).map(region => (
               <div key={region} style={{ marginBottom: 10 }}>
                 <button onClick={() => setExpandedRegion(expandedRegion === region ? null : region)} style={{ width: '100%', background: expandedRegion === region ? INK : SURFACE, border: `1px solid ${BORDER}`, borderRadius: expandedRegion === region ? '8px 8px 0 0' : 8, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
