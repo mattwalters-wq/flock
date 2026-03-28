@@ -17,6 +17,126 @@ const Btn = ({ children, onClick, variant = 'primary', disabled, style = {} }) =
   <button onClick={onClick} disabled={disabled} style={{ padding: '9px 18px', background: variant === 'primary' ? INK : variant === 'danger' ? RUBY : variant === 'success' ? SAGE : 'transparent', color: variant === 'ghost' ? SLATE : '#fff', border: variant === 'ghost' ? `1px solid ${BORDER}` : 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif", ...style }}>{children}</button>
 );
 
+// ============ SETUP CHECKLIST ============
+function SetupChecklist({ supabase, tenantId }) {
+  const [checks, setChecks] = useState(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (!supabase || !tenantId) return;
+    (async () => {
+      const [cfgRes, postsRes, showsRes, membersRes] = await Promise.all([
+        supabase.from('tenant_config').select('key, value').eq('tenant_id', tenantId),
+        supabase.from('posts').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+        supabase.from('shows').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('role', 'fan'),
+      ]);
+
+      const cfg = {};
+      (cfgRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
+
+      const hasSocials = !!(cfg.social_instagram || cfg.social_spotify || cfg.social_tiktok);
+      const hasLogo = !!cfg.logo_url;
+      const hasBanner = !!cfg.banner_url;
+      const hasTagline = !!cfg.tagline;
+      const hasPosts = (postsRes.count || 0) > 0;
+      const hasShows = (showsRes.count || 0) > 0;
+      const hasFans = (membersRes.count || 0) > 0;
+      const hasHighlightsLink = hasPosts; // proxy - if they've posted they've probably highlighted
+
+      setChecks({ hasSocials, hasLogo, hasBanner, hasTagline, hasPosts, hasShows, hasFans });
+    })();
+  }, [supabase, tenantId]);
+
+  if (!checks) return null;
+
+  const steps = [
+    { key: 'hasSocials', label: 'add your social links', detail: 'instagram, spotify, tiktok - so fans can find you everywhere', tab: 'settings', section: 'socials' },
+    { key: 'hasTagline', label: 'write your tagline', detail: 'one line about you - shows on your public page', tab: 'settings', section: 'profile' },
+    { key: 'hasLogo', label: 'upload your logo', detail: 'replaces the text name in your header and public page', tab: 'settings', section: 'banner' },
+    { key: 'hasPosts', label: 'write your first post', detail: 'welcome your fans in - they see this when they join', tab: null, action: 'post' },
+    { key: 'hasShows', label: 'add an upcoming show', detail: 'fans can check in and earn points', tab: 'shows' },
+    { key: 'hasFans', label: 'get your first fan', detail: 'share your link in bio and invite someone', tab: null, action: 'share' },
+  ];
+
+  const done = steps.filter(s => checks[s.key]).length;
+  const total = steps.length;
+  const allDone = done === total;
+  const pct = Math.round((done / total) * 100);
+
+  if (allDone && collapsed) return null;
+
+  return (
+    <div style={{ background: allDone ? SAGE + '15' : SURFACE, borderRadius: 14, border: `1px solid ${allDone ? SAGE + '44' : BORDER}`, marginBottom: 24, overflow: 'hidden' }}>
+      {/* Header */}
+      <div onClick={() => setCollapsed(c => !c)} style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 4 }}>
+            {allDone ? 'you\'re all set up ✦' : `set up your community · ${done} of ${total} done`}
+          </div>
+          <div style={{ height: 4, background: BORDER, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: allDone ? SAGE : RUBY, borderRadius: 2, transition: 'width 0.4s ease' }} />
+          </div>
+        </div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>{collapsed ? 'show ↓' : 'hide ↑'}</div>
+      </div>
+
+      {/* Steps */}
+      {!collapsed && (
+        <div style={{ borderTop: `1px solid ${BORDER}` }}>
+          {steps.map((step, i) => {
+            const done = checks[step.key];
+            return (
+              <div key={step.key} style={{ padding: '13px 18px', display: 'flex', alignItems: 'flex-start', gap: 14, borderBottom: i < steps.length - 1 ? `1px solid ${BORDER}` : 'none', background: done ? 'transparent' : 'transparent', opacity: done ? 0.6 : 1 }}>
+                {/* Tick */}
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: done ? SAGE : 'transparent', border: `2px solid ${done ? SAGE : BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1, transition: 'all 0.2s' }}>
+                  {done && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                </div>
+                {/* Text */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: done ? 500 : 600, color: done ? SLATE : INK, textDecoration: done ? 'line-through' : 'none', textDecorationColor: SLATE + '66' }}>{step.label}</div>
+                  {!done && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '88', marginTop: 3, lineHeight: 1.5 }}>{step.detail}</div>}
+                </div>
+                {/* Action */}
+                {!done && (
+                  <div>
+                    {step.tab && (
+                      <button onClick={() => {
+                        // Dispatch custom event to switch tabs
+                        window.dispatchEvent(new CustomEvent('dashboard-tab', { detail: step.tab }));
+                      }} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, background: 'none', border: `1px solid ${RUBY}33`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        go →
+                      </button>
+                    )}
+                    {step.action === 'share' && (
+                      <button onClick={() => {
+                        const url = typeof window !== 'undefined' ? window.location.origin : '';
+                        navigator.clipboard.writeText(url);
+                      }} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, background: 'none', border: `1px solid ${RUBY}33`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        copy link
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* All done state */}
+          {allDone && (
+            <div style={{ padding: '16px 18px', background: SAGE + '0F' }}>
+              <div style={{ fontSize: 13, color: SAGE, fontWeight: 600, marginBottom: 4 }}>community fully set up ✦</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, lineHeight: 1.6 }}>
+                now focus on growing - post regularly, share your highlights page, and reward your most active fans.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============ OVERVIEW ============
 function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
   const [stats, setStats] = useState({ members: 0, posts: 0, shows: 0, totalPoints: 0, pendingClaims: 0 });
@@ -55,6 +175,7 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
 
   return (
     <div>
+      <SetupChecklist supabase={supabase} tenantId={tenantId} />
       <H style={{ marginBottom: 20 }}>overview</H>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginBottom: 24 }}>
         {[
@@ -979,6 +1100,13 @@ export default function Dashboard() {
     { id: 'fans', label: 'fans', icon: '◉' },
     { id: 'settings', label: 'settings', icon: '⚙' },
   ];
+
+  // Listen for tab switch events from the setup checklist
+  useEffect(() => {
+    const handler = (e) => setActiveTab(e.detail);
+    window.addEventListener('dashboard-tab', handler);
+    return () => window.removeEventListener('dashboard-tab', handler);
+  }, []);
 
   if (loading || !profile) return (
     <div style={{ minHeight: '100vh', background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
