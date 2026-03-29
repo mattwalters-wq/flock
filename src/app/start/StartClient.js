@@ -666,8 +666,40 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       </div>
 
       <div style={{ background: RUBY + '11', border: `1px solid ${RUBY}22`, maxWidth: 480, margin: '0 auto 80px', borderRadius: 14, padding: '20px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY + '88', marginBottom: 8, letterSpacing: '1px', textTransform: 'uppercase' }}>powering right now</div>
-        <div style={{ fontSize: 15, color: CREAM + 'CC', lineHeight: 1.6 }}>The Stamps fan community · <span style={{ color: RUBY, fontWeight: 700 }}>90+ active fans</span> · live show check-ins · tiered rewards · weekly digests</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY + '88', marginBottom: 8, letterSpacing: '1px', textTransform: 'uppercase' }}>now in beta</div>
+        <div style={{ fontSize: 15, color: CREAM + 'CC', lineHeight: 1.6 }}>independent artists building direct fan relationships · <span style={{ color: RUBY, fontWeight: 700 }}>free while we build</span> · no credit card needed</div>
+      </div>
+
+      {/* Platform comparison */}
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 32px 80px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12 }}>the problem</div>
+          <div style={{ fontSize: 32, fontWeight: 700, textTransform: 'lowercase', letterSpacing: '-0.5px', marginBottom: 16 }}>you're paying to reach fans you already have.</div>
+          <div style={{ fontSize: 16, color: CREAM + '77', lineHeight: 1.7, maxWidth: 520, margin: '0 auto' }}>every platform takes a cut, owns your audience, or buries your posts. here's what the current toolkit actually costs you.</div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 48 }}>
+          {[
+            { name: 'Instagram / TikTok', cost: 'free*', detail: '*pay to boost posts or reach drops to ~2% of followers. they own the relationship.', icon: '📱', bad: true },
+            { name: 'Patreon', cost: '8–12% of revenue', detail: 'takes a cut of every dollar your fans pay you. platform risk if they change terms.', icon: '💰', bad: true },
+            { name: 'Bandsintown / Songkick', cost: 'free → paid tiers', detail: 'show listings only. no community, no chat, no rewards. fans still belong to the platform.', icon: '🎟', bad: true },
+            { name: 'Mailchimp', cost: 'from $20/mo', detail: 'one-way broadcast only. no community, no engagement, no way for fans to connect.', icon: '📧', bad: true },
+            { name: 'Zoom', cost: '$15/mo + setup pain', detail: 'clunky for fans, hard to set up, no community context before or after the call.', icon: '📹', bad: true },
+            { name: 'flock', cost: 'free in beta', detail: 'community + posts + shows + rewards + livestreams + your own currency. fans are yours.', icon: '✦', bad: false },
+          ].map((p, i) => (
+            <div key={p.name} style={{ background: p.bad ? CREAM + '05' : RUBY + '18', border: `1px solid ${p.bad ? CREAM + '0D' : RUBY + '44'}`, borderRadius: 10, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontSize: 20, flexShrink: 0 }}>{p.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: p.bad ? CREAM : RUBY }}>{p.name}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: p.bad ? '#E05050' : RUBY, background: p.bad ? '#E0505022' : RUBY + '22', padding: '2px 8px', borderRadius: 4 }}>{p.cost}</span>
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '55', lineHeight: 1.5 }}>{p.detail}</div>
+              </div>
+              {!p.bad && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, color: RUBY, flexShrink: 0 }}>✓</div>}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div id="how" style={{ maxWidth: 680, margin: '0 auto', padding: '0 32px 80px' }}>
@@ -677,10 +709,12 @@ export default function StartClient({ showForm: initialShowForm = false }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
           {[
-            { icon: '✦', title: 'your link in bio', body: 'one URL replaces everything. fans join, post, earn rewards, check into shows - all in one place.' },
-            { icon: '◉', title: 'fans earn points', body: 'posting, commenting, attending shows - every action earns currency you control. unlock rewards you set.' },
-            { icon: '♫', title: 'show check-ins', body: 'fans check in at shows with a code. they earn points. you know who was there. no third party needed.' },
-            { icon: '↗', title: 'off meta', body: 'no algorithm. no ad tax. a direct line to your most dedicated fans. forever yours.' },
+            { icon: '✦', title: 'your link in bio', body: 'one URL replaces your website, linktree, and bio. fans join, post, earn rewards, and check into shows - all in one place.' },
+            { icon: '◉', title: 'fans earn points', body: 'posting, commenting, attending shows - every action earns currency you control. set the rewards, build the loyalty.' },
+            { icon: '♫', title: 'show check-ins', body: 'fans check in at shows with a code. they earn points. you know exactly who was there.' },
+            { icon: '▶', title: 'livestreams', body: 'go live to your community. embed from youtube, twitch, or mux. fans watch and chat inside flock, not on a third party platform.' },
+            { icon: '↗', title: 'off meta', body: 'no algorithm. no ad tax. no platform risk. a direct line to your most dedicated fans. forever yours.' },
+            { icon: '⚙', title: 'fully yours', body: 'your colours, your currency name, your rewards. it looks and feels like your artist brand, not a generic fan platform.' },
           ].map(item => (
             <div key={item.title} style={{ background: CREAM + '06', border: `1px solid ${CREAM}0D`, borderRadius: 14, padding: '24px 20px' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 24, color: RUBY, marginBottom: 12 }}>{item.icon}</div>

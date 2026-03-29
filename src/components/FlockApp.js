@@ -4,6 +4,21 @@ import { useAuth } from '@/lib/auth-context';
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
+function getLiveEmbedUrl(url) {
+  if (!url) return null;
+  try {
+    // YouTube: watch?v=ID or youtu.be/ID or live/ID
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1`;
+    // Twitch: twitch.tv/channelname
+    const twMatch = url.match(/twitch\.tv\/([a-zA-Z0-9_]+)/);
+    if (twMatch) return `https://player.twitch.tv/?channel=${twMatch[1]}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'fans-flock.com'}`;
+    // Mux: stream.mux.com/PLAYBACKID.m3u8 - return as-is for video tag
+    if (url.includes('mux.com') || url.includes('.m3u8')) return url;
+    return null;
+  } catch { return null; }
+}
+
 function timeAgo(ts) {
   const d = Math.floor((Date.now() - new Date(ts)) / 1000);
   if (d < 60) return 'just now';
@@ -308,6 +323,36 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
         {/* Link preview */}
         {post.link_url && <LinkPreviewCard url={post.link_url} />}
 
+        {/* Live stream embed */}
+        {post.live_url && (() => {
+          const embedUrl = getLiveEmbedUrl(post.live_url);
+          const isMux = post.live_url.includes('mux.com') || post.live_url.includes('.m3u8');
+          return (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#E05050', animation: 'pulse 1.5s infinite' }} />
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#E05050', fontWeight: 600 }}>live</span>
+                <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+              </div>
+              {embedUrl && !isMux ? (
+                <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 10, overflow: 'hidden', background: '#000' }}>
+                  <iframe src={embedUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+                    allowFullScreen allow="autoplay; fullscreen" />
+                </div>
+              ) : (
+                <a href={post.live_url} target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#E0505015', border: '1px solid #E0505033', borderRadius: 10, textDecoration: 'none' }}>
+                  <span style={{ fontSize: 20 }}>▶</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>watch live</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginTop: 2 }}>{post.live_url}</div>
+                  </div>
+                </a>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Images */}
         {(post.images?.length > 1) ? (
           <div style={{ marginBottom: 14, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -590,6 +635,8 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [postLink, setPostLink] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
+  const [liveUrl, setLiveUrl] = useState('');
+  const [showLiveInput, setShowLiveInput] = useState(false);
   const [linkPreviewData, setLinkPreviewData] = useState(null);
   const [linkFetching, setLinkFetching] = useState(false);
 
@@ -737,7 +784,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   // ── Post submission ───────────────────────────────────────────────────────
   const handlePost = async () => {
-    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
+    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
     setPosting(true);
 
     const canMember = profile?.role === 'band' && profile?.band_member === feedView;
@@ -765,11 +812,13 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (postLink.trim()) row.link_url = postLink.trim();
     if (postTag && postTag !== 'general') row.tag = postTag;
     if (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2) row.poll_options = pollOptions.filter(o => o.trim());
+    if (liveUrl.trim()) row.live_url = liveUrl.trim();
 
     const { error } = await supabase.from('posts').insert(row);
     if (!error) {
       setNewPost(''); setPostImages([]); setPostImagePreviews([]); setPostAudio(null); setPostAudioName(null);
       setPostTag('general'); setShowPollCreator(false); setPollOptions(['', '']); setPostLink(''); setShowLinkInput(false); setLinkPreviewData(null);
+      setLiveUrl(''); setShowLiveInput(false);
       if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
       await fetchPosts();
       if (profile?.role === 'band' || profile?.role === 'admin') {
@@ -1022,6 +1071,16 @@ export function FlockApp({ tenantId: propTenantId }) {
                 </div>
               )}
 
+              {/* Live URL input */}
+              {showLiveInput && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, marginBottom: 5 }}>paste youtube, twitch, or mux live url</div>
+                  <input type="url" value={liveUrl} onChange={e => setLiveUrl(e.target.value)} placeholder="https://youtube.com/watch?v=... or https://twitch.tv/..."
+                    style={{ width: '100%', padding: '9px 12px', background: CREAM, border: `1px solid ${liveUrl ? RUBY + '44' : BORDER}`, borderRadius: 8, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+                  {liveUrl && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY, marginTop: 4 }}>✦ fans will see a live player embedded in this post</div>}
+                </div>
+              )}
+
               {/* Composer actions */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
                 <label style={{ cursor: postImages.length >= 6 ? 'default' : 'pointer', padding: '4px 8px', color: postImages.length >= 6 ? SLATE + '33' : SLATE + '88', fontSize: 11, fontFamily: "'DM Mono', monospace" }}>
@@ -1034,10 +1093,16 @@ export function FlockApp({ tenantId: propTenantId }) {
                     ♫
                   </label>
                 )}
+                {(profile?.role === 'band' || profile?.role === 'admin') && (
+                  <button onClick={() => { setShowLiveInput(!showLiveInput); if (showLiveInput) setLiveUrl(''); }}
+                    style={{ padding: '4px 8px', background: showLiveInput ? RUBY + '15' : 'none', border: 'none', cursor: 'pointer', color: showLiveInput ? RUBY : SLATE + '88', fontFamily: "'DM Mono', monospace", fontSize: 11, borderRadius: 4 }} title="go live">
+                    ▶
+                  </button>
+                )}
                 <button onClick={() => { setShowLinkInput(!showLinkInput); if (showLinkInput) { setPostLink(''); setLinkPreviewData(null); } }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', color: showLinkInput ? RUBY : SLATE + '88', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>↗</button>
-                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
-                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
-                  {posting ? '...' : 'post'}
+                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
+                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim() || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim()) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
+                  {posting ? '...' : liveUrl.trim() ? 'go live' : 'post'}
                 </button>
               </div>
             </div>
