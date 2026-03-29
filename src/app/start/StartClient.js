@@ -620,124 +620,211 @@ export default function StartClient({ showForm: initialShowForm = false }) {
   if (showForm) return <OnboardingWizard />;
 
   return (
-    <div style={{ minHeight: '100vh', background: INK, fontFamily: "'DM Sans', sans-serif", color: CREAM }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#0E0C0F', color: '#F5EFE6', minHeight: '100vh' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600;700&display=swap');
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        * { box-sizing: border-box; }
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-1 { animation: fadeUp 0.8s ease-out 0.1s both; }
+        .fade-2 { animation: fadeUp 0.8s ease-out 0.25s both; }
+        .fade-3 { animation: fadeUp 0.8s ease-out 0.4s both; }
+        .fade-4 { animation: fadeUp 0.8s ease-out 0.55s both; }
+        .cta-btn { background: #8B1A2B; color: #F5EFE6; border: none; padding: 16px 36px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.2s; }
+        .cta-btn:hover { background: #A31F33; transform: translateY(-1px); }
+        .ghost-btn { background: transparent; color: #F5EFE6; border: 1px solid rgba(245,239,230,0.25); padding: 14px 28px; border-radius: 10px; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.2s; }
+        .ghost-btn:hover { border-color: rgba(245,239,230,0.6); }
+        .feature-card { background: rgba(245,239,230,0.04); border: 1px solid rgba(245,239,230,0.08); border-radius: 14px; padding: 28px; transition: all 0.2s; }
+        .feature-card:hover { background: rgba(245,239,230,0.07); border-color: rgba(245,239,230,0.15); }
       `}</style>
 
-      <div style={{ padding: '20px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: INK + 'EE', backdropFilter: 'blur(12px)', zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>✦</div>
-          <div style={{ fontSize: 18, fontWeight: 700, textTransform: 'lowercase' }}>flock</div>
+      {/* NAV */}
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '18px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(14,12,15,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
+        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.5px' }}>flock <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', letterSpacing: '2px', verticalAlign: 'middle', marginLeft: 4 }}>✦</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <a href="#how" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>how it works</a>
+          <a href="#pricing" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>pricing</a>
+          <a href="/login" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>sign in</a>
+          <button onClick={() => setShowForm(true)} className="cta-btn" style={{ padding: '10px 22px', fontSize: 13 }}>get started</button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <a href="#how" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: CREAM + '66', textDecoration: 'none' }}>how it works</a>
-          <a href="/login" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: CREAM + '88', textDecoration: 'none' }}>sign in</a>
-          <button onClick={() => setShowForm(true)} style={{ background: RUBY, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>get started</button>
-        </div>
-      </div>
+      </nav>
 
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '80px 32px 60px', textAlign: 'center', animation: 'fadeUp 0.6s ease-out' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: RUBY + '22', border: `1px solid ${RUBY}44`, borderRadius: 20, padding: '6px 16px', marginBottom: 32 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: RUBY }} />
-          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY + 'CC', letterSpacing: '1px' }}>the future of fan relationships</span>
-        </div>
-        <h1 style={{ fontSize: 'clamp(36px, 7vw, 64px)', fontWeight: 700, lineHeight: 1.05, marginBottom: 24, letterSpacing: '-1.5px', textTransform: 'lowercase', margin: '0 0 24px' }}>
-          social media broke<br />
-          <span style={{ color: RUBY }}>the artist-fan</span><br />
-          relationship.
+      {/* HERO */}
+      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 80px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: 800, height: 800, background: 'radial-gradient(circle, rgba(139,26,43,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div className="fade-1" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 24 }}>✦ the future of fan relationships</div>
+        <h1 className="fade-2" style={{ fontSize: 'clamp(48px, 8vw, 96px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '-2px', marginBottom: 28, maxWidth: 900 }}>
+          social media<br /><span style={{ color: '#8B1A2B' }}>broke</span> the artist<br />fan relationship.
         </h1>
-        <p style={{ fontSize: 18, color: CREAM + '99', lineHeight: 1.7, maxWidth: 500, margin: '0 auto 40px' }}>
-          you built an audience on platforms that own your fans, throttle your reach, and take the relationship hostage. flock gives it back.
+        <p className="fade-3" style={{ fontSize: 18, color: 'rgba(245,239,230,0.6)', lineHeight: 1.7, maxWidth: 540, marginBottom: 48 }}>
+          You built an audience on platforms that own your fans, throttle your reach, and take the relationship hostage. Flock gives it back.
         </p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button onClick={() => setShowForm(true)} style={{ background: RUBY, color: '#fff', border: 'none', borderRadius: 12, padding: '16px 32px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
-            launch your community ✦
-          </button>
-          <a href="#how" style={{ background: 'transparent', color: CREAM + '88', border: `1px solid ${CREAM}22`, borderRadius: 12, padding: '16px 28px', fontSize: 16, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
-            see how it works
-          </a>
+        <div className="fade-4" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 24 }}>
+          <button onClick={() => setShowForm(true)} className="cta-btn">launch your community ✦</button>
+          <a href="#how" className="ghost-btn">see how it works</a>
         </div>
-        <div style={{ marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '33' }}>
-          ✦ free while we build · no credit card
-        </div>
-      </div>
+        <div className="fade-4" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>free in beta · no credit card needed</div>
+      </section>
 
-      <div style={{ background: RUBY + '11', border: `1px solid ${RUBY}22`, maxWidth: 480, margin: '0 auto 80px', borderRadius: 14, padding: '20px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY + '88', marginBottom: 8, letterSpacing: '1px', textTransform: 'uppercase' }}>now in beta</div>
-        <div style={{ fontSize: 15, color: CREAM + 'CC', lineHeight: 1.6 }}>independent artists building direct fan relationships · <span style={{ color: RUBY, fontWeight: 700 }}>free while we build</span> · no credit card needed</div>
-      </div>
-
-      {/* Platform comparison */}
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 32px 80px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12 }}>the problem</div>
-          <div style={{ fontSize: 32, fontWeight: 700, textTransform: 'lowercase', letterSpacing: '-0.5px', marginBottom: 16 }}>you're paying to reach fans you already have.</div>
-          <div style={{ fontSize: 16, color: CREAM + '77', lineHeight: 1.7, maxWidth: 520, margin: '0 auto' }}>every platform takes a cut, owns your audience, or buries your posts. here's what the current toolkit actually costs you.</div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 48 }}>
+      {/* REPLACES EVERYTHING */}
+      <section style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>one link replaces all of this</div>
+        <h2 style={{ fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 48 }}>
+          your website. your link in bio.<br /><span style={{ color: 'rgba(245,239,230,0.35)' }}>your social media. all of it.</span>
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 40 }}>
           {[
-            { name: 'Instagram / TikTok', cost: 'free*', detail: '*pay to boost posts or reach drops to ~2% of followers. they own the relationship.', icon: '📱', bad: true },
-            { name: 'Patreon', cost: '8–12% of revenue', detail: 'takes a cut of every dollar your fans pay you. platform risk if they change terms.', icon: '💰', bad: true },
-            { name: 'Bandsintown / Songkick', cost: 'free → paid tiers', detail: 'show listings only. no community, no chat, no rewards. fans still belong to the platform.', icon: '🎟', bad: true },
-            { name: 'Mailchimp', cost: 'from $20/mo', detail: 'one-way broadcast only. no community, no engagement, no way for fans to connect.', icon: '📧', bad: true },
-            { name: 'Zoom', cost: '$15/mo + setup pain', detail: 'clunky for fans, hard to set up, no community context before or after the call.', icon: '📹', bad: true },
-            { name: 'flock', cost: 'free in beta', detail: 'community + posts + shows + rewards + livestreams + your own currency. fans are yours.', icon: '✦', bad: false },
-          ].map((p, i) => (
-            <div key={p.name} style={{ background: p.bad ? CREAM + '05' : RUBY + '18', border: `1px solid ${p.bad ? CREAM + '0D' : RUBY + '44'}`, borderRadius: 10, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ fontSize: 20, flexShrink: 0 }}>{p.icon}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: p.bad ? CREAM : RUBY }}>{p.name}</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: p.bad ? '#E05050' : RUBY, background: p.bad ? '#E0505022' : RUBY + '22', padding: '2px 8px', borderRadius: 4 }}>{p.cost}</span>
-                </div>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '55', lineHeight: 1.5 }}>{p.detail}</div>
+            { name: 'your website', cost: '$20–50/mo', what: 'squarespace, wix, wordpress. static. no engagement.', replaced: true },
+            { name: 'linktree', cost: '$5–24/mo', what: 'a list of links. no community. no fans. just clicks.', replaced: true },
+            { name: 'patreon', cost: '8–12% of revenue', what: 'they take a cut of every dollar your fans pay you.', replaced: true },
+            { name: 'mailchimp', cost: '$20+/mo', what: 'one-way broadcast. no community, no engagement.', replaced: true },
+            { name: 'bandsintown', cost: 'free → paid', what: 'show listings only. fans still belong to them.', replaced: true },
+            { name: 'flock', cost: 'free in beta', what: 'website + link in bio + community + shows + rewards + email. yours forever.', replaced: false },
+          ].map(p => (
+            <div key={p.name} style={{ background: p.replaced ? 'rgba(245,239,230,0.03)' : 'rgba(139,26,43,0.15)', border: `1px solid ${p.replaced ? 'rgba(245,239,230,0.08)' : 'rgba(139,26,43,0.4)'}`, borderRadius: 12, padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: p.replaced ? 'rgba(245,239,230,0.5)' : '#F5EFE6', textDecoration: p.replaced ? 'line-through' : 'none', textDecorationColor: 'rgba(245,239,230,0.3)' }}>{p.name}</span>
+                {p.replaced
+                  ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: 'rgba(139,26,43,0.8)', background: 'rgba(139,26,43,0.15)', padding: '2px 8px', borderRadius: 4 }}>replaced</span>
+                  : <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#8B1A2B', background: 'rgba(139,26,43,0.2)', padding: '2px 8px', borderRadius: 4 }}>✦ this</span>
+                }
               </div>
-              {!p.bad && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, color: RUBY, flexShrink: 0 }}>✓</div>}
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: p.replaced ? 'rgba(245,239,230,0.25)' : '#8B1A2B', marginBottom: 6 }}>{p.cost}</div>
+              <div style={{ fontSize: 12, color: p.replaced ? 'rgba(245,239,230,0.35)' : 'rgba(245,239,230,0.7)', lineHeight: 1.5 }}>{p.what}</div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div id="how" style={{ maxWidth: 680, margin: '0 auto', padding: '0 32px 80px' }}>
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12 }}>how it works</div>
-          <div style={{ fontSize: 32, fontWeight: 700, textTransform: 'lowercase', letterSpacing: '-0.5px' }}>one link. your world.</div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+      {/* PROBLEM */}
+      <section style={{ padding: '60px 24px 100px', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>the problem</div>
+        <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 48 }}>
+          you have 50,000 followers.<br /><span style={{ color: 'rgba(245,239,230,0.35)' }}>500 of them see your posts.</span>
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
           {[
-            { icon: '✦', title: 'your link in bio', body: 'one URL replaces your website, linktree, and bio. fans join, post, earn rewards, and check into shows - all in one place.' },
-            { icon: '◉', title: 'fans earn points', body: 'posting, commenting, attending shows - every action earns currency you control. set the rewards, build the loyalty.' },
-            { icon: '♫', title: 'show check-ins', body: 'fans check in at shows with a code. they earn points. you know exactly who was there.' },
-            { icon: '▶', title: 'livestreams', body: 'go live to your community. embed from youtube, twitch, or mux. fans watch and chat inside flock, not on a third party platform.' },
-            { icon: '↗', title: 'off meta', body: 'no algorithm. no ad tax. no platform risk. a direct line to your most dedicated fans. forever yours.' },
-            { icon: '⚙', title: 'fully yours', body: 'your colours, your currency name, your rewards. it looks and feels like your artist brand, not a generic fan platform.' },
-          ].map(item => (
-            <div key={item.title} style={{ background: CREAM + '06', border: `1px solid ${CREAM}0D`, borderRadius: 14, padding: '24px 20px' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 24, color: RUBY, marginBottom: 12 }}>{item.icon}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, textTransform: 'lowercase', marginBottom: 8 }}>{item.title}</div>
-              <div style={{ fontSize: 14, color: CREAM + '77', lineHeight: 1.65 }}>{item.body}</div>
+            { icon: '↓', title: 'organic reach is dead', desc: 'Instagram shows your post to 2-5% of followers. The rest costs money.' },
+            { icon: '✗', title: "you don't own the list", desc: 'Platform shuts down or bans you. Your audience disappears overnight.' },
+            { icon: '∅', title: 'no real connection', desc: 'Likes and comments build dopamine loops for the platform, not loyalty for you.' },
+            { icon: '↗', title: 'they take the relationship', desc: 'The platform has the data. The relationship. The leverage. You have the content.' },
+          ].map(p => (
+            <div key={p.title} className="feature-card">
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 22, color: '#8B1A2B', marginBottom: 12 }}>{p.icon}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{p.title}</div>
+              <div style={{ fontSize: 13, color: 'rgba(245,239,230,0.5)', lineHeight: 1.6 }}>{p.desc}</div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div style={{ textAlign: 'center', padding: '0 32px 80px' }}>
-        <button onClick={() => setShowForm(true)} style={{ background: RUBY, color: '#fff', border: 'none', borderRadius: 14, padding: '18px 40px', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>
-          launch your community ✦
-        </button>
-        <div style={{ marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '33' }}>free while we build · no credit card</div>
-      </div>
-
-      <div style={{ borderTop: `1px solid ${CREAM}08`, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '33' }}>© 2026 flock · monda management</div>
-        <div style={{ display: 'flex', gap: 20 }}>
-          {['terms', 'privacy'].map(l => <a key={l} href={`/${l}`} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '33', textDecoration: 'none' }}>{l}</a>)}
+      {/* SOLUTION */}
+      <section id="how" style={{ padding: '100px 24px', background: 'rgba(245,239,230,0.02)', borderTop: '1px solid rgba(245,239,230,0.06)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>the solution</div>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16 }}>
+            your community.<br />your currency.<br />your rules.
+          </h2>
+          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.7, maxWidth: 520, marginBottom: 64 }}>
+            Every artist gets a fully branded fan community with a custom loyalty system - their own economy, their own language, their own world.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {[
+              { icon: '◎', title: 'your own subdomain', desc: 'artist.fans-flock.com or your own domain. Fully white-label. Fans never see "flock".' },
+              { icon: '✦', title: 'custom fan currency', desc: 'Call them stamps, points, echoes, drops - whatever fits your world. Fans earn them.' },
+              { icon: '○', title: 'member feeds', desc: 'Solo or band. Each member gets their own feed tab. Fans follow the people.' },
+              { icon: '♫', title: 'show check-ins', desc: 'Fans check in at shows with a code and earn currency. You know who was there.' },
+              { icon: '♛', title: 'reward tiers', desc: 'Postcards, merch, signed vinyl, zoom calls, meet and greets. You set the milestones.' },
+              { icon: '▶', title: 'live to your community', desc: 'Go live on YouTube or Twitch and embed it inside Flock. Fans watch and chat inside your community, not on someone else\'s platform.' },
+            ].map(f => (
+              <div key={f.title} className="feature-card">
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: '#C9922A', marginBottom: 14 }}>{f.icon}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{f.title}</div>
+                <div style={{ fontSize: 13, color: 'rgba(245,239,230,0.5)', lineHeight: 1.6 }}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section style={{ padding: '100px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>how it works</div>
+        <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 56 }}>up in minutes. yours forever.</h2>
+        {[
+          { num: '01', title: 'sign up and name your world', desc: 'Choose your community name, subdomain, colours, and what to call your fan currency. Takes 3 minutes.' },
+          { num: '02', title: 'swap your link in bio', desc: 'Replace your linktree, website link, and everything else with one URL. Fans join, post, earn, and check into shows - all in one place.' },
+          { num: '03', title: 'post, connect, reward', desc: 'Post to your community feed. Audio drops, polls, livestreams. Fans earn currency for engaging.' },
+          { num: '04', title: 'play the long game', desc: 'Fans climb your loyalty ladder. The ones who show up most earn the rewards that matter.' },
+        ].map((step, i) => (
+          <div key={step.num} style={{ display: 'flex', gap: 32, padding: '32px 0', borderBottom: i < 3 ? '1px solid rgba(245,239,230,0.08)' : 'none' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#8B1A2B', minWidth: 36, paddingTop: 4 }}>{step.num}</div>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{step.title}</div>
+              <div style={{ fontSize: 14, color: 'rgba(245,239,230,0.5)', lineHeight: 1.7 }}>{step.desc}</div>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* PRICING */}
+      <section id="pricing" style={{ padding: '100px 24px', background: 'rgba(245,239,230,0.02)', borderTop: '1px solid rgba(245,239,230,0.06)' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>pricing</div>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16 }}>
+            instagram is free.<br /><span style={{ color: 'rgba(245,239,230,0.35)' }}>so is handing them everything.</span>
+          </h2>
+          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.6)', lineHeight: 1.8, maxWidth: 520, margin: '0 auto 48px' }}>
+            Every post you make on their platform makes them richer and you more dependent. You're paying with your fan list, your relationship data, and your leverage.<br /><br />
+            Flock is <strong style={{ color: '#F5EFE6' }}>free while we're in beta</strong>. In exchange, you own everything.
+          </p>
+
+          <div style={{ background: 'rgba(139,26,43,0.12)', border: '1px solid rgba(139,26,43,0.3)', borderRadius: 16, padding: '40px', marginBottom: 32 }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 16 }}>beta access</div>
+            <div style={{ fontSize: 56, fontWeight: 700, letterSpacing: '-2px', color: '#F5EFE6', marginBottom: 8 }}>free</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'rgba(245,239,230,0.5)', marginBottom: 28 }}>for independent artists while we build</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 32, textAlign: 'left' }}>
+              {['your own community', 'custom fan currency', 'show check-ins', 'reward tiers', 'member feeds', 'direct email digest', 'fan map', 'livestream embeds', 'no revenue share. ever'].map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(245,239,230,0.7)' }}>
+                  <span style={{ color: '#8B1A2B', fontFamily: "'DM Mono', monospace" }}>✓</span> {f}
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setShowForm(true)} className="cta-btn" style={{ fontSize: 16, padding: '16px 48px' }}>launch your community ✦</button>
+          </div>
+
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>
+            pricing coming post-beta · early artists get a founder rate · no credit card now
+          </div>
+        </div>
+      </section>
+
+      {/* MANIFESTO CTA */}
+      <section style={{ padding: '120px 24px', textAlign: 'center', maxWidth: 740, margin: '0 auto' }}>
+        <h2 style={{ fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-1px', marginBottom: 28 }}>
+          the best fan relationships<br /><span style={{ color: 'rgba(245,239,230,0.35)' }}>were never built on social media.</span>
+        </h2>
+        <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.8, marginBottom: 20 }}>
+          They were built in living rooms. At intimate shows. Through email lists and forums and MySpace pages and zines. Direct. Unmediated. Real.
+        </p>
+        <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.8, marginBottom: 52 }}>
+          Flock is the infrastructure for that. A place you own. Fans who chose to be there. A community that grows because people give a damn, not because an algorithm decided to show your post today.
+        </p>
+        <button onClick={() => setShowForm(true)} className="cta-btn" style={{ fontSize: 16, padding: '18px 48px' }}>build your community ✦</button>
+        <div style={{ marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>free in beta · no credit card needed</div>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ borderTop: '1px solid rgba(245,239,230,0.06)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>flock ✦</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'rgba(245,239,230,0.3)', letterSpacing: '0.5px' }}>
+          fan communities for independent artists · built by monda management
+        </div>
+        <div style={{ display: 'flex', gap: 24 }}>
+          <button onClick={() => setShowForm(true)} style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', background: 'none', border: 'none', cursor: 'pointer' }}>get started</button>
+          <a href="/login" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', textDecoration: 'none' }}>sign in</a>
+          <a href="mailto:hello@fans-flock.com" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', textDecoration: 'none' }}>contact</a>
+        </div>
+      </footer>
     </div>
   );
 }
