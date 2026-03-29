@@ -817,7 +817,7 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       <footer style={{ borderTop: '1px solid rgba(245,239,230,0.06)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>flock ✦</div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'rgba(245,239,230,0.3)', letterSpacing: '0.5px' }}>
-          fan communities for independent artists · built by monda management
+          fan communities for independent artists
         </div>
         <div style={{ display: 'flex', gap: 24 }}>
           <button onClick={() => setShowForm(true)} style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', background: 'none', border: 'none', cursor: 'pointer' }}>get started</button>

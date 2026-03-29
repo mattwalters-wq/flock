@@ -2,12 +2,12 @@ import StartClient from './StartClient';
 
 export const metadata = {
   title: 'flock · fan communities for independent artists',
-  description: 'Social media broke the artist-fan relationship. Flock gives it back. Your community, your currency, your rules.',
+  description: 'Your website. Your link in bio. Your fan community. All in one place. Free while we build.',
   openGraph: {
     type: 'website',
-    url: 'https://fans-flock.com/start',
+    url: 'https://fans-flock.com',
     title: 'flock · fan communities for independent artists',
-    description: 'Social media broke the artist-fan relationship. Flock gives it back. Your community, your currency, your rules.',
+    description: 'Your website. Your link in bio. Your fan community. All in one place.',
     images: [
       {
         url: 'https://fans-flock.com/og.png',
@@ -21,7 +21,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'flock · fan communities for independent artists',
-    description: 'Social media broke the artist-fan relationship. Flock gives it back.',
+    description: 'Your website. Your link in bio. Your fan community. All in one place.',
     images: ['https://fans-flock.com/og.png'],
   },
 };
