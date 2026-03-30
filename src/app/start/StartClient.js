@@ -823,6 +823,8 @@ export default function StartClient({ showForm: initialShowForm = false }) {
           <button onClick={() => setShowForm(true)} style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', background: 'none', border: 'none', cursor: 'pointer' }}>get started</button>
           <a href="/login" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', textDecoration: 'none' }}>sign in</a>
           <a href="mailto:hello@fans-flock.com" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', textDecoration: 'none' }}>contact</a>
+          <a href="/terms" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', textDecoration: 'none' }}>terms</a>
+          <a href="/privacy" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.4)', textDecoration: 'none' }}>privacy</a>
         </div>
       </footer>
     </div>
