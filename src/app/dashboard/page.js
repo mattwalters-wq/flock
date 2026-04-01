@@ -482,14 +482,18 @@ function Members({ supabase, tenantId }) {
 }
 
 // ============ POINTS MANAGER ============
-function TierForm({ value, onChange, currencyName, currencyIcon, onSave, onCancel, saving, saveLabel = 'add tier' }) {
-  const I = ({ label, field, type = 'text', placeholder, span = 1 }) => (
+function TierFormField({ label, field, type = 'text', placeholder, span = 1, value, onChange }) {
+  return (
     <div style={{ gridColumn: `span ${span}`, marginBottom: 10 }}>
       <Mono style={{ marginBottom: 4 }}>{label}</Mono>
       <input type={type} value={value[field] ?? ''} onChange={e => onChange({ ...value, [field]: type === 'number' ? parseInt(e.target.value) || 0 : e.target.value })} placeholder={placeholder}
         style={{ width: '100%', padding: '8px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: field === 'icon' ? "'DM Mono', monospace" : "'DM Sans', sans-serif", boxSizing: 'border-box', textAlign: field === 'icon' ? 'center' : 'left' }} />
     </div>
   );
+}
+
+function TierForm({ value, onChange, currencyName, currencyIcon, onSave, onCancel, saving, saveLabel = 'add tier' }) {
+  const I = (props) => <TierFormField {...props} value={value} onChange={onChange} />;
   return (
     <div style={{ background: SURFACE, borderRadius: 10, padding: '16px', border: `1px solid ${BORDER}`, marginBottom: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 10px' }}>
