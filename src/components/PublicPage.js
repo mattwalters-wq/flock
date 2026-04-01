@@ -33,12 +33,11 @@ export function PublicPage({ tenantId }) {
   const [showAllShows, setShowAllShows] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [todayShow, setTodayShow] = useState(null);
-  const [modalMode, setModalMode] = useState('join'); // join | magic
+  const [modalMode, setModalMode] = useState('join'); // join | password
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [magicSent, setMagicSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState('');
 
@@ -115,12 +114,13 @@ export function PublicPage({ tenantId }) {
     return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
   };
 
-  const sendMagicLink = async () => {
-    if (!email.trim() || !email.includes('@')) { setAuthError('enter a valid email'); return; }
+  const signInWithPassword = async () => {
+    if (!email.trim() || !password) { setAuthError('email and password required'); return; }
     setSubmitting(true); setAuthError('');
-    const { error } = await getSupabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback` } });
+    const sb = getSupabase();
+    const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
     if (error) { setAuthError(error.message); setSubmitting(false); return; }
-    setMagicSent(true); setSubmitting(false);
+    if (data?.session) window.location.href = '/';
   };
 
   const signUp = async () => {
@@ -130,11 +130,17 @@ export function PublicPage({ tenantId }) {
     const sb = getSupabase();
     const { data, error } = await sb.auth.signUp({ email: email.trim(), password, options: { data: { display_name: displayName.trim() } } });
     if (error) { setAuthError(error.message); setSubmitting(false); return; }
-    if (data?.session && tenantId) {
+    // Try immediate sign-in so user goes straight to feed
+    const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+    const session = signInData?.session || data?.session;
+    if (session && tenantId) {
+      await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }).catch(() => {});
+      window.location.href = '/';
+    } else if (data?.user && tenantId) {
       await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }).catch(() => {});
       window.location.href = '/';
     } else {
-      setAuthError('check your email to confirm your account');
+      setAuthError('something went wrong, please try again');
       setSubmitting(false);
     }
   };
@@ -189,7 +195,7 @@ export function PublicPage({ tenantId }) {
                 style={{ display: 'block', width: '100%', padding: '14px 28px', background: ruby, color: cream, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
                 {todayShow ? `join and check in ${currencyIcon}` : `join free ${currencyIcon}`}
               </button>
-              <button onClick={() => { setShowModal(false); setModalMode('magic'); setTimeout(() => document.getElementById('bottom-sheet-trigger')?.click(), 100); }}
+              <button onClick={() => { setShowModal(false); setModalMode('password'); setTimeout(() => document.getElementById('bottom-sheet-trigger')?.click(), 100); }}
                 style={{ display: 'block', width: '100%', padding: '12px 28px', background: 'transparent', color: cream + '77', border: `1px solid ${cream}22`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
                 sign in
               </button>
@@ -374,7 +380,7 @@ export function PublicPage({ tenantId }) {
                 style={{ padding: '13px 28px', background: ruby, color: cream, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
                 join free
               </button>
-              <button onClick={() => { setModalMode('magic'); document.getElementById('auth-sheet').style.display = 'flex'; }}
+              <button onClick={() => { setModalMode('password'); document.getElementById('auth-sheet').style.display = 'flex'; }}
                 style={{ padding: '13px 28px', background: 'transparent', color: cream + '77', border: `1px solid ${cream}22`, borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
                 sign in
               </button>
@@ -395,16 +401,9 @@ export function PublicPage({ tenantId }) {
           onClick={e => e.stopPropagation()}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: '#E8DDD4', margin: '0 auto 20px' }} />
 
-          {magicSent ? (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✉</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: ink, textTransform: 'lowercase', marginBottom: 8 }}>check your email</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, lineHeight: 1.7 }}>magic link sent to <strong style={{ color: ruby }}>{email}</strong></div>
-            </div>
-          ) : (
-            <>
+          <>
               <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E8DDD4', marginBottom: 20 }}>
-                {[{ id: 'join', label: 'join' }, { id: 'magic', label: 'sign in' }].map(tab => (
+                {[{ id: 'join', label: 'join' }, { id: 'password', label: 'sign in' }].map(tab => (
                   <button key={tab.id} onClick={() => { setModalMode(tab.id); setAuthError(''); }}
                     style={{ flex: 1, padding: '10px', background: 'none', border: 'none', borderBottom: modalMode === tab.id ? `2px solid ${ruby}` : '2px solid transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: modalMode === tab.id ? ruby : SLATE, fontWeight: modalMode === tab.id ? 600 : 400, letterSpacing: '1px', textTransform: 'uppercase' }}>
                     {tab.label}
@@ -421,25 +420,21 @@ export function PublicPage({ tenantId }) {
               )}
               <div style={{ marginBottom: 12 }}>
                 <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 5 }}>email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoFocus={modalMode === 'magic'}
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoFocus={modalMode === 'password'}
                   style={{ width: '100%', padding: '12px 14px', background: '#FAF5F0', border: '1px solid #E8DDD4', borderRadius: 10, fontSize: 14, color: ink, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
               </div>
-              {modalMode === 'join' && (
-                <div style={{ marginBottom: 16, position: 'relative' }}>
-                  <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 5 }}>password</label>
-                  <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="at least 8 characters"
-                    style={{ width: '100%', padding: '12px 44px 12px 14px', background: '#FAF5F0', border: '1px solid #E8DDD4', borderRadius: 10, fontSize: 14, color: ink, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
-                  <button type="button" onClick={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>{showPw ? 'hide' : 'show'}</button>
-                </div>
-              )}
-              {modalMode === 'magic' && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '99', marginBottom: 16, lineHeight: 1.6 }}>we'll email you a link · click it · you're in</div>}
+              <div style={{ marginBottom: 16, position: 'relative' }}>
+                <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 5 }}>password</label>
+                <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="at least 8 characters"
+                  style={{ width: '100%', padding: '12px 44px 12px 14px', background: '#FAF5F0', border: '1px solid #E8DDD4', borderRadius: 10, fontSize: 14, color: ink, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
+                <button type="button" onClick={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>{showPw ? 'hide' : 'show'}</button>
+              </div>
               {authError && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby, marginBottom: 12 }}>{authError}</div>}
-              <button onClick={modalMode === 'magic' ? sendMagicLink : signUp} disabled={submitting}
+              <button onClick={modalMode === 'password' ? signInWithPassword : signUp} disabled={submitting}
                 style={{ width: '100%', padding: '14px', background: ruby, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
-                {submitting ? '...' : modalMode === 'magic' ? 'send magic link' : `join ${tenantName.toLowerCase()} ${currencyIcon}`}
+                {submitting ? '...' : modalMode === 'password' ? 'sign in' : `join ${tenantName.toLowerCase()} ${currencyIcon}`}
               </button>
             </>
-          )}
         </div>
       </div>
     </div>
