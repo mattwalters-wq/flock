@@ -690,7 +690,7 @@ export function FlockApp({ tenantId: propTenantId }) {
         }
         if (cfg.color_cream) {
           // --surface: slightly darker than cream for card backgrounds
-          document.documentElement.style.setProperty('--surface', cfg.color_cream);
+         
         }
         const fontMap = { dm_sans: "'DM Sans', sans-serif", playfair: "'Playfair Display', serif", space_grotesk: "'Space Grotesk', sans-serif", libre_baskerville: "'Libre Baskerville', serif", syne: "'Syne', sans-serif" };
         const font = fontMap[cfg.font_key];
