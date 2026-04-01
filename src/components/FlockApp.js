@@ -681,6 +681,12 @@ export function FlockApp({ tenantId: propTenantId }) {
         if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
         if (cfg.color_cream) document.documentElement.style.setProperty('--cream', cfg.color_cream);
         if (cfg.color_ink) document.documentElement.style.setProperty('--ink', cfg.color_ink);
+        // Derive border and surface from ink colour so tag pills match the tenant palette
+        if (cfg.color_ink) {
+          document.documentElement.style.setProperty('--border', cfg.color_ink + '22');
+          document.documentElement.style.setProperty('--slate', cfg.color_ink + 'AA');
+          document.documentElement.style.setProperty('--surface', cfg.color_cream || '#FAF5F0');
+        }
         const fontMap = { dm_sans: "'DM Sans', sans-serif", playfair: "'Playfair Display', serif", space_grotesk: "'Space Grotesk', sans-serif", libre_baskerville: "'Libre Baskerville', serif", syne: "'Syne', sans-serif" };
         const font = fontMap[cfg.font_key];
         if (font) document.documentElement.style.setProperty('--font-heading', font);
