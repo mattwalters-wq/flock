@@ -31,8 +31,8 @@ export function LandingPage() {
             if (cfg) cfg.forEach(({ key, value }) => {
               if (key === 'logo_url' && value) setLogoUrl(value);
               if (key === 'color_ruby' && value) document.documentElement.style.setProperty('--ruby', value);
-              if (key === 'color_cream' && value) document.documentElement.style.setProperty('--cream', value);
-              if (key === 'color_ink' && value) document.documentElement.style.setProperty('--ink', value);
+              if (key === 'color_cream' && value) { document.documentElement.style.setProperty('--cream', value); document.documentElement.style.setProperty('--surface', value); }
+              if (key === 'color_ink' && value) { document.documentElement.style.setProperty('--ink', value); document.documentElement.style.setProperty('--slate', value + '99'); document.documentElement.style.setProperty('--border', value + '26'); }
             });
           });
         }

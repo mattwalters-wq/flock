@@ -60,8 +60,8 @@ export function PublicPage({ tenantId }) {
       setConfig(cfg);
 
       if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
-      if (cfg.color_cream) document.documentElement.style.setProperty('--cream', cfg.color_cream);
-      if (cfg.color_ink) document.documentElement.style.setProperty('--ink', cfg.color_ink);
+      if (cfg.color_cream) { document.documentElement.style.setProperty('--cream', cfg.color_cream); document.documentElement.style.setProperty('--surface', cfg.color_cream); }
+      if (cfg.color_ink) { document.documentElement.style.setProperty('--ink', cfg.color_ink); document.documentElement.style.setProperty('--slate', cfg.color_ink + '99'); document.documentElement.style.setProperty('--border', cfg.color_ink + '26'); }
 
       setMembers(memRes.data || []);
       setPosts(postsRes.data || []);
