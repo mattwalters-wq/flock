@@ -54,10 +54,10 @@ export function LandingPage() {
         const { data: existing } = await sb.from('profiles').select('id').eq('id', data.user.id).eq('tenant_id', tenantId).single();
         if (!existing) {
           const name = data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'fan';
-          await sb.from('profiles').insert({
+          try { await sb.from('profiles').insert({
             id: data.user.id, tenant_id: tenantId, display_name: name,
             role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-          }).catch(() => {});
+          });
         }
       }
       window.location.href = '/';
@@ -88,19 +88,19 @@ export function LandingPage() {
     const session = signInData?.session || data?.session;
 
     if (session && tenantId) {
-      await sb.from('profiles').insert({
+      try { await sb.from('profiles').insert({
         id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(),
         role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-      }).catch(() => {});
+      });
       window.location.href = '/';
       return;
     }
 
     if (data?.user && tenantId) {
-      await sb.from('profiles').insert({
+      try { await sb.from('profiles').insert({
         id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(),
         role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-      }).catch(() => {});
+      });
       window.location.href = '/';
     } else {
       setError('something went wrong, please try again');

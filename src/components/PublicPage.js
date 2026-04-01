@@ -128,18 +128,23 @@ export function PublicPage({ tenantId }) {
     if (password.length < 8) { setAuthError('password must be at least 8 characters'); return; }
     setSubmitting(true); setAuthError('');
     const sb = getSupabase();
-    const { data, error } = await sb.auth.signUp({ email: email.trim(), password, options: { data: { display_name: displayName.trim() } } });
-    if (error) { setAuthError(error.message); setSubmitting(false); return; }
-    // Try immediate sign-in so user goes straight to feed
-    const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-    const session = signInData?.session || data?.session;
-    if (session && tenantId) {
-      await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }).catch(() => {});
-      window.location.href = '/';
-    } else if (data?.user && tenantId) {
-      await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }).catch(() => {});
-      window.location.href = '/';
-    } else {
+    try {
+      const { data, error } = await sb.auth.signUp({ email: email.trim(), password, options: { data: { display_name: displayName.trim() } } });
+      if (error) { setAuthError(error.message); setSubmitting(false); return; }
+      // Try immediate sign-in so user goes straight to feed
+      const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      const session = signInData?.session || data?.session;
+      if (session && tenantId) {
+        try { await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }); } catch (_) {}
+        window.location.href = '/';
+      } else if (data?.user && tenantId) {
+        try { await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }); } catch (_) {}
+        window.location.href = '/';
+      } else {
+        setAuthError('something went wrong, please try again');
+        setSubmitting(false);
+      }
+    } catch (err) {
       setAuthError('something went wrong, please try again');
       setSubmitting(false);
     }
