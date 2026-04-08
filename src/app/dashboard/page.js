@@ -350,6 +350,16 @@ function Posts({ supabase, tenantId, profile }) {
 }
 
 // ============ SHOWS ============
+function ShowInput({ label, field, type = 'text', placeholder, form, setForm }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <Mono style={{ marginBottom: 4 }}>{label}</Mono>
+      <input type={type} value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder}
+        style={{ width: '100%', padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+    </div>
+  );
+}
+
 function Shows({ supabase, tenantId }) {
   const [shows, setShows] = useState([]);
   const [form, setForm] = useState({ venue: '', city: '', region: 'australia', date: '', ticket_url: '', checkin_code: '' });
@@ -369,13 +379,7 @@ function Shows({ supabase, tenantId }) {
     setShowForm(false); load(); setAdding(false);
   };
 
-  const Input = ({ label, field, type = 'text', placeholder }) => (
-    <div style={{ marginBottom: 10 }}>
-      <Mono style={{ marginBottom: 4 }}>{label}</Mono>
-      <input type={type} value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder}
-        style={{ width: '100%', padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
-    </div>
-  );
+
 
   return (
     <div>
@@ -387,8 +391,8 @@ function Shows({ supabase, tenantId }) {
       {showForm && (
         <div style={{ background: SURFACE, borderRadius: 10, padding: '18px', border: `1px solid ${BORDER}`, marginBottom: 20 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <Input label="venue" field="venue" placeholder="venue name" />
-            <Input label="city" field="city" placeholder="city" />
+            <ShowInput form={form} setForm={setForm} label="venue" field="venue" placeholder="venue name" />
+            <ShowInput form={form} setForm={setForm} label="city" field="city" placeholder="city" />
           </div>
           <div style={{ marginBottom: 10 }}>
             <Mono style={{ marginBottom: 4 }}>region</Mono>
@@ -397,10 +401,10 @@ function Shows({ supabase, tenantId }) {
             </select>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <Input label="date" field="date" type="date" />
-            <Input label="ticket url (optional)" field="ticket_url" placeholder="https://..." />
+            <ShowInput form={form} setForm={setForm} label="date" field="date" type="date" />
+            <ShowInput form={form} setForm={setForm} label="ticket url (optional)" field="ticket_url" placeholder="https://..." />
           </div>
-          <Input label="check-in code (leave blank to auto-generate)" field="checkin_code" placeholder="e.g. DUSTIN24" />
+          <ShowInput form={form} setForm={setForm} label="check-in code (leave blank to auto-generate)" field="checkin_code" placeholder="e.g. DUSTIN24" />
           <Btn onClick={add} disabled={!form.venue || !form.city || !form.date || adding}>{adding ? 'adding...' : 'add show'}</Btn>
         </div>
       )}
