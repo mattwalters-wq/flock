@@ -804,6 +804,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     social_tiktok: '',
     social_youtube: '',
     social_website: '',
+    notify_fans_on_post: 'true',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1054,6 +1055,19 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             <input type="text" value={cfg.currency_icon || ''} onChange={e => setCfg(p => ({ ...p, currency_icon: e.target.value.slice(0, 2) }))} placeholder="✦"
               style={{ width: '100%', padding: '10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 20, color: INK, outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
           </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection id="notifications" label="email notifications" activeSection={activeSection} setActiveSection={setActiveSection}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 3 }}>notify fans when you post</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, lineHeight: 1.5 }}>fans who have notifications on will get an email when you post</div>
+          </div>
+          <button onClick={() => setCfg(p => ({ ...p, notify_fans_on_post: p.notify_fans_on_post === 'false' ? 'true' : 'false' }))}
+            style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: cfg.notify_fans_on_post !== 'false' ? RUBY : BORDER, position: 'relative', transition: 'background 0.2s', flexShrink: 0, marginLeft: 16 }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: cfg.notify_fans_on_post !== 'false' ? 22 : 2, transition: 'left 0.2s' }} />
+          </button>
         </div>
       </SettingsSection>
 

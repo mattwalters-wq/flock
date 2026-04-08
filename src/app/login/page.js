@@ -12,6 +12,8 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [mode, setMode] = useState('signin'); // signin | reset
+  const [resetSent, setResetSent] = useState(false);
 
   const signIn = async () => {
     if (!email.trim() || !password) { setError('email and password required'); return; }
@@ -27,6 +29,18 @@ export default function LoginPage() {
     } else {
       window.location.href = `/start`;
     }
+  };
+
+  const sendReset = async () => {
+    if (!email.trim()) { setError('enter your email address'); return; }
+    setLoading(true); setError('');
+    const sb = getSupabase();
+    const { error: resetErr } = await sb.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/reset`,
+    });
+    if (resetErr) { setError(resetErr.message); setLoading(false); return; }
+    setResetSent(true);
+    setLoading(false);
   };
 
   return (
@@ -51,7 +65,17 @@ export default function LoginPage() {
               style={{ width: '100%', padding: '12px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
           </div>
 
-          <div style={{ marginBottom: 20, position: 'relative' }}>
+          {resetSent && (
+            <div style={{ background: '#7D8B6A22', border: '1px solid #7D8B6A44', borderRadius: 10, padding: '14px', marginBottom: 16, fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#7D8B6A', lineHeight: 1.6 }}>
+              reset link sent to <strong>{email}</strong> — check your inbox and spam folder
+            </div>
+          )}
+          {mode === 'reset' && !resetSent && (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 16, lineHeight: 1.6 }}>
+              enter your email and we'll send you a link to reset your password
+            </div>
+          )}
+          {mode === 'signin' && <div style={{ marginBottom: 20, position: 'relative' }}>
             <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>password</label>
             <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && signIn()} placeholder="your password"
               style={{ width: '100%', padding: '12px 44px 12px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
@@ -59,14 +83,26 @@ export default function LoginPage() {
               style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>
               {showPw ? 'hide' : 'show'}
             </button>
-          </div>
-
           {error && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, marginBottom: 14 }}>{error}</div>}
 
-          <button onClick={signIn} disabled={loading}
+          <button onClick={mode === "reset" ? sendReset : signIn} disabled={loading}
             style={{ width: '100%', padding: '14px', background: RUBY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
-            {loading ? '...' : 'sign in →'}
+            {loading ? '...' : mode === 'reset' ? 'send reset link →' : 'sign in →'}
           </button>
+          {mode === 'signin' && (
+            <div style={{ textAlign: 'center', marginTop: 14 }}>
+              <button onClick={() => { setMode('reset'); setError(''); }} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                forgot password?
+              </button>
+            </div>
+          )}
+          {mode === 'reset' && (
+            <div style={{ textAlign: 'center', marginTop: 14 }}>
+              <button onClick={() => { setMode('signin'); setError(''); setResetSent(false); }} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                back to sign in
+              </button>
+            </div>
+          )}
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20 }}>

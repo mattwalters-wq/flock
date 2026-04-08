@@ -833,7 +833,10 @@ export function FlockApp({ tenantId: propTenantId }) {
       if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
       await fetchPosts();
       if (profile?.role === 'band' || profile?.role === 'admin') {
-        fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType }) }).catch(() => {});
+        // Only notify fans if artist hasn't disabled it
+        if (cfg.notify_fans_on_post !== 'false') {
+          fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType }) }).catch(() => {});
+        }
       }
     }
     setPosting(false);
