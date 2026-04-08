@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 
+const SUPER_ADMIN_ID = '5cdcf898-6bda-42b7-860e-0964562c9c22';
 const INK = '#1a1a1a'; const CREAM = '#F5F0E8'; const RUBY = '#8B1A2B';
 const WARM_GOLD = '#C9922A'; const SLATE = '#6A5A62'; const SURFACE = '#FAF5F0';
 const BORDER = '#E8DDD4'; const SAGE = '#7D8B6A';
@@ -1182,7 +1183,10 @@ export default function Dashboard() {
     if (loading) return; // still loading auth
     if (!user) { router.push('/'); return; }
     if (!tenantId) return; // wait for tenant to resolve before checking profile
-    if (profile && profile.role === 'fan') router.push('/');
+    // Allow super admin to access any dashboard via ?superadmin=1
+    const isSuperAdmin = user?.id === SUPER_ADMIN_ID;
+    const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
+    if (profile && profile.role === 'fan' && !(isSuperAdmin && superAdminParam)) router.push('/');
   }, [user, profile, loading, tenantId]);
 
   useEffect(() => {
@@ -1195,6 +1199,8 @@ export default function Dashboard() {
       });
     });
   }, [supabase, tenantId]);
+
+  const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 
   const TABS = [
     { id: 'overview', label: 'overview', icon: '◎' },
@@ -1214,6 +1220,10 @@ export default function Dashboard() {
     return () => window.removeEventListener('dashboard-tab', handler);
   }, []);
 
+  const isSuperAdmin = user?.id === SUPER_ADMIN_ID;
+  const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
+  const isGodMode = isSuperAdmin && superAdminParam;
+
   if (loading || !profile) return (
     <div style={{ minHeight: '100vh', background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: SLATE }}>✦</div>
@@ -1222,6 +1232,14 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif" }}>
+      {isGodMode && (
+        <div style={{ background: '#C9922A', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#1A1018', fontWeight: 600 }}>
+            ⚡ god mode — managing {tenant?.name || 'this community'} on behalf of artist
+          </div>
+          <a href="/admin" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#1A1018', textDecoration: 'none', border: '1px solid #1A101844', borderRadius: 6, padding: '4px 10px' }}>← back to admin</a>
+        </div>
+      )}
       {/* Top bar */}
       <div style={{ background: INK, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -60,6 +60,10 @@ function TenantRow({ tenant, onSelect, onDelete }) {
           style={{ padding: '6px 12px', background: 'transparent', color: RUBY, border: `1px solid ${RUBY}44`, borderRadius: 8, fontSize: 11, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
           visit ↗
         </a>
+        <a href={`https://${tenant.slug}.fans-flock.com/dashboard?superadmin=1`} target="_blank" rel="noopener noreferrer"
+          style={{ padding: '6px 12px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
+          manage ⚡
+        </a>
         <Btn onClick={async () => {
           if (!confirm(`Delete ${tenant.name}? This cannot be undone.`)) return;
           setDeleting(true);
