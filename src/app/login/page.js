@@ -21,7 +21,6 @@ export default function LoginPage() {
     const sb = getSupabase();
     const { data, error: signInErr } = await sb.auth.signInWithPassword({ email: email.trim(), password });
     if (signInErr) { setError(signInErr.message); setLoading(false); return; }
-
     const { data: profiles } = await sb.from('profiles').select('tenant_id, tenants(slug)').eq('id', data.user.id).limit(1);
     const slug = profiles?.[0]?.tenants?.slug;
     if (slug) {
@@ -36,7 +35,7 @@ export default function LoginPage() {
     setLoading(true); setError('');
     const sb = getSupabase();
     const { error: resetErr } = await sb.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth/reset`,
+      redirectTo: `https://${APP_DOMAIN}/auth/reset`,
     });
     if (resetErr) { setError(resetErr.message); setLoading(false); return; }
     setResetSent(true);
@@ -56,53 +55,57 @@ export default function LoginPage() {
         </div>
 
         <div style={{ background: SURFACE, borderRadius: 18, padding: '28px 24px', border: `1px solid ${BORDER}` }}>
-          <div style={{ marginBottom: 6, fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>sign in to flock</div>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 20 }}>we'll find your community automatically</div>
+          <div style={{ marginBottom: 6, fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>
+            {mode === 'reset' ? 'reset password' : 'sign in to flock'}
+          </div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 20 }}>
+            {mode === 'reset' ? "enter your email and we'll send a reset link" : "we'll find your community automatically"}
+          </div>
 
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && signIn()} placeholder="you@example.com" autoFocus
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && (mode === 'reset' ? sendReset() : signIn())} placeholder="you@example.com" autoFocus
               style={{ width: '100%', padding: '12px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
           </div>
+
+          {mode === 'signin' && (
+            <div style={{ marginBottom: 20, position: 'relative' }}>
+              <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>password</label>
+              <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && signIn()} placeholder="your password"
+                style={{ width: '100%', padding: '12px 44px 12px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+              <button type="button" onClick={() => setShowPw(p => !p)}
+                style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>
+                {showPw ? 'hide' : 'show'}
+              </button>
+            </div>
+          )}
 
           {resetSent && (
             <div style={{ background: '#7D8B6A22', border: '1px solid #7D8B6A44', borderRadius: 10, padding: '14px', marginBottom: 16, fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#7D8B6A', lineHeight: 1.6 }}>
               reset link sent to <strong>{email}</strong> — check your inbox and spam folder
             </div>
           )}
-          {mode === 'reset' && !resetSent && (
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 16, lineHeight: 1.6 }}>
-              enter your email and we'll send you a link to reset your password
-            </div>
-          )}
-          {mode === 'signin' && <div style={{ marginBottom: 20, position: 'relative' }}>
-            <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 6 }}>password</label>
-            <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && signIn()} placeholder="your password"
-              style={{ width: '100%', padding: '12px 44px 12px 14px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
-            <button type="button" onClick={() => setShowPw(p => !p)}
-              style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>
-              {showPw ? 'hide' : 'show'}
-            </button>
+
           {error && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, marginBottom: 14 }}>{error}</div>}
 
-          <button onClick={mode === "reset" ? sendReset : signIn} disabled={loading}
-            style={{ width: '100%', padding: '14px', background: RUBY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
-            {loading ? '...' : mode === 'reset' ? 'send reset link →' : 'sign in →'}
-          </button>
-          {mode === 'signin' && (
-            <div style={{ textAlign: 'center', marginTop: 14 }}>
+          {!resetSent && (
+            <button onClick={mode === 'reset' ? sendReset : signIn} disabled={loading}
+              style={{ width: '100%', padding: '14px', background: RUBY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
+              {loading ? '...' : mode === 'reset' ? 'send reset link →' : 'sign in →'}
+            </button>
+          )}
+
+          <div style={{ textAlign: 'center', marginTop: 14 }}>
+            {mode === 'signin' ? (
               <button onClick={() => { setMode('reset'); setError(''); }} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                 forgot password?
               </button>
-            </div>
-          )}
-          {mode === 'reset' && (
-            <div style={{ textAlign: 'center', marginTop: 14 }}>
+            ) : (
               <button onClick={() => { setMode('signin'); setError(''); setResetSent(false); }} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                 back to sign in
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20 }}>
