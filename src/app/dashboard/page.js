@@ -1224,7 +1224,7 @@ export default function Dashboard() {
   const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
   const isGodMode = isSuperAdmin && superAdminParam;
 
-  if (loading || !profile) return (
+  if (loading || (!profile && !isGodMode)) return (
     <div style={{ minHeight: '100vh', background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: SLATE }}>✦</div>
     </div>
