@@ -1213,6 +1213,14 @@ export default function Dashboard() {
     { id: 'settings', label: 'settings', icon: '⚙' },
   ];
 
+  // Swap favicon to blue on dashboard
+  useEffect(() => {
+    const link = document.querySelector("link[rel~='icon']");
+    const prev = link?.href;
+    if (link) link.href = '/favicon-dashboard.svg';
+    return () => { if (link && prev) link.href = prev; };
+  }, []);
+
   // Listen for tab switch events from the setup checklist
   useEffect(() => {
     const handler = (e) => setActiveTab(e.detail);
@@ -1231,6 +1239,7 @@ export default function Dashboard() {
   );
 
   return (
+    <>
     <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif" }}>
       {isGodMode && (
         <div style={{ background: '#C9922A', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1278,5 +1287,6 @@ export default function Dashboard() {
         {activeTab === 'settings' && <Settings supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} />}
       </div>
     </div>
+    </>
   );
 }
