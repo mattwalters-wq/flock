@@ -753,6 +753,36 @@ const PALETTE_PRESETS = [
   { key: 'custom', label: 'Custom', ruby: null, cream: null, ink: null },
 ];
 
+function SettingsSection({ id, label, children, activeSection, setActiveSection }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <button onClick={() => setActiveSection(activeSection === id ? null : id)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: activeSection === id ? INK : SURFACE, border: `1px solid ${BORDER}`, borderRadius: activeSection === id ? '10px 10px 0 0' : 10, cursor: 'pointer' }}>
+        <Mono size={10} color={activeSection === id ? CREAM + '88' : SLATE} style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>{label}</Mono>
+        <Mono size={12} color={activeSection === id ? CREAM + '55' : SLATE}>{activeSection === id ? '−' : '+'}</Mono>
+      </button>
+      {activeSection === id && (
+        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '20px 18px' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsField({ label, field, placeholder, type = 'text', prefix, cfg, setCfg }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <Mono style={{ marginBottom: 6 }}>{label}</Mono>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+        {prefix && <div style={{ padding: '10px 12px', background: BORDER, borderRadius: '8px 0 0 8px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, border: `1px solid ${BORDER}`, borderRight: 'none' }}>{prefix}</div>}
+        <input type={type} value={cfg[field] || ''} onChange={e => setCfg(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder}
+          style={{ flex: 1, padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: prefix ? '0 8px 8px 0' : 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', width: '100%' }} />
+      </div>
+    </div>
+  );
+}
+
 function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
   const [cfg, setCfg] = useState({
     currency_name: currencyName,
@@ -824,6 +854,12 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     }
 
     const toSave = { ...cfg, banner_url: bannerUrl, logo_url: logoUrl };
+    // Update local state so URLs persist after save
+    setCfg(prev => ({ ...prev, banner_url: bannerUrl, logo_url: logoUrl }));
+    if (bannerUrl) setBannerPreview(bannerUrl);
+    if (logoUrl) setLogoPreview(logoUrl);
+    setLogoFile(null);
+    setBannerFile(null);
     for (const [key, value] of Object.entries(toSave)) {
       if (value !== null && value !== undefined) {
         await supabase.from('tenant_config').upsert({ tenant_id: tenantId, key, value }, { onConflict: 'tenant_id,key' });
@@ -848,31 +884,6 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
 
   const selectedFont = FONT_OPTIONS.find(f => f.key === cfg.font_key) || FONT_OPTIONS[0];
 
-  const Section = ({ id, label, children }) => (
-    <div style={{ marginBottom: 12 }}>
-      <button onClick={() => setActiveSection(activeSection === id ? null : id)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: activeSection === id ? INK : SURFACE, border: `1px solid ${BORDER}`, borderRadius: activeSection === id ? '10px 10px 0 0' : 10, cursor: 'pointer' }}>
-        <Mono size={10} color={activeSection === id ? CREAM + '88' : SLATE} style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>{label}</Mono>
-        <Mono size={12} color={activeSection === id ? CREAM + '55' : SLATE}>{activeSection === id ? '−' : '+'}</Mono>
-      </button>
-      {activeSection === id && (
-        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '20px 18px' }}>
-          {children}
-        </div>
-      )}
-    </div>
-  );
-
-  const Field = ({ label, field, placeholder, type = 'text', prefix }) => (
-    <div style={{ marginBottom: 14 }}>
-      <Mono style={{ marginBottom: 6 }}>{label}</Mono>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-        {prefix && <div style={{ padding: '10px 12px', background: BORDER, borderRadius: '8px 0 0 8px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, border: `1px solid ${BORDER}`, borderRight: 'none' }}>{prefix}</div>}
-        <input type={type} value={cfg[field] || ''} onChange={e => setCfg(p => ({ ...p, [field]: e.target.value }))} placeholder={placeholder}
-          style={{ flex: 1, padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: prefix ? '0 8px 8px 0' : 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', width: '100%' }} />
-      </div>
-    </div>
-  );
 
   return (
     <div>
@@ -896,7 +907,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         <Mono size={9} color={CREAM + '44'} style={{ marginTop: 10 }}>put this everywhere · instagram bio · twitter · linktree · email signature</Mono>
       </div>
 
-      <Section id="branding" label="colours & fonts">
+      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="branding" label="colours & fonts">
         {/* Colour presets */}
         <Mono style={{ marginBottom: 10 }}>colour preset</Mono>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
@@ -950,9 +961,9 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             </button>
           ))}
         </div>
-      </Section>
+      </SettingsSection>
 
-      <Section id="banner" label="logo & banner image">
+      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="banner" label="logo & banner image">
         <Mono style={{ marginBottom: 10 }}>logo (png with transparent background)</Mono>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
           {logoPreview ? (
@@ -1008,26 +1019,26 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
           </label>
         )}
-      </Section>
+      </SettingsSection>
 
-      <Section id="profile" label="artist profile">
-        <Field label="tagline" field="tagline" placeholder="a short line about you or your music" />
-        <Field label="bio" field="bio" placeholder="a longer description for your community page" />
-      </Section>
+      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="profile" label="artist profile">
+        <SettingsField cfg={cfg} setCfg={setCfg} label="tagline" field="tagline" placeholder="a short line about you or your music" />
+        <SettingsField cfg={cfg} setCfg={setCfg} label="bio" field="bio" placeholder="a longer description for your community page" />
+      </SettingsSection>
 
-      <Section id="socials" label="social & streaming links">
+      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="socials" label="social & streaming links">
         <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
           These appear on your community landing page - the link in bio your fans see before they sign up.
         </div>
-        <Field label="instagram" field="social_instagram" placeholder="yourhandle" prefix="instagram.com/" />
-        <Field label="tiktok" field="social_tiktok" placeholder="yourhandle" prefix="tiktok.com/@" />
-        <Field label="spotify" field="social_spotify" placeholder="artist URL" prefix="open.spotify.com/" />
-        <Field label="apple music" field="social_apple_music" placeholder="artist URL" />
-        <Field label="youtube" field="social_youtube" placeholder="channel URL" />
-        <Field label="website" field="social_website" placeholder="https://yoursite.com" />
-      </Section>
+        <SettingsField cfg={cfg} setCfg={setCfg} label="instagram" field="social_instagram" placeholder="yourhandle" prefix="instagram.com/" />
+        <SettingsField cfg={cfg} setCfg={setCfg} label="tiktok" field="social_tiktok" placeholder="yourhandle" prefix="tiktok.com/@" />
+        <SettingsField cfg={cfg} setCfg={setCfg} label="spotify" field="social_spotify" placeholder="artist URL" prefix="open.spotify.com/" />
+        <SettingsField cfg={cfg} setCfg={setCfg} label="apple music" field="social_apple_music" placeholder="artist URL" />
+        <SettingsField cfg={cfg} setCfg={setCfg} label="youtube" field="social_youtube" placeholder="channel URL" />
+        <SettingsField cfg={cfg} setCfg={setCfg} label="website" field="social_website" placeholder="https://yoursite.com" />
+      </SettingsSection>
 
-      <Section id="currency" label="fan currency">
+      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="currency" label="fan currency">
         <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 10, marginBottom: 6 }}>
           <div>
             <Mono style={{ marginBottom: 6 }}>currency name</Mono>
@@ -1040,14 +1051,14 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
               style={{ width: '100%', padding: '10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 20, color: INK, outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
           </div>
         </div>
-      </Section>
+      </SettingsSection>
 
       {/* Save button */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 20 }}>
         <Btn onClick={save} disabled={saving || uploadingBanner} style={{ flex: 1, padding: '14px', fontSize: 14 }}>
           {saving ? 'saving...' : uploadingBanner ? 'uploading image...' : 'save all changes'}
         </Btn>
-        {saved && <Mono size={11} color={SAGE}>saved ✓</Mono>}
+        {saved && <div style={{ padding: '10px 16px', background: SAGE + '22', border: `1px solid ${SAGE}44`, borderRadius: 8, fontFamily: "'DM Mono', monospace", fontSize: 11, color: SAGE }}>saved ✓</div>}
       </div>
     </div>
   );
