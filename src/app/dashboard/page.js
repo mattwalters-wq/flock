@@ -464,7 +464,7 @@ function Members({ supabase, tenantId }) {
 
   const save = async (m) => {
     setSaving(true);
-    await supabase.from('tenant_members').update({ name: m.name, bio: m.bio, accent_color: m.accent_color }).eq('id', m.id);
+    await supabase.from('tenant_members').update({ name: m.name, bio: m.bio, accent_color: m.accent_color, avatar_url: m.avatar_url || null }).eq('id', m.id);
     setMembers(prev => prev.map(x => x.id === m.id ? m : x));
     setEditing(null); setSaving(false);
   };
@@ -479,6 +479,32 @@ function Members({ supabase, tenantId }) {
         <div key={m.id} style={{ background: SURFACE, borderRadius: 10, padding: '16px', border: `1px solid ${BORDER}`, marginBottom: 10, borderLeft: `3px solid ${m.accent_color || RUBY}` }}>
           {editing?.id === m.id ? (
             <div>
+              {/* Photo upload */}
+              <div style={{ marginBottom: 14 }}>
+                <Mono style={{ marginBottom: 8 }}>profile photo</Mono>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 10, background: editing.accent_color || RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                    {editing.avatar_url
+                      ? <img src={editing.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ color: '#fff', fontSize: 20, fontFamily: "'DM Mono', monospace" }}>{editing.name?.charAt(0)?.toLowerCase() || '?'}</span>}
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: CREAM, border: `1px dashed ${BORDER}`, borderRadius: 8, cursor: 'pointer' }}>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+                      const file = e.target.files?.[0];
+                      if (!file || file.size > 2 * 1024 * 1024) return;
+                      const ext = file.name.split('.').pop();
+                      const path = `members/${tenantId}/${editing.id}.${ext}`;
+                      const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
+                      if (!error) {
+                        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+                        setEditing(p => ({ ...p, avatar_url: urlData?.publicUrl }));
+                      }
+                    }} />
+                    <Mono size={10}>upload photo</Mono>
+                  </label>
+                  {editing.avatar_url && <button onClick={() => setEditing(p => ({ ...p, avatar_url: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: RUBY, fontFamily: "'DM Mono', monospace", fontSize: 10 }}>remove</button>}
+                </div>
+              </div>
               {[{ label: 'name', field: 'name' }, { label: 'bio', field: 'bio' }].map(({ label, field }) => (
                 <div key={field} style={{ marginBottom: 10 }}>
                   <Mono style={{ marginBottom: 4 }}>{label}</Mono>
@@ -524,15 +550,14 @@ function TierFormField({ label, field, type = 'text', placeholder, span = 1, val
 }
 
 function TierForm({ value, onChange, currencyName, currencyIcon, onSave, onCancel, saving, saveLabel = 'add tier' }) {
-  const I = (props) => <TierFormField {...props} value={value} onChange={onChange} />;
   return (
     <div style={{ background: SURFACE, borderRadius: 10, padding: '16px', border: `1px solid ${BORDER}`, marginBottom: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0 10px' }}>
-        <I label="tier name" field="name" placeholder="e.g. Inner Circle" />
-        <I label={`${currencyName} required`} field="stamps" type="number" placeholder="500" />
-        <I label="icon" field="icon" placeholder="✦" />
+        <TierFormField value={value} onChange={onChange} label="tier name" field="name" placeholder="e.g. Inner Circle" />
+        <TierFormField value={value} onChange={onChange} label={`${currencyName} required`} field="stamps" type="number" placeholder="500" />
+        <TierFormField value={value} onChange={onChange} label="icon" field="icon" placeholder="✦" />
       </div>
-      <I label="reward description" field="reward_desc" placeholder="what fans get at this level..." span={3} />
+      <TierFormField value={value} onChange={onChange} label="reward description" field="reward_desc" placeholder="what fans get at this level..." span={3} />
       <div style={{ display: 'flex', gap: 8 }}>
         <Btn onClick={onSave} disabled={!value.name || !value.reward_desc || saving}>{saving ? 'saving...' : saveLabel}</Btn>
         <Btn onClick={onCancel} variant="ghost">cancel</Btn>
@@ -646,6 +671,24 @@ function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
                   <div style={{ fontSize: 12, color: SLATE, marginTop: 2 }}>{t.reward_desc}</div>
                 </div>
                 <Mono size={11} color={WARM_GOLD} style={{ minWidth: 50, textAlign: 'right', flexShrink: 0 }}>{t.stamps} {currencyIcon}</Mono>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <button onClick={async () => {
+                    const idx = tiers.findIndex(x => x.id === t.id);
+                    if (idx === 0) return;
+                    const newTiers = [...tiers];
+                    [newTiers[idx-1], newTiers[idx]] = [newTiers[idx], newTiers[idx-1]];
+                    setTiers(newTiers);
+                    await Promise.all([supabase.from('reward_tiers').update({ sort_order: idx-1 }).eq('id', newTiers[idx-1].id), supabase.from('reward_tiers').update({ sort_order: idx }).eq('id', newTiers[idx].id)]);
+                  }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE, fontSize: 9, padding: '1px 4px', lineHeight: 1 }}>▲</button>
+                  <button onClick={async () => {
+                    const idx = tiers.findIndex(x => x.id === t.id);
+                    if (idx === tiers.length - 1) return;
+                    const newTiers = [...tiers];
+                    [newTiers[idx+1], newTiers[idx]] = [newTiers[idx], newTiers[idx+1]];
+                    setTiers(newTiers);
+                    await Promise.all([supabase.from('reward_tiers').update({ sort_order: idx+1 }).eq('id', newTiers[idx+1].id), supabase.from('reward_tiers').update({ sort_order: idx }).eq('id', newTiers[idx].id)]);
+                  }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE, fontSize: 9, padding: '1px 4px', lineHeight: 1 }}>▼</button>
+                </div>
                 <button onClick={() => { setEditingTier({ ...t }); setShowNewTier(false); }} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, flexShrink: 0 }}>edit</button>
                 <button onClick={() => deleteTier(t.id)} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, flexShrink: 0 }}>×</button>
               </div>
@@ -785,14 +828,15 @@ const PALETTE_PRESETS = [
 ];
 
 function SettingsSection({ id, label, children, activeSection, setActiveSection }) {
+  const isOpen = Array.isArray(activeSection) ? activeSection.includes(id) : activeSection === id;
   return (
     <div style={{ marginBottom: 12 }}>
-      <button onClick={() => setActiveSection(activeSection === id ? null : id)}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: activeSection === id ? INK : SURFACE, border: `1px solid ${BORDER}`, borderRadius: activeSection === id ? '10px 10px 0 0' : 10, cursor: 'pointer' }}>
-        <Mono size={10} color={activeSection === id ? CREAM + '88' : SLATE} style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>{label}</Mono>
-        <Mono size={12} color={activeSection === id ? CREAM + '55' : SLATE}>{activeSection === id ? '−' : '+'}</Mono>
+      <button onClick={() => setActiveSection(id)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: isOpen ? INK : SURFACE, border: `1px solid ${BORDER}`, borderRadius: isOpen ? '10px 10px 0 0' : 10, cursor: 'pointer' }}>
+        <Mono size={10} color={isOpen ? CREAM + '88' : SLATE} style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>{label}</Mono>
+        <Mono size={12} color={isOpen ? CREAM + '55' : SLATE}>{isOpen ? '−' : '+'}</Mono>
       </button>
-      {activeSection === id && (
+      {isOpen && (
         <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '20px 18px' }}>
           {children}
         </div>
@@ -842,7 +886,9 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
-  const [activeSection, setActiveSection] = useState('branding');
+  const [openSections, setOpenSections] = useState(['branding', 'socials', 'profile']);
+  const activeSection = openSections[0]; // backwards compat
+  const setActiveSection = (id) => setOpenSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') setLink(window.location.origin);
@@ -939,7 +985,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         <Mono size={9} color={CREAM + '44'} style={{ marginTop: 10 }}>put this everywhere · instagram bio · twitter · linktree · email signature</Mono>
       </div>
 
-      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="branding" label="colours & fonts">
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="branding" label="colours & fonts">
         {/* Colour presets */}
         <Mono style={{ marginBottom: 10 }}>colour preset</Mono>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
@@ -995,7 +1041,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         </div>
       </SettingsSection>
 
-      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="banner" label="logo & banner image">
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="banner" label="logo & banner image">
         <Mono style={{ marginBottom: 10 }}>logo (png with transparent background)</Mono>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
           {logoPreview ? (
@@ -1053,12 +1099,12 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         )}
       </SettingsSection>
 
-      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="profile" label="artist profile">
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="profile" label="artist profile">
         <SettingsField cfg={cfg} setCfg={setCfg} label="tagline" field="tagline" placeholder="a short line about you or your music" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="bio" field="bio" placeholder="a longer description for your community page" />
       </SettingsSection>
 
-      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="socials" label="social & streaming links">
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="socials" label="social & streaming links">
         <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
           These appear on your community landing page - the link in bio your fans see before they sign up.
         </div>
@@ -1070,7 +1116,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         <SettingsField cfg={cfg} setCfg={setCfg} label="website" field="social_website" placeholder="https://yoursite.com" />
       </SettingsSection>
 
-      <SettingsSection activeSection={activeSection} setActiveSection={setActiveSection} id="currency" label="fan currency">
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="currency" label="fan currency">
         <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 10, marginBottom: 6 }}>
           <div>
             <Mono style={{ marginBottom: 6 }}>currency name</Mono>
@@ -1085,7 +1131,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         </div>
       </SettingsSection>
 
-      <SettingsSection id="notifications" label="email notifications" activeSection={activeSection} setActiveSection={setActiveSection}>
+      <SettingsSection id="notifications" label="email notifications" activeSection={openSections} setActiveSection={setActiveSection}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 3 }}>notify fans when you post</div>
