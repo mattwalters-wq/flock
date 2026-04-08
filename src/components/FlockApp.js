@@ -595,9 +595,15 @@ function MemberHeader({ member, memberMap }) {
 
 // ─── MAIN FLOCK APP ──────────────────────────────────────────────────────────
 
+const SUPER_ADMIN_ID = '5cdcf898-6bda-42b7-860e-0964562c9c22';
+
 export function FlockApp({ tenantId: propTenantId }) {
   const { user, profile, signOut, supabase, tenantId: authTenantId, refreshProfile, updateProfile } = useAuth();
   const tenantId = propTenantId || authTenantId;
+
+  const isSuperAdmin = user?.id === SUPER_ADMIN_ID;
+  const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
+  const isGodMode = isSuperAdmin && superAdminParam;
 
   // Tenant config
   const [tenant, setTenant] = useState(null);
@@ -864,14 +870,14 @@ export function FlockApp({ tenantId: propTenantId }) {
     { id: 'highlights', label: 'highlights', icon: '◉', color: RUBY },
   ];
 
-  const isArtist = profile?.role === 'admin' || profile?.role === 'band';
+  const isArtist = profile?.role === 'admin' || profile?.role === 'band' || isGodMode;
 
   const mainTabs = [
     { id: 'feed', label: 'feed', icon: '◎' },
     { id: 'shows', label: 'shows', icon: '♫' },
     { id: 'points', label: currencyName, icon: currencyIcon },
     { id: 'you', label: 'you', icon: '○' },
-    ...(isArtist ? [{ id: 'dashboard', label: 'dashboard', icon: '⚙', href: '/dashboard' }] : []),
+    ...(isArtist ? [{ id: 'dashboard', label: 'dashboard', icon: '⚙', href: `/dashboard?superadmin=1` }] : []),
   ];
 
   const visiblePosts = feedTagFilter ? posts.filter(p => p.tag === feedTagFilter) : posts;
@@ -1285,6 +1291,21 @@ export function FlockApp({ tenantId: propTenantId }) {
         )}
 
         {/* ─── YOU TAB ─── */}
+        {mainTab === 'you' && isGodMode && !profile && (
+          <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
+            <div style={{ background: `linear-gradient(145deg, ${WARM_GOLD}22, ${WARM_GOLD}08)`, borderRadius: 12, padding: '32px 22px 28px', textAlign: 'center', border: `2px solid ${WARM_GOLD}55`, marginBottom: 14 }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>⚡</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: WARM_GOLD, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 8 }}>god mode</div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>super admin</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>no profile in this community</div>
+            </div>
+            <div onClick={() => window.location.href = `/dashboard?superadmin=1`} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 10, border: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08', marginBottom: 8 }}>
+              <span style={{ fontSize: 18 }}>⚙</span>
+              <span style={{ fontSize: 13, color: INK, flex: 1, fontWeight: 600 }}>artist dashboard</span>
+              <span style={{ color: SLATE, fontSize: 12 }}>→</span>
+            </div>
+          </div>
+        )}
         {mainTab === 'you' && profile && (
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
             {/* Profile card */}
@@ -1310,7 +1331,7 @@ export function FlockApp({ tenantId: propTenantId }) {
             {/* Actions */}
             <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
               {(profile.role === 'admin' || profile.role === 'band') && (
-                <div onClick={() => window.location.href = '/dashboard'} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08' }}>
+                <div onClick={() => window.location.href = isGodMode ? '/dashboard?superadmin=1' : '/dashboard'} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08' }}>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 15, color: WARM_GOLD, width: 24, textAlign: 'center' }}>◈</span>
                   <span style={{ fontSize: 13, color: INK, flex: 1, fontWeight: 600 }}>dashboard</span>
                   <span style={{ fontFamily: "'DM Mono', monospace", color: WARM_GOLD, fontSize: 14 }}>→</span>
