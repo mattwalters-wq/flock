@@ -360,12 +360,41 @@ function ShowInput({ label, field, type = 'text', placeholder, form, setForm }) 
   );
 }
 
+function ShowForm({ form, setForm, onSave, onCancel, saving, saveLabel }) {
+  const REGIONS = ['australia', 'europe', 'uk', 'north_america', 'other'];
+  return (
+    <div style={{ background: SURFACE, borderRadius: 10, padding: '18px', border: `1px solid ${BORDER}`, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
+        <ShowInput form={form} setForm={setForm} label="venue" field="venue" placeholder="venue name" />
+        <ShowInput form={form} setForm={setForm} label="city" field="city" placeholder="city" />
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <Mono style={{ marginBottom: 4 }}>region</Mono>
+        <select value={form.region} onChange={e => setForm(p => ({ ...p, region: e.target.value }))} style={{ width: '100%', padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }}>
+          {REGIONS.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+        </select>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
+        <ShowInput form={form} setForm={setForm} label="date" field="date" type="date" />
+        <ShowInput form={form} setForm={setForm} label="ticket url (optional)" field="ticket_url" placeholder="https://..." />
+      </div>
+      <ShowInput form={form} setForm={setForm} label="check-in code (leave blank to auto-generate)" field="checkin_code" placeholder="e.g. DUSTIN24" />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Btn onClick={onSave} disabled={!form.venue || !form.city || !form.date || saving}>{saving ? 'saving...' : saveLabel}</Btn>
+        {onCancel && <Btn onClick={onCancel} variant="ghost">cancel</Btn>}
+      </div>
+    </div>
+  );
+}
+
 function Shows({ supabase, tenantId }) {
   const [shows, setShows] = useState([]);
   const [form, setForm] = useState({ venue: '', city: '', region: 'australia', date: '', ticket_url: '', checkin_code: '' });
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const REGIONS = ['australia', 'europe', 'uk', 'north_america', 'other'];
+  const [editingShow, setEditingShow] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => { load(); }, []);
   const load = () => supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date').then(({ data }) => setShows(data || []));
@@ -379,48 +408,46 @@ function Shows({ supabase, tenantId }) {
     setShowForm(false); load(); setAdding(false);
   };
 
+  const startEdit = (show) => {
+    setEditingShow(show.id);
+    setEditForm({ venue: show.venue, city: show.city, region: show.region || 'australia', date: show.date, ticket_url: show.ticket_url || '', checkin_code: show.checkin_code || '' });
+  };
 
+  const saveEdit = async () => {
+    if (!editForm.venue || !editForm.city || !editForm.date) return;
+    setSavingEdit(true);
+    await supabase.from('shows').update({ ...editForm }).eq('id', editingShow);
+    setEditingShow(null); setEditForm(null); load(); setSavingEdit(false);
+  };
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <H>shows</H>
-        <Btn onClick={() => setShowForm(!showForm)} variant="ghost">{showForm ? 'cancel' : '+ add show'}</Btn>
+        <Btn onClick={() => { setShowForm(!showForm); setEditingShow(null); }} variant="ghost">{showForm ? 'cancel' : '+ add show'}</Btn>
       </div>
 
-      {showForm && (
-        <div style={{ background: SURFACE, borderRadius: 10, padding: '18px', border: `1px solid ${BORDER}`, marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <ShowInput form={form} setForm={setForm} label="venue" field="venue" placeholder="venue name" />
-            <ShowInput form={form} setForm={setForm} label="city" field="city" placeholder="city" />
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <Mono style={{ marginBottom: 4 }}>region</Mono>
-            <select value={form.region} onChange={e => setForm(p => ({ ...p, region: e.target.value }))} style={{ width: '100%', padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }}>
-              {REGIONS.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
-            </select>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-            <ShowInput form={form} setForm={setForm} label="date" field="date" type="date" />
-            <ShowInput form={form} setForm={setForm} label="ticket url (optional)" field="ticket_url" placeholder="https://..." />
-          </div>
-          <ShowInput form={form} setForm={setForm} label="check-in code (leave blank to auto-generate)" field="checkin_code" placeholder="e.g. DUSTIN24" />
-          <Btn onClick={add} disabled={!form.venue || !form.city || !form.date || adding}>{adding ? 'adding...' : 'add show'}</Btn>
-        </div>
-      )}
+      {showForm && <ShowForm form={form} setForm={setForm} onSave={add} onCancel={() => setShowForm(false)} saving={adding} saveLabel="add show" />}
 
       {shows.length === 0 ? <Mono style={{ padding: 20, textAlign: 'center' }}>no shows added yet</Mono> : shows.map(show => (
-        <div key={show.id} style={{ background: SURFACE, borderRadius: 10, padding: '14px 16px', marginBottom: 8, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Mono size={11} style={{ minWidth: 64 }}>{new Date(show.date + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</Mono>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{show.city}</div>
-            <Mono size={10} color={SLATE + '99'}>{show.venue}{show.region ? ` · ${show.region.replace('_', ' ')}` : ''}</Mono>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {show.checkin_code && <div style={{ background: INK, color: CREAM, borderRadius: 6, padding: '4px 12px', fontFamily: "'DM Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: '2px' }}>{show.checkin_code}</div>}
-            {show.ticket_url && <a href={show.ticket_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, textDecoration: 'none' }}>tickets ↗</a>}
-            <button onClick={async () => { await supabase.from('shows').delete().eq('id', show.id); setShows(p => p.filter(x => x.id !== show.id)); }} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12, color: RUBY, fontFamily: "'DM Mono', monospace" }}>×</button>
-          </div>
+        <div key={show.id} style={{ marginBottom: 8 }}>
+          {editingShow === show.id ? (
+            <ShowForm form={editForm} setForm={setEditForm} onSave={saveEdit} onCancel={() => { setEditingShow(null); setEditForm(null); }} saving={savingEdit} saveLabel="save changes" />
+          ) : (
+            <div style={{ background: SURFACE, borderRadius: 10, padding: '14px 16px', border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Mono size={11} style={{ minWidth: 64 }}>{new Date(show.date + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</Mono>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{show.city}</div>
+                <Mono size={10} color={SLATE + '99'}>{show.venue}{show.region ? ` · ${show.region.replace('_', ' ')}` : ''}</Mono>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {show.checkin_code && <div style={{ background: INK, color: CREAM, borderRadius: 6, padding: '4px 12px', fontFamily: "'DM Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: '2px' }}>{show.checkin_code}</div>}
+                {show.ticket_url && <a href={show.ticket_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, textDecoration: 'none' }}>tickets ↗</a>}
+                <button onClick={() => startEdit(show)} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace" }}>edit</button>
+                <button onClick={async () => { await supabase.from('shows').delete().eq('id', show.id); setShows(p => p.filter(x => x.id !== show.id)); }} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12, color: RUBY, fontFamily: "'DM Mono', monospace" }}>×</button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
