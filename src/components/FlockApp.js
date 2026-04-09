@@ -522,22 +522,35 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
 
 // ─── CLAIM REWARD MODAL ──────────────────────────────────────────────────────
 
-function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClose }) {
+function ClaimRewardModal({ level, supabase, userId, fanEmail, fanName, tenantId, onClaimed, onClose }) {
   const [name, setName] = useState(''); const [address, setAddress] = useState('');
   const [city, setCity] = useState(''); const [country, setCountry] = useState('');
   const [postcode, setPostcode] = useState(''); const [submitting, setSubmitting] = useState(false);
-  const needsShipping = ['tshirt', 'vinyl'].includes(level.reward);
+  const needsShipping = level.reward && !['postcard', 'zoom', 'meetgreet', 'download', 'discount'].includes(level.reward);
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const BORDER = 'var(--border)';
   const SLATE = 'var(--slate)'; const WARM_GOLD = 'var(--warm-gold)'; const SURFACE = 'var(--surface)';
   const RUBY = 'var(--ruby)';
 
   const claim = async () => {
     setSubmitting(true);
+    const shipping = needsShipping ? { name, address, city, country, postcode } : null;
     await supabase.from('reward_claims').insert({
       user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending',
-      shipping_name: needsShipping ? name : null, shipping_address: needsShipping ? address : null,
-      shipping_city: needsShipping ? city : null, shipping_country: needsShipping ? country : null, shipping_postcode: needsShipping ? postcode : null,
+      shipping_name: shipping?.name || null, shipping_address: shipping?.address || null,
+      shipping_city: shipping?.city || null, shipping_country: shipping?.country || null, shipping_postcode: shipping?.postcode || null,
     });
+    // Notify artist
+    fetch('/api/email/reward-claimed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      tenantId, fanName, fanEmail, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
+      shipping: shipping?.address ? shipping : null,
+    }) }).catch(() => {});
+    // Confirm to fan
+    if (fanEmail) {
+      fetch('/api/email/reward-confirmed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        tenantId, fanEmail, fanName, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
+        shipping: shipping?.address ? shipping : null,
+      }) }).catch(() => {});
+    }
     onClaimed();
   };
 
@@ -570,7 +583,7 @@ function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClos
         </>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
-          <button onClick={claim} disabled={submitting || (needsShipping && (!name || !address || !city || !country || !postcode))} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }}>
+          <button onClick={claim} disabled={submitting || (needsShipping && (!name || !address || !city || !country || !postcode))} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (submitting || (needsShipping && (!name || !address || !city || !country || !postcode))) ? 0.5 : 1 }}>
             {submitting ? 'claiming...' : 'claim ✦'}
           </button>
         </div>
@@ -888,7 +901,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
       {/* ── MODALS ── */}
       {showEditProfile && <EditProfileModal profile={profile} supabase={supabase} tenantId={tenantId} onSave={updateProfile} onClose={() => setShowEditProfile(false)} />}
-      {claimingLevel && <ClaimRewardModal level={claimingLevel} supabase={supabase} userId={user?.id} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
+      {claimingLevel && <ClaimRewardModal level={claimingLevel} supabase={supabase} userId={user?.id} fanEmail={user?.email} fanName={profile?.display_name} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
       {viewingProfile && <UserProfileModal userId={viewingProfile} supabase={supabase} tenantId={tenantId} onClose={() => setViewingProfile(null)} levels={STAMP_LEVELS} currencyName={currencyName} currencyIcon={currencyIcon} />}
 
       {/* ── CHECK-IN MODAL ── */}
