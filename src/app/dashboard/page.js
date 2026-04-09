@@ -1103,6 +1103,12 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="profile" label="artist profile">
         <SettingsField cfg={cfg} setCfg={setCfg} label="tagline" field="tagline" placeholder="a short line about you or your music" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="bio" field="bio" placeholder="a longer description for your community page" />
+        <div style={{ marginTop: 4 }}>
+          <Mono style={{ marginBottom: 6 }}>welcome message</Mono>
+          <Mono size={9} style={{ marginBottom: 8, lineHeight: 1.5 }}>sent to fans in their welcome email when they join. keep it personal.</Mono>
+          <textarea value={cfg.welcome_message || ''} onChange={e => setCfg(p => ({ ...p, welcome_message: e.target.value }))} placeholder={`so glad you're here. can't wait to share what's coming next with you.`}
+            style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', resize: 'vertical', minHeight: 80, lineHeight: 1.6 }} />
+        </div>
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="socials" label="social & streaming links">
