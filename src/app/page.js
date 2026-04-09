@@ -20,6 +20,20 @@ export default function Home() {
         return;
       }
 
+      // Just signed up - skip straight to app state to avoid flash
+      if (sessionStorage.getItem('flock_just_signed_up')) {
+        sessionStorage.removeItem('flock_just_signed_up');
+        setState('app');
+        // Still resolve tenantId in background
+        if (host.endsWith(`.${APP_DOMAIN}`)) {
+          const slug = host.replace(`.${APP_DOMAIN}`, '');
+          const sb2 = getSupabase();
+          const { data: tenant } = await sb2.from('tenants').select('id').eq('slug', slug).single();
+          if (tenant?.id) setTenantId(tenant.id);
+        }
+        return;
+      }
+
       let tid = null;
       if (host.endsWith(`.${APP_DOMAIN}`)) {
         const slug = host.replace(`.${APP_DOMAIN}`, '');
@@ -61,8 +75,9 @@ export default function Home() {
   }, []);
 
   if (state === 'loading') return (
-    <div style={{ minHeight: '100vh', background: 'var(--cream, #F5EFE6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: 'var(--ruby, #8B1A2B)' }}>✦</div>
+    <div style={{ minHeight: '100vh', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: '#8B1A2B', animation: 'pulse 1.5s ease-in-out infinite', opacity: 0.6 }}>✦</div>
+      <style>{`@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.8} }`}</style>
     </div>
   );
 

@@ -137,10 +137,12 @@ export function PublicPage({ tenantId }) {
       if (session && tenantId) {
         try { await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }); } catch (_) {}
         fetch('/api/email/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), displayName: displayName.trim(), tenantId }) }).catch(() => {});
+        sessionStorage.setItem('flock_just_signed_up', '1');
         window.location.href = '/';
       } else if (data?.user && tenantId) {
         try { await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }); } catch (_) {}
         fetch('/api/email/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), displayName: displayName.trim(), tenantId }) }).catch(() => {});
+        sessionStorage.setItem('flock_just_signed_up', '1');
         window.location.href = '/';
       } else {
         setAuthError('something went wrong, please try again');
