@@ -138,6 +138,23 @@ function SetupChecklist({ supabase, tenantId }) {
   );
 }
 
+// ============ QR CODE LOADER ============
+function QRLoader({ url }) {
+  useEffect(() => {
+    if (!url) return;
+    const container = document.getElementById('qr-container');
+    if (!container) return;
+    const img = document.createElement('img');
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}&bgcolor=F5EFE6&color=1A1018&qzone=1`;
+    img.width = 120;
+    img.height = 120;
+    img.style.borderRadius = '8px';
+    img.alt = 'community QR code';
+    img.onload = () => { container.innerHTML = ''; container.appendChild(img); };
+  }, [url]);
+  return null;
+}
+
 // ============ OVERVIEW ============
 function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
   const [stats, setStats] = useState({ members: 0, posts: 0, shows: 0, totalPoints: 0, pendingClaims: 0 });
@@ -245,16 +262,35 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
         </div>
       </div>
 
-      <div style={{ background: SURFACE, borderRadius: 12, padding: '16px 18px', border: `1px solid ${BORDER}`, marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>community link</div>
-        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10 }}>direct signup link - goes straight to join page</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input readOnly value={typeof window !== 'undefined' ? window.location.origin : ''} style={{ flex: 1, padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace", outline: 'none' }} />
-          <Btn onClick={() => {
-            const url = typeof window !== 'undefined' ? window.location.origin : '';
-            navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
-          }} variant="ghost" style={{ fontSize: 11 }}>{copiedCommunity ? 'copied ✓' : 'copy'}</Btn>
+      <div style={{ background: SURFACE, borderRadius: 12, padding: '20px 18px', border: `1px solid ${BORDER}`, marginBottom: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 4, textTransform: 'lowercase' }}>share your community</div>
+        <Mono style={{ marginBottom: 16, lineHeight: 1.5 }}>copy your link or download a QR code for merch tables, show flyers, and bio links</Mono>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div id="qr-container" style={{ width: 120, height: 120, background: CREAM, borderRadius: 10, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+            <Mono size={9} color={SLATE + '66'}>loading...</Mono>
+          </div>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: INK, marginBottom: 10, wordBreak: 'break-all' }}>
+              {typeof window !== 'undefined' ? window.location.origin : ''}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Btn onClick={() => {
+                const url = typeof window !== 'undefined' ? window.location.origin : '';
+                navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
+              }} style={{ fontSize: 11, flex: 1 }}>{copiedCommunity ? 'copied ✓' : 'copy link'}</Btn>
+              <Btn variant="ghost" style={{ fontSize: 11 }} onClick={() => {
+                const canvas = document.querySelector('#qr-container canvas');
+                if (!canvas) return;
+                const a = document.createElement('a');
+                a.download = 'flock-community-qr.png';
+                a.href = canvas.toDataURL('image/png');
+                a.click();
+              }}>download QR</Btn>
+            </div>
+            <Mono size={9} style={{ marginTop: 8, lineHeight: 1.5 }}>tip: print the QR code on flyers or show it on stage — fans scan and join instantly</Mono>
+          </div>
         </div>
+        <QRLoader url={typeof window !== 'undefined' ? window.location.origin : ''} />
       </div>
 
       <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>community digest email</Mono>
