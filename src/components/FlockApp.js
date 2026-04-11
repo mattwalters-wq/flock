@@ -749,6 +749,18 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (user && profile && !profile.signup_ip) {
       fetch('/api/geo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, language: navigator.language }) }).catch(() => {});
     }
+
+    // Daily login points - fans only, once per day per tenant
+    if (user && profile && profile.role === 'fan' && tenantId) {
+      const key = `flock_daily_login_${tenantId}_${user.id}`;
+      const today = new Date().toISOString().slice(0, 10);
+      const lastAwarded = localStorage.getItem(key);
+      if (lastAwarded !== today) {
+        supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'daily_login', p_tenant_id: tenantId })
+          .then(() => localStorage.setItem(key, today))
+          .catch(() => {});
+      }
+    }
   }, [supabase, tenantId]);
 
   // ── Fetch posts ───────────────────────────────────────────────────────────
