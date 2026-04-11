@@ -25,11 +25,17 @@ export async function POST(request) {
 
     if (!subscribers || subscribers.length === 0) return NextResponse.json({ ok: true, sent: 0 });
 
-    // Get emails from auth.users
-    const userIds = subscribers.map(s => s.id);
-    const { data: users } = await db.auth.admin.listUsers();
+    // Get emails from auth.users - paginate to get all users
+    const userIds = new Set(subscribers.map(s => s.id));
     const emailMap = {};
-    (users?.users || []).forEach(u => { emailMap[u.id] = u.email; });
+    let page = 1;
+    while (true) {
+      const { data: users } = await db.auth.admin.listUsers({ page, perPage: 1000 });
+      if (!users?.users?.length) break;
+      users.users.forEach(u => { if (userIds.has(u.id)) emailMap[u.id] = u.email; });
+      if (users.users.length < 1000) break;
+      page++;
+    }
 
     const emails = userIds.map(id => emailMap[id]).filter(Boolean);
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';

@@ -29,9 +29,15 @@ export async function POST(request) {
     const { data: subscribers } = await db.from('profiles').select('id').eq('tenant_id', tenantId).eq('email_notifications', true).eq('role', 'fan');
     if (!subscribers || subscribers.length === 0) return NextResponse.json({ ok: true, sent: 0, total: 0 });
 
-    const { data: users } = await db.auth.admin.listUsers();
     const emailMap = {};
-    (users?.users || []).forEach(u => { emailMap[u.id] = u.email; });
+    let digestPage = 1;
+    while (true) {
+      const { data: pageUsers } = await db.auth.admin.listUsers({ page: digestPage, perPage: 1000 });
+      if (!pageUsers?.users?.length) break;
+      pageUsers.users.forEach(u => { emailMap[u.id] = u.email; });
+      if (pageUsers.users.length < 1000) break;
+      digestPage++;
+    }
     const emails = subscribers.map(s => emailMap[s.id]).filter(Boolean);
 
     const communityUrl = `https://${tenant.slug}.${APP_DOMAIN}`;

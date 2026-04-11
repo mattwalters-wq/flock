@@ -18,9 +18,16 @@ export async function POST(request) {
     const { data: artistProfiles } = await db.from('profiles').select('id').eq('tenant_id', tenantId).in('role', ['admin', 'band']);
     if (!artistProfiles?.length) return NextResponse.json({ ok: true });
 
-    const { data: users } = await db.auth.admin.listUsers();
-    const artistIds = new Set(artistProfiles.map(p => p.id));
-    const artistEmails = (users?.users || []).filter(u => artistIds.has(u.id)).map(u => u.email).filter(Boolean);
+    const emailMap = {};
+    let rPage = 1;
+    while (true) {
+      const { data: pageUsers } = await db.auth.admin.listUsers({ page: rPage, perPage: 1000 });
+      if (!pageUsers?.users?.length) break;
+      pageUsers.users.forEach(u => { if (artistIds.has(u.id)) emailMap[u.id] = u.email; });
+      if (pageUsers.users.length < 1000) break;
+      rPage++;
+    }
+    const artistEmails = Object.values(emailMap).filter(Boolean);
     if (!artistEmails.length) return NextResponse.json({ ok: true });
 
     const isPhysical = shipping && shipping.address;
