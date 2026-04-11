@@ -166,6 +166,9 @@ function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenant
       setText(''); setReplyTo(null);
       await load();
       if (onCommentAdded) onCommentAdded();
+      if (currentProfile?.role === 'fan') {
+        supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'comment_created', p_tenant_id: tenantId }).catch(() => {});
+      }
     }
     setPosting(false);
   };
@@ -259,8 +262,8 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
     setLiked(nl); setLikeCount(c => c + (nl ? 1 : -1));
     if (nl) await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUserId, tenant_id: tenantId });
     else await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', currentUserId);
-    // Award stamp for liking (stamping a post)
-    if (nl && currentUserId !== post.author_id) {
+    // Award stamp for liking (fans only, not artist liking their own community)
+    if (nl && currentUserId !== post.author_id && currentProfile?.role === 'fan') {
       supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'post_liked', p_tenant_id: tenantId }).catch(() => {});
     }
   };
@@ -799,7 +802,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (!supabase || !tenantId) return;
     const { data: actions } = await supabase.from('stamp_actions').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('points');
     if (actions) setStampActions(actions);
-    const { data: top } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10);
+    const { data: top } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).eq('role', 'fan').order('stamp_count', { ascending: false }).limit(10);
     if (top) setTopCollectors(top);
     if (user) {
       const { data: claims } = await supabase.from('reward_claims').select('*').eq('user_id', user.id).eq('tenant_id', tenantId);
