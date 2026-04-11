@@ -129,7 +129,7 @@ function LinkPreviewCard({ url }) {
 
 // ─── COMMENTS ────────────────────────────────────────────────────────────────
 
-function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenantId, onClose, onCommentAdded, onViewProfile }) {
+function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUserId, currentProfile, tenantId, onClose, onCommentAdded, onViewProfile }) {
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
@@ -168,6 +168,21 @@ function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenant
       if (onCommentAdded) onCommentAdded();
       if (currentProfile?.role === 'fan') {
         supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'comment_created', p_tenant_id: tenantId }).catch(() => {});
+      }
+      // Notify post author if artist commented on fan post, or fan commented on artist post
+      if (postAuthorId && postAuthorId !== currentUserId) {
+        fetch('/api/email/comment-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId,
+            commentAuthorName: currentProfile?.display_name,
+            commentAuthorRole: currentProfile?.role,
+            commentContent: text.trim(),
+            postAuthorId,
+            postContent,
+          }),
+        }).catch(() => {});
       }
     }
     setPosting(false);
@@ -408,7 +423,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
 
       {/* Comments */}
       {showComments && (
-        <CommentsPanel postId={post.id} supabase={supabase} currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId} onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)} onViewProfile={onViewProfile} />
+        <CommentsPanel postId={post.id} postAuthorId={post.author_id} postContent={post.content} supabase={supabase} currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId} onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)} onViewProfile={onViewProfile} />
       )}
     </>
   );
