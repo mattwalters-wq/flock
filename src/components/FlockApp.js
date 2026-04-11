@@ -761,7 +761,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     }
 
     // Geo capture
-    if (user && profile && !profile.signup_ip) {
+    if (user && profile && (!profile.signup_ip || !profile.signup_lat)) {
       fetch('/api/geo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, language: navigator.language }) }).catch(() => {});
     }
 
