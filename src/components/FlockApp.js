@@ -840,6 +840,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const handlePost = async () => {
     if ((!newPost.trim() && postImages.length === 0 && !postAudio && !postVideo && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
     setPosting(true);
+    try {
 
     const canMember = profile?.role === 'band' && profile?.band_member === feedView;
     const canAdmin = profile?.role === 'admin';
@@ -892,6 +893,9 @@ export function FlockApp({ tenantId: propTenantId }) {
           fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType }) }).catch(() => {});
         }
       }
+    }
+    } catch (err) {
+      console.error('[handlePost error]', err);
     }
     setPosting(false);
   };
