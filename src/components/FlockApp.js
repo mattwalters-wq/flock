@@ -789,7 +789,19 @@ export function FlockApp({ tenantId: propTenantId }) {
         if (likes) likedIds = new Set(likes.map(l => l.post_id));
       }
 
-      const mapped = data.map(p => ({ ...p, profiles: pmap[p.author_id] || null, user_has_liked: likedIds.has(p.id) }));
+      // Fetch like and comment counts for all posts
+      const postIds = data.map(p => p.id);
+      let likeCounts = {}; let commentCounts = {};
+      if (postIds.length) {
+        const [likesRes, commentsRes] = await Promise.all([
+          supabase.from('post_likes').select('post_id').in('post_id', postIds),
+          supabase.from('comments').select('post_id').in('post_id', postIds),
+        ]);
+        (likesRes.data || []).forEach(l => { likeCounts[l.post_id] = (likeCounts[l.post_id] || 0) + 1; });
+        (commentsRes.data || []).forEach(c => { commentCounts[c.post_id] = (commentCounts[c.post_id] || 0) + 1; });
+      }
+
+      const mapped = data.map(p => ({ ...p, profiles: pmap[p.author_id] || null, user_has_liked: likedIds.has(p.id), like_count: likeCounts[p.id] || 0, comment_count: commentCounts[p.id] || 0 }));
       mapped.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
       setPosts(mapped);
     } catch (e) { console.error('fetchPosts error:', e); setPosts([]); }
