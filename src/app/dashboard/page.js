@@ -528,14 +528,14 @@ function Members({ supabase, tenantId }) {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: CREAM, border: `1px dashed ${BORDER}`, borderRadius: 8, cursor: 'pointer' }}>
                     <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
                       const file = e.target.files?.[0];
-                      if (!file || file.size > 2 * 1024 * 1024) return;
-                      const ext = file.name.split('.').pop();
-                      const path = `members/${tenantId}/${editing.id}.${ext}`;
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
+                      const ext = file.name.split('.').pop().toLowerCase();
+                      const path = `members/${tenantId}/${editing.id}-${Date.now()}.${ext}`;
                       const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
-                      if (!error) {
-                        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-                        setEditing(p => ({ ...p, avatar_url: urlData?.publicUrl }));
-                      }
+                      if (error) { alert(`upload failed: ${error.message}`); return; }
+                      const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+                      setEditing(p => ({ ...p, avatar_url: urlData?.publicUrl }));
                     }} />
                     <Mono size={10}>upload photo</Mono>
                   </label>
