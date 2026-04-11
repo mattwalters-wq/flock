@@ -496,6 +496,7 @@ function Members({ supabase, tenantId }) {
   const [members, setMembers] = useState([]);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => { supabase.from('tenant_members').select('*').eq('tenant_id', tenantId).order('display_order').then(({ data }) => setMembers(data || [])); }, []);
 
@@ -525,19 +526,21 @@ function Members({ supabase, tenantId }) {
                       ? <img src={editing.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <span style={{ color: '#fff', fontSize: 20, fontFamily: "'DM Mono', monospace" }}>{editing.name?.charAt(0)?.toLowerCase() || '?'}</span>}
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: CREAM, border: `1px dashed ${BORDER}`, borderRadius: 8, cursor: 'pointer' }}>
-                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: uploading ? BORDER : CREAM, border: `1px dashed ${BORDER}`, borderRadius: 8, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
+                    <input type="file" accept="image/*" disabled={uploading} style={{ display: 'none' }} onChange={async e => {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
+                      setUploading(true);
                       const ext = file.name.split('.').pop().toLowerCase();
                       const path = `members/${tenantId}/${editing.id}-${Date.now()}.${ext}`;
                       const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
-                      if (error) { alert(`upload failed: ${error.message}`); return; }
+                      if (error) { alert(`upload failed: ${error.message}`); setUploading(false); return; }
                       const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
                       setEditing(p => ({ ...p, avatar_url: urlData?.publicUrl }));
+                      setUploading(false);
                     }} />
-                    <Mono size={10}>upload photo</Mono>
+                    <Mono size={10}>{uploading ? 'uploading...' : 'upload photo'}</Mono>
                   </label>
                   {editing.avatar_url && <button onClick={() => setEditing(p => ({ ...p, avatar_url: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: RUBY, fontFamily: "'DM Mono', monospace", fontSize: 10 }}>remove</button>}
                 </div>
@@ -554,7 +557,7 @@ function Members({ supabase, tenantId }) {
                 <input type="color" value={editing.accent_color || '#8B1A2B'} onChange={e => setEditing(p => ({ ...p, accent_color: e.target.value }))} style={{ width: 48, height: 36, padding: 2, border: `1px solid ${BORDER}`, borderRadius: 6, cursor: 'pointer' }} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn onClick={() => save(editing)} disabled={saving}>{saving ? 'saving...' : 'save'}</Btn>
+                <Btn onClick={() => save(editing)} disabled={saving || uploading}>{saving ? 'saving...' : uploading ? 'uploading...' : 'save'}</Btn>
                 <Btn onClick={() => setEditing(null)} variant="ghost">cancel</Btn>
               </div>
             </div>

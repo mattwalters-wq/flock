@@ -459,6 +459,7 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(profile?.avatar_url || null);
   const [file, setFile] = useState(null);
+  const [uploadError, setUploadError] = useState('');
   const [emailNotifs, setEmailNotifs] = useState(profile?.email_notifications !== false);
 
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
@@ -489,7 +490,7 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
         <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, marginBottom: 20, textTransform: 'lowercase' }}>edit profile</div>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <label style={{ cursor: 'pointer', display: 'inline-block', position: 'relative' }}>
-            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 2 * 1024 * 1024) { alert('image must be under 2MB'); return; } setFile(f); const r = new FileReader(); r.onload = ev => setPreview(ev.target.result); r.readAsDataURL(f); }} style={{ display: 'none' }} />
+            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 5 * 1024 * 1024) { setUploadError('image must be under 5MB'); return; } setUploadError(''); setFile(f); const r = new FileReader(); r.onload = ev => setPreview(ev.target.result); r.readAsDataURL(f); }} style={{ display: 'none' }} />
             {preview ? <img src={preview} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', border: `2px solid ${BORDER}` }} /> : <div style={{ width: 72, height: 72, borderRadius: 10, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: SLATE }}>{displayName?.charAt(0)?.toLowerCase() || '○'}</div>}
             <div style={{ position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: '50%', background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✎</div>
           </label>
@@ -513,6 +514,7 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
             <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: emailNotifs ? 22 : 2, transition: 'left 0.2s' }} />
           </button>
         </div>
+        {uploadError && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--ruby)', marginBottom: 12 }}>{uploadError}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
           <button onClick={save} disabled={saving || !displayName.trim()} style={{ padding: '10px 20px', background: INK, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: saving || !displayName.trim() ? 0.5 : 1 }}>
@@ -653,6 +655,9 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [postImagePreviews, setPostImagePreviews] = useState([]);
   const [postAudio, setPostAudio] = useState(null);
   const [postAudioName, setPostAudioName] = useState(null);
+  const [postVideo, setPostVideo] = useState(null);
+  const [postVideoName, setPostVideoName] = useState(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [postTag, setPostTag] = useState('general');
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -818,14 +823,14 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   // ── Post submission ───────────────────────────────────────────────────────
   const handlePost = async () => {
-    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
+    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !postVideo && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
     setPosting(true);
 
     const canMember = profile?.role === 'band' && profile?.band_member === feedView;
     const canAdmin = profile?.role === 'admin';
     const feedType = (feedView === 'community' || feedView === 'highlights' || canMember || canAdmin) ? (feedView === 'highlights' ? 'community' : feedView) : 'community';
 
-    let imageUrl = null; let imageUrls = []; let audioUrl = null;
+    let imageUrl = null; let imageUrls = []; let audioUrl = null; let videoUrl = null;
     for (const img of postImages) {
       const ext = img.name.split('.').pop();
       const fn = `posts/${tenantId}/${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
@@ -839,10 +844,20 @@ export function FlockApp({ tenantId: propTenantId }) {
       const { data: ud, error: ue } = await supabase.storage.from('media').upload(fn, postAudio, { cacheControl: '3600', upsert: false });
       if (!ue && ud) { const { data: u } = supabase.storage.from('media').getPublicUrl(fn); audioUrl = u?.publicUrl; }
     }
+    if (postVideo) {
+      setUploadingVideo(true);
+      const ext = postVideo.name.split('.').pop();
+      const fn = `videos/${tenantId}/${user.id}-${Date.now()}.${ext}`;
+      const { data: ud, error: ue } = await supabase.storage.from('media').upload(fn, postVideo, { cacheControl: '3600', upsert: false });
+      if (!ue && ud) { const { data: u } = supabase.storage.from('media').getPublicUrl(fn); videoUrl = u?.publicUrl; }
+      else if (ue) { alert(`video upload failed: ${ue.message}`); setPosting(false); setUploadingVideo(false); return; }
+      setUploadingVideo(false);
+    }
 
     const row = { author_id: user.id, content: newPost.trim() || '', feed_type: feedType, image_url: imageUrl, tenant_id: tenantId };
     if (imageUrls.length > 1) row.images = imageUrls;
     if (audioUrl) row.audio_url = audioUrl;
+    if (videoUrl) row.video_url = videoUrl;
     if (postLink.trim()) row.link_url = postLink.trim();
     if (postTag && postTag !== 'general') row.tag = postTag;
     if (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2) row.poll_options = pollOptions.filter(o => o.trim());
@@ -851,6 +866,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     const { error } = await supabase.from('posts').insert(row);
     if (!error) {
       setNewPost(''); setPostImages([]); setPostImagePreviews([]); setPostAudio(null); setPostAudioName(null);
+      setPostVideo(null); setPostVideoName(null);
       setPostTag('general'); setShowPollCreator(false); setPollOptions(['', '']); setPostLink(''); setShowLinkInput(false); setLinkPreviewData(null);
       setLiveUrl(''); setShowLiveInput(false);
       if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
@@ -1107,6 +1123,13 @@ export function FlockApp({ tenantId: propTenantId }) {
                   <button onClick={() => { setPostAudio(null); setPostAudioName(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE + '88' }}>×</button>
                 </div>
               )}
+              {postVideoName && (
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, background: CREAM, borderRadius: 8, padding: '8px 12px', border: `1px solid ${BORDER}` }}>
+                  <span style={{ fontSize: 14 }}>🎥</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{postVideoName}</span>
+                  <button onClick={() => { setPostVideo(null); setPostVideoName(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE + '88' }}>×</button>
+                </div>
+              )}
 
               {/* Live URL input */}
               {showLiveInput && (
@@ -1125,6 +1148,12 @@ export function FlockApp({ tenantId: propTenantId }) {
                   {postImages.length > 0 ? `📷 ${postImages.length}/6` : '📷'}
                 </label>
                 {(profile?.role === 'band' || profile?.role === 'admin') && (
+                  <label style={{ cursor: 'pointer', padding: '4px 6px', color: postVideo ? RUBY : SLATE + '88', fontSize: 13 }} title="upload video">
+                    <input type="file" accept="video/*,.mp4,.mov,.webm" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 200 * 1024 * 1024) { alert('video must be under 200MB'); return; } setPostVideo(f); setPostVideoName(f.name); }} />
+                    🎥
+                  </label>
+                )}
+                {(profile?.role === 'band' || profile?.role === 'admin') && (
                   <label style={{ cursor: 'pointer', padding: '4px 6px', color: SLATE + '88', fontSize: 13 }}>
                     <input type="file" accept="audio/*,.m4a,.mp3,.wav,.aac" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 20 * 1024 * 1024) { alert('audio must be under 20MB'); return; } setPostAudio(f); setPostAudioName(f.name); }} style={{ display: 'none' }} />
                     ♫
@@ -1137,9 +1166,9 @@ export function FlockApp({ tenantId: propTenantId }) {
                   </button>
                 )}
                 <button onClick={() => { setShowLinkInput(!showLinkInput); if (showLinkInput) { setPostLink(''); setLinkPreviewData(null); } }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', color: showLinkInput ? RUBY : SLATE + '88', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>↗</button>
-                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
-                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim() || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim()) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
-                  {posting ? '...' : liveUrl.trim() ? 'go live' : 'post'}
+                <button onClick={handlePost} disabled={posting || uploadingVideo || (!newPost.trim() && postImages.length === 0 && !postAudio && !postVideo && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
+                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || postVideo || liveUrl.trim() || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio || postVideo || liveUrl.trim()) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
+                  {uploadingVideo ? 'uploading...' : posting ? '...' : liveUrl.trim() ? 'go live' : 'post'}
                 </button>
               </div>
             </div>
