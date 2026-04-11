@@ -37,7 +37,7 @@ export async function POST(request) {
       page++;
     }
 
-    const emails = userIds.map(id => emailMap[id]).filter(Boolean);
+    const emails = [...userIds].map(id => emailMap[id]).filter(Boolean);
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     const communityUrl = `https://${tenant.slug}.${APP_DOMAIN}`;
 
