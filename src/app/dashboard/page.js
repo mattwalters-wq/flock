@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 
@@ -138,6 +138,60 @@ function SetupChecklist({ supabase, tenantId }) {
   );
 }
 
+// ============ FAN MAP ============
+function FanMap({ fanLocations }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+
+  useEffect(() => {
+    if (!mapRef.current || fanLocations.length === 0) return;
+    if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
+
+    const loadLeaflet = () => {
+      if (!window.L) {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => initMap();
+        document.head.appendChild(script);
+      } else {
+        initMap();
+      }
+    };
+
+    const initMap = () => {
+      if (!window.L || !mapRef.current) return;
+      const map = window.L.map(mapRef.current, {
+        zoomControl: true, attributionControl: false,
+        scrollWheelZoom: true, dragging: true,
+      }).setView([10, 60], 2);
+
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        maxZoom: 12,
+      }).addTo(map);
+
+      fanLocations.forEach((fan) => {
+        if (fan.signup_lat && fan.signup_lng) {
+          const size = Math.min(12, 5 + (fan.stamp_count || 0) / 30);
+          window.L.circleMarker([fan.signup_lat, fan.signup_lng], {
+            radius: size, fillColor: RUBY, color: RUBY,
+            weight: 1, opacity: 0.7, fillOpacity: 0.5,
+          }).bindPopup(
+            `<div style="font-family:sans-serif;font-size:12px;"><b>${fan.display_name || 'fan'}</b><br/>${fan.signup_city || ''} ${fan.signup_country || ''}</div>`
+          ).addTo(map);
+        }
+      });
+
+      mapInstanceRef.current = map;
+      setTimeout(() => map.invalidateSize(), 100);
+    };
+
+    loadLeaflet();
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+  }, [fanLocations]);
+
+  return <div ref={mapRef} style={{ width: '100%', height: 320 }} />;
+}
+
 // ============ QR CODE LOADER ============
 function QRLoader({ url }) {
   useEffect(() => {
@@ -159,6 +213,7 @@ function QRLoader({ url }) {
 function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
   const [stats, setStats] = useState({ members: 0, posts: 0, shows: 0, totalPoints: 0, pendingClaims: 0 });
   const [recentMembers, setRecentMembers] = useState([]);
+  const [fanLocations, setFanLocations] = useState([]);
   const [digestSending, setDigestSending] = useState(false);
   const [copiedHighlights, setCopiedHighlights] = useState(false);
   const [copiedCommunity, setCopiedCommunity] = useState(false);
@@ -178,6 +233,9 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
       setStats({ members: members.count || 0, posts: posts.count || 0, shows: shows.count || 0, totalPoints: (pd || []).reduce((s, p) => s + (p.stamp_count || 0), 0), pendingClaims: pending.count || 0 });
       const { data: recent } = await supabase.from('profiles').select('display_name, stamp_count, created_at, role').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(6);
       setRecentMembers(recent || []);
+
+      const { data: geoData } = await supabase.from('profiles').select('display_name, signup_city, signup_country, signup_lat, signup_lng, stamp_count').eq('tenant_id', tenantId).eq('role', 'fan').not('signup_lat', 'is', null);
+      setFanLocations(geoData || []);
     })();
   }, [supabase, tenantId]);
 
@@ -230,6 +288,30 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
           </div>
         ))}
       </div>
+
+
+      {fanLocations.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>fan map</Mono>
+          <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+            <FanMap fanLocations={fanLocations} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', padding: '12px 16px', justifyContent: 'center' }}>
+              {Object.entries(
+                fanLocations.reduce((acc, f) => {
+                  const loc = f.signup_city || f.signup_country || 'unknown';
+                  acc[loc] = (acc[loc] || 0) + 1;
+                  return acc;
+                }, {})
+              ).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([loc, count]) => (
+                <span key={loc} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>
+                  {loc} <strong style={{ color: RUBY }}>{count}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>grow your community</Mono>
       <div style={{ background: INK, borderRadius: 12, padding: '20px 18px', marginBottom: 10 }}>
