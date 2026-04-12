@@ -361,11 +361,12 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
                 navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
               }} style={{ fontSize: 11, flex: 1 }}>{copiedCommunity ? 'copied ✓' : 'copy link'}</Btn>
               <Btn variant="ghost" style={{ fontSize: 11 }} onClick={() => {
-                const canvas = document.querySelector('#qr-container canvas');
-                if (!canvas) return;
+                const url = typeof window !== 'undefined' ? window.location.origin : '';
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}&bgcolor=F5EFE6&color=1A1018&qzone=1`;
                 const a = document.createElement('a');
                 a.download = 'flock-community-qr.png';
-                a.href = canvas.toDataURL('image/png');
+                a.href = qrUrl;
+                a.target = '_blank';
                 a.click();
               }}>download QR</Btn>
             </div>
