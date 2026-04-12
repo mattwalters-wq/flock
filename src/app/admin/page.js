@@ -350,6 +350,9 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [search, setSearch] = useState('');
+  const [allFans, setAllFans] = useState([]);
+  const [fansLoading, setFansLoading] = useState(false);
+  const [showAllFans, setShowAllFans] = useState(false);
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -383,6 +386,33 @@ export default function SuperAdmin() {
       posts: enriched.reduce((s, t) => s + (t.post_count || 0), 0),
     });
     setLoading(false);
+  };
+
+
+  const loadAllFans = async () => {
+    setFansLoading(true);
+    const { data: profiles } = await supabase.from('profiles').select('*').eq('role', 'fan').order('created_at', { ascending: false });
+    if (!profiles) { setFansLoading(false); return; }
+
+    // Get tenant names
+    const { data: tenantList } = await supabase.from('tenants').select('id, name, slug');
+    const tenantMap = {};
+    (tenantList || []).forEach(t => { tenantMap[t.id] = t; });
+
+    // Get emails
+    const fanIds = new Set(profiles.map(p => p.id));
+    const emailMap = {};
+    let page = 1;
+    while (true) {
+      const { data: usersPage } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+      if (!usersPage?.users?.length) break;
+      usersPage.users.forEach(u => { if (fanIds.has(u.id)) emailMap[u.id] = u.email; });
+      if (usersPage.users.length < 1000) break;
+      page++;
+    }
+
+    setAllFans(profiles.map(p => ({ ...p, email: emailMap[p.id] || null, tenant: tenantMap[p.tenant_id] || null })));
+    setFansLoading(false);
   };
 
   const deleteTenant = async (id) => {
@@ -460,6 +490,43 @@ export default function SuperAdmin() {
               ) : filtered.map(t => (
                 <TenantRow key={t.id} tenant={t} onSelect={setSelectedTenant} onDelete={deleteTenant} />
               ))}
+            </div>
+
+            {/* All Signups */}
+            <div style={{ marginTop: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <H size={18}>all signups</H>
+                <Btn onClick={() => { setShowAllFans(!showAllFans); if (!showAllFans && allFans.length === 0) loadAllFans(); }} variant="ghost" style={{ fontSize: 11 }}>
+                  {showAllFans ? 'hide' : `show all ${stats.fans} fans`}
+                </Btn>
+              </div>
+              {showAllFans && (
+                <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+                  {fansLoading ? (
+                    <div style={{ padding: 40, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading fans...</div>
+                  ) : (
+                    <>
+                      <div style={{ padding: '10px 16px', background: BORDER + '44', display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr 0.6fr 0.5fr', gap: 12 }}>
+                        {['fan', 'email', 'location', 'joined', 'points'].map(h => (
+                          <Mono key={h} size={9} style={{ letterSpacing: '1px', textTransform: 'uppercase' }}>{h}</Mono>
+                        ))}
+                      </div>
+                      {allFans.map((f, i) => (
+                        <div key={f.id} style={{ padding: '11px 16px', display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr 0.6fr 0.5fr', gap: 12, alignItems: 'center', borderBottom: i < allFans.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? 'transparent' : BORDER + '22' }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 500, color: INK }}>{f.display_name?.toLowerCase()}</div>
+                            <Mono size={9} color={RUBY + '99'}>{f.tenant?.name?.toLowerCase() || '—'}</Mono>
+                          </div>
+                          <Mono size={10} color={SLATE} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.email || '—'}</Mono>
+                          <Mono size={10} color={SLATE}>{[f.signup_city, f.signup_country].filter(Boolean).join(', ') || '—'}</Mono>
+                          <Mono size={10} color={SLATE}>{f.created_at ? new Date(f.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—'}</Mono>
+                          <Mono size={11} color={WARM_GOLD}>{f.stamp_count || 0}</Mono>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}
