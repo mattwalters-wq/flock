@@ -105,6 +105,20 @@ function TenantDetail({ tenant, supabase, onBack }) {
       (configRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
       setConfig(cfg);
       setConfigEdits(cfg);
+
+      // Fetch emails from auth.users for all fans
+      const fanIds = new Set((fansRes.data || []).map(f => f.id));
+      const emailMap = {};
+      let page = 1;
+      while (true) {
+        const { data: usersPage } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+        if (!usersPage?.users?.length) break;
+        usersPage.users.forEach(u => { if (fanIds.has(u.id)) emailMap[u.id] = u.email; });
+        if (usersPage.users.length < 1000) break;
+        page++;
+      }
+      setFans(prev => (fansRes.data || []).map(f => ({ ...f, email: emailMap[f.id] || null })));
+
       setLoading(false);
     })();
   }, [tenant.id]);
@@ -221,18 +235,19 @@ function TenantDetail({ tenant, supabase, onBack }) {
                 {fans.length === 0 ? <Mono style={{ padding: 24, textAlign: 'center' }}>no fans yet</Mono> : fans.map((f, i) => (
                   <div key={f.id} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: i < fans.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                     <div style={{ width: 30, height: 30, borderRadius: 6, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>{f.display_name?.charAt(0)?.toLowerCase()}</div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: INK }}>{f.display_name?.toLowerCase()}</div>
-                      <Mono size={9} color={SLATE + '77'}>{f.city || ''}{f.city ? ' · ' : ''}{f.role}</Mono>
+                      <Mono size={9} color={SLATE + '99'} style={{ marginTop: 2 }}>{f.email || '—'}</Mono>
+                      <Mono size={9} color={SLATE + '66'} style={{ marginTop: 1 }}>{[f.signup_city, f.signup_country].filter(Boolean).join(', ') || 'location unknown'}{f.created_at ? ` · joined ${new Date(f.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}</Mono>
                     </div>
-                    <Mono size={11} color={WARM_GOLD} style={{ minWidth: 50, textAlign: 'right' }}>{f.stamp_count || 0} {currencyIcon}</Mono>
+                    <Mono size={11} color={WARM_GOLD} style={{ minWidth: 50, textAlign: 'right', flexShrink: 0 }}>{f.stamp_count || 0} {currencyIcon}</Mono>
                     <select value={f.role} onChange={e => updateFanRole(f, e.target.value)}
-                      style={{ padding: '4px 8px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 11, color: INK, fontFamily: "'DM Mono', monospace", cursor: 'pointer' }}>
+                      style={{ padding: '4px 8px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 11, color: INK, fontFamily: "'DM Mono', monospace", cursor: 'pointer', flexShrink: 0 }}>
                       <option value="fan">fan</option>
                       <option value="band">band</option>
                       <option value="admin">admin</option>
                     </select>
-                    <button onClick={() => awardPoints(f, 10)} style={{ padding: '4px 8px', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 10, color: WARM_GOLD, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>+10</button>
+                    <button onClick={() => awardPoints(f, 10)} style={{ padding: '4px 8px', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 10, color: WARM_GOLD, cursor: 'pointer', fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>+10</button>
                   </div>
                 ))}
               </div>
