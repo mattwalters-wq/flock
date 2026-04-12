@@ -353,6 +353,7 @@ export default function SuperAdmin() {
   const [allFans, setAllFans] = useState([]);
   const [fansLoading, setFansLoading] = useState(false);
   const [showAllFans, setShowAllFans] = useState(false);
+  const [fanSearch, setFanSearch] = useState('');
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -496,9 +497,12 @@ export default function SuperAdmin() {
             <div style={{ marginTop: 32 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <H size={18}>all signups</H>
-                <Btn onClick={() => { setShowAllFans(!showAllFans); if (!showAllFans && allFans.length === 0) loadAllFans(); }} variant="ghost" style={{ fontSize: 11 }}>
-                  {showAllFans ? 'hide' : `show all ${stats.fans} fans`}
-                </Btn>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {showAllFans && <input type="text" value={fanSearch} onChange={e => setFanSearch(e.target.value)} placeholder="search name, email, city..." style={{ padding: '6px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", width: 220 }} />}
+                  <Btn onClick={() => { setShowAllFans(!showAllFans); if (!showAllFans && allFans.length === 0) loadAllFans(); }} variant="ghost" style={{ fontSize: 11 }}>
+                    {showAllFans ? 'hide' : `show all ${stats.fans} fans`}
+                  </Btn>
+                </div>
               </div>
               {showAllFans && (
                 <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
@@ -511,8 +515,12 @@ export default function SuperAdmin() {
                           <Mono key={h} size={9} style={{ letterSpacing: '1px', textTransform: 'uppercase' }}>{h}</Mono>
                         ))}
                       </div>
-                      {allFans.map((f, i) => (
-                        <div key={f.id} style={{ padding: '11px 16px', display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr 0.6fr 0.5fr', gap: 12, alignItems: 'center', borderBottom: i < allFans.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? 'transparent' : BORDER + '22' }}>
+                      {allFans.filter(f => {
+                        if (!fanSearch) return true;
+                        const q = fanSearch.toLowerCase();
+                        return f.display_name?.toLowerCase().includes(q) || f.email?.toLowerCase().includes(q) || f.signup_city?.toLowerCase().includes(q) || f.signup_country?.toLowerCase().includes(q) || f.tenant?.name?.toLowerCase().includes(q);
+                      }).map((f, i, arr) => (
+                        <div key={f.id} style={{ padding: '11px 16px', display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr 0.6fr 0.5fr', gap: 12, alignItems: 'center', borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? 'transparent' : BORDER + '22' }}>
                           <div>
                             <div style={{ fontSize: 12, fontWeight: 500, color: INK }}>{f.display_name?.toLowerCase()}</div>
                             <Mono size={9} color={RUBY + '99'}>{f.tenant?.name?.toLowerCase() || '—'}</Mono>
