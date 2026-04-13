@@ -21,13 +21,16 @@ export default function LoginPage() {
     const sb = getSupabase();
     const { data, error: signInErr } = await sb.auth.signInWithPassword({ email: email.trim(), password });
     if (signInErr) { setError(signInErr.message); setLoading(false); return; }
-    const { data: profiles } = await sb.from('profiles').select('tenant_id, tenants(slug)').eq('id', data.user.id).limit(1);
-    const slug = profiles?.[0]?.tenants?.slug;
-    if (slug) {
-      window.location.href = `https://${slug}.${APP_DOMAIN}`;
-    } else {
-      window.location.href = `/start`;
+    const { data: profiles } = await sb.from('profiles').select('tenant_id').eq('id', data.user.id).limit(1);
+    const tenantId = profiles?.[0]?.tenant_id;
+    if (tenantId) {
+      const { data: tenant } = await sb.from('tenants').select('slug').eq('id', tenantId).single();
+      if (tenant?.slug) {
+        window.location.href = `https://${tenant.slug}.${APP_DOMAIN}`;
+        return;
+      }
     }
+    window.location.href = `/start`;
   };
 
   const sendReset = async () => {

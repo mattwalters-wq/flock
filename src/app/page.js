@@ -37,31 +37,40 @@ export default function Home() {
       let tid = null;
       if (host.endsWith(`.${APP_DOMAIN}`)) {
         const slug = host.replace(`.${APP_DOMAIN}`, '');
-        const { data: tenant } = await sb.from('tenants').select('id').eq('slug', slug).single();
-        tid = tenant?.id || null;
-      }
-      setTenantId(tid);
+        // Run tenant lookup and session check in parallel
+        const [tenantRes, sessionRes] = await Promise.all([
+          sb.from('tenants').select('id').eq('slug', slug).single(),
+          sb.auth.getSession(),
+        ]);
+        tid = tenantRes.data?.id || null;
+        setTenantId(tid);
 
-      // No tenant found - show nothing useful, redirect to marketing
-      if (!tid) {
-        window.location.href = `https://${APP_DOMAIN}/start`;
+        if (!tid) {
+          window.location.href = `https://${APP_DOMAIN}/start`;
+          return;
+        }
+
+        const session = sessionRes.data?.session;
+        if (!session?.user) { setState('public'); return; }
+
+        // Ensure profile exists - fire and forget, don't block render
+        sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single().then(({ data: profile }) => {
+          if (!profile) {
+            const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
+            sb.from('profiles').insert({
+              id: session.user.id, tenant_id: tid, display_name: displayName,
+              avatar_url: session.user.user_metadata?.avatar_url || null,
+              role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
+            }).catch(() => {});
+          }
+        });
+
+        setState('app');
         return;
       }
 
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session?.user) { setState('public'); return; }
-
-      // Ensure profile exists for this tenant
-      const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single();
-      if (!profile) {
-        const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
-        await sb.from('profiles').insert({
-          id: session.user.id, tenant_id: tid, display_name: displayName,
-          avatar_url: session.user.user_metadata?.avatar_url || null,
-          role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-        }).catch(() => {});
-      }
-      setState('app');
+      // No subdomain match
+      window.location.href = `https://${APP_DOMAIN}/start`;
     };
 
     init();
