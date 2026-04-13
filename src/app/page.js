@@ -55,25 +55,17 @@ export default function Home() {
         const session = sessionRes.data?.session;
         if (!session?.user) { setState('public'); initDone.current = true; return; }
 
-        // Fetch tenant colour for seamless loading transition + profile check in parallel
-        const [configRes] = await Promise.all([
-          sb.from('tenant_config').select('key, value').eq('tenant_id', tid).in('key', ['color_ink', 'color_cream']),
-          sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single().then(({ data: profile }) => {
-            if (!profile) {
-              const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
-              sb.from('profiles').insert({
-                id: session.user.id, tenant_id: tid, display_name: displayName,
-                avatar_url: session.user.user_metadata?.avatar_url || null,
-                role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-              }).catch(() => {});
-            }
-          }),
-        ]);
-
-        // Set bg colour to match the community so transition is invisible
-        const cfg = {};
-        (configRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
-        if (cfg.color_ink) setBgColor(cfg.color_ink);
+        // Ensure profile exists - fire and forget
+        sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single().then(({ data: profile }) => {
+          if (!profile) {
+            const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
+            sb.from('profiles').insert({
+              id: session.user.id, tenant_id: tid, display_name: displayName,
+              avatar_url: session.user.user_metadata?.avatar_url || null,
+              role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
+            }).catch(() => {});
+          }
+        });
 
         initDone.current = true;
         setState('app');
@@ -96,7 +88,7 @@ export default function Home() {
   }, []);
 
   if (state === 'loading') return (
-    <div style={{ minHeight: '100vh', background: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
+    <div style={{ minHeight: '100vh', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: '#8B1A2B', animation: 'pulse 1.5s ease-in-out infinite', opacity: 0.6 }}>✦</div>
       <style>{`@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.8} }`}</style>
     </div>
