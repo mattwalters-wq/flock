@@ -726,7 +726,14 @@ export function FlockApp({ tenantId: propTenantId }) {
       if (typeof document !== 'undefined') {
         if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
         if (cfg.color_cream) document.documentElement.style.setProperty('--cream', cfg.color_cream);
-        if (cfg.color_ink) document.documentElement.style.setProperty('--ink', cfg.color_ink);
+        if (cfg.color_ink) {
+          document.documentElement.style.setProperty('--ink', cfg.color_ink);
+          // Cache for flash-free loading next visit
+          const host = window.location.hostname;
+          const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+          const slug = host.replace(`.${APP_DOMAIN}`, '');
+          localStorage.setItem(`flock_bg_${slug}`, cfg.color_cream || '#F5EFE6');
+        }
         // Derive supporting colours from tenant palette
         if (cfg.color_ink) {
           // --slate: ink at 60% opacity blended - use ink with transparency
