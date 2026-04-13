@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { getSupabase } from '@/lib/supabase-browser';
 import { PublicPage } from '@/components/PublicPage';
 import { FlockApp } from '@/components/FlockApp';
@@ -7,8 +7,6 @@ import { FlockApp } from '@/components/FlockApp';
 export default function Home() {
   const [state, setState] = useState('loading');
   const [tenantId, setTenantId] = useState(null);
-  const [bgColor, setBgColor] = useState('#1A1018');
-  const initDone = useRef(false);
 
   useEffect(() => {
     const sb = getSupabase();
@@ -53,7 +51,7 @@ export default function Home() {
         }
 
         const session = sessionRes.data?.session;
-        if (!session?.user) { setState('public'); initDone.current = true; return; }
+        if (!session?.user) { setState('public'); return; }
 
         // Ensure profile exists - fire and forget
         sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single().then(({ data: profile }) => {
@@ -67,7 +65,6 @@ export default function Home() {
           }
         });
 
-        initDone.current = true;
         setState('app');
         return;
       }
@@ -79,7 +76,6 @@ export default function Home() {
     init();
 
     const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
-      if (!initDone.current) return; // wait for init to complete first
       if (event === 'SIGNED_IN' && session?.user) setState('app');
       else if (event === 'SIGNED_OUT') setState('public');
     });
