@@ -7,6 +7,14 @@ export function getSupabase() {
     client = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookieOptions: {
+          domain: '.fans-flock.com',
+          sameSite: 'lax',
+          secure: true,
+          path: '/',
+        },
+      }
     );
   }
   return client;
