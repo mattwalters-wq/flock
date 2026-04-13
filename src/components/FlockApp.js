@@ -945,7 +945,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   const feedTabs = [
     { id: 'community', label: 'everyone', icon: '✦', color: RUBY },
-    ...(members.length > 1 ? members.map(m => ({ id: m.slug, label: m.name?.toLowerCase(), icon: m.name?.charAt(0)?.toLowerCase(), color: m.accent_color })) : []),
+    ...members.map(m => ({ id: m.slug, label: m.name?.toLowerCase(), icon: m.name?.charAt(0)?.toLowerCase(), color: m.accent_color })),
     { id: 'highlights', label: 'highlights', icon: '◉', color: RUBY },
   ];
 
