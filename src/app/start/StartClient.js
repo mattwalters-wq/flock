@@ -638,15 +638,19 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       `}</style>
 
       {/* NAV */}
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '18px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(14,12,15,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(14,12,15,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
         <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.5px' }}>flock <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', letterSpacing: '2px', verticalAlign: 'middle', marginLeft: 4 }}>✦</span></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <a href="#how" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>how it works</a>
-          <a href="#pricing" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>pricing</a>
-          <a href="/login" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>sign in</a>
-          <button onClick={() => setShowForm(true)} className="cta-btn" style={{ padding: '10px 22px', fontSize: 13 }}>get started</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, '@media(max-width:600px)': { display: 'none' } }} className="nav-links">
+            <a href="#how" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>how it works</a>
+            <a href="#pricing" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>pricing</a>
+            <a href="/login" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>sign in</a>
+          </div>
+          <a href="/login" style={{ color: 'rgba(245,239,230,0.5)', textDecoration: 'none', fontSize: 12, fontFamily: "'DM Mono', monospace" }} className="mobile-signin">sign in</a>
+          <button onClick={() => setShowForm(true)} className="cta-btn" style={{ padding: '9px 18px', fontSize: 13 }}>get started</button>
         </div>
       </nav>
+      <style>{`.nav-links { display: flex; } .mobile-signin { display: none; } @media (max-width: 600px) { .nav-links { display: none !important; } .mobile-signin { display: block !important; } }`}</style>
 
       {/* HERO */}
       <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 80px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
