@@ -129,7 +129,7 @@ function LinkPreviewCard({ url }) {
 
 // ─── COMMENTS ────────────────────────────────────────────────────────────────
 
-function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUserId, currentProfile, tenantId, onClose, onCommentAdded, onViewProfile }) {
+function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUserId, currentProfile, tenantId, onClose, onCommentAdded, onViewProfile, onStampsAwarded }) {
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
@@ -167,7 +167,7 @@ function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUse
       await load();
       if (onCommentAdded) onCommentAdded();
       if (currentProfile?.role === 'fan') {
-        supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'comment_created', p_tenant_id: tenantId }).catch(() => {});
+        supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'comment_created', p_tenant_id: tenantId }).then(() => onStampsAwarded?.()).catch(() => {});
       }
       // Notify post author if artist commented on fan post, or fan commented on artist post
       if (postAuthorId && postAuthorId !== currentUserId) {
@@ -250,7 +250,7 @@ function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUse
 
 // ─── POST CARD ───────────────────────────────────────────────────────────────
 
-function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, currencyName, currencyIcon, onRefresh, onViewProfile }) {
+function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, currencyName, currencyIcon, onRefresh, onViewProfile, onStampsAwarded }) {
   const [liked, setLiked] = useState(post.user_has_liked || false);
   const [likeCount, setLikeCount] = useState(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
@@ -279,7 +279,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
     else await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', currentUserId);
     // Award stamp for liking (fans only, not artist liking their own community)
     if (nl && currentUserId !== post.author_id && currentProfile?.role === 'fan') {
-      supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'post_liked', p_tenant_id: tenantId }).catch(() => {});
+      supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'post_liked', p_tenant_id: tenantId }).then(() => onStampsAwarded?.()).catch(() => {});
     }
   };
 
@@ -423,7 +423,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
 
       {/* Comments */}
       {showComments && (
-        <CommentsPanel postId={post.id} postAuthorId={post.author_id} postContent={post.content} supabase={supabase} currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId} onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)} onViewProfile={onViewProfile} />
+        <CommentsPanel postId={post.id} postAuthorId={post.author_id} postContent={post.content} supabase={supabase} currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId} onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)} onViewProfile={onViewProfile} onStampsAwarded={onStampsAwarded} />
       )}
     </>
   );
@@ -772,7 +772,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       const lastAwarded = localStorage.getItem(key);
       if (lastAwarded !== today) {
         supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'daily_login', p_tenant_id: tenantId })
-          .then(() => localStorage.setItem(key, today))
+          .then(() => { localStorage.setItem(key, today); setTimeout(refreshProfile, 1000); })
           .catch(() => {});
       }
     }
@@ -912,7 +912,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       setPostVideo(null); setPostVideoName(null);
       setPostTag('general'); setShowPollCreator(false); setPollOptions(['', '']); setPostLink(''); setShowLinkInput(false); setLinkPreviewData(null);
       setLiveUrl(''); setShowLiveInput(false);
-      if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
+      if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).then(() => setTimeout(refreshProfile, 1000)).catch(() => {});
       await fetchPosts();
       if (profile?.role === 'band' || profile?.role === 'admin') {
         // Only notify fans if artist hasn't disabled it
@@ -1234,7 +1234,7 @@ export function FlockApp({ tenantId: propTenantId }) {
               </div>
             ) : visiblePosts.map((post, i) => (
               <div key={post.id} style={{ animation: `fadeIn 0.3s ease-out ${i * 0.03}s both` }}>
-                <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} currencyIcon={currencyIcon} onRefresh={fetchPosts} onViewProfile={setViewingProfile} />
+                <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} currencyIcon={currencyIcon} onRefresh={fetchPosts} onViewProfile={setViewingProfile} onStampsAwarded={() => setTimeout(refreshProfile, 1000)} />
               </div>
             ))}
           </div>
