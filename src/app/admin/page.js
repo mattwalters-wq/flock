@@ -106,18 +106,16 @@ function TenantDetail({ tenant, supabase, onBack }) {
       setConfig(cfg);
       setConfigEdits(cfg);
 
-      // Fetch emails from auth.users for all fans
+      // Fetch emails via server API route (requires service role)
       const fanIds = new Set((fansRes.data || []).map(f => f.id));
-      const emailMap = {};
-      let page = 1;
-      while (true) {
-        const { data: usersPage } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
-        if (!usersPage?.users?.length) break;
-        usersPage.users.forEach(u => { if (fanIds.has(u.id)) emailMap[u.id] = u.email; });
-        if (usersPage.users.length < 1000) break;
-        page++;
-      }
-      setFans(prev => (fansRes.data || []).map(f => ({ ...f, email: emailMap[f.id] || null })));
+      const { data: { session } } = await supabase.auth.getSession();
+      const emailRes = await fetch('/api/admin/user-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: [...fanIds], requestingUserId: session?.user?.id }),
+      });
+      const { emails: emailMap = {} } = await emailRes.json();
+      setFans((fansRes.data || []).map(f => ({ ...f, email: emailMap[f.id] || null })));
 
       setLoading(false);
     })();
@@ -400,17 +398,15 @@ export default function SuperAdmin() {
     const tenantMap = {};
     (tenantList || []).forEach(t => { tenantMap[t.id] = t; });
 
-    // Get emails
+    // Get emails via server API route
     const fanIds = new Set(profiles.map(p => p.id));
-    const emailMap = {};
-    let page = 1;
-    while (true) {
-      const { data: usersPage } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
-      if (!usersPage?.users?.length) break;
-      usersPage.users.forEach(u => { if (fanIds.has(u.id)) emailMap[u.id] = u.email; });
-      if (usersPage.users.length < 1000) break;
-      page++;
-    }
+    const { data: { session } } = await supabase.auth.getSession();
+    const emailRes = await fetch('/api/admin/user-emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: [...fanIds], requestingUserId: session?.user?.id }),
+    });
+    const { emails: emailMap = {} } = await emailRes.json();
 
     setAllFans(profiles.map(p => ({ ...p, email: emailMap[p.id] || null, tenant: tenantMap[p.tenant_id] || null })));
     setFansLoading(false);
