@@ -516,7 +516,7 @@ function Shows({ supabase, tenantId }) {
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (tenantId) load(); }, [tenantId]);
   const load = () => supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date').then(({ data }) => setShows(data || []));
 
   const add = async () => {
@@ -828,7 +828,7 @@ function Rewards({ supabase, tenantId, currencyIcon }) {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (tenantId) load(); }, [tenantId]);
 
   const load = async () => {
     setLoading(true);
