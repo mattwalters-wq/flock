@@ -14,6 +14,9 @@ export default function Home() {
     const host = window.location.hostname;
 
     const init = async () => {
+      // Clear any bad cached bg colours from previous deploy
+      Object.keys(localStorage).filter(k => k.startsWith('flock_bg_')).forEach(k => localStorage.removeItem(k));
+
       // Root domain - redirect to marketing page
       if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
         window.location.href = '/start';
