@@ -1292,21 +1292,31 @@ export default function Dashboard() {
   const tenantId = clientTenantId || authTenantId;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !supabase) return;
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     const host = window.location.hostname;
     const params = new URLSearchParams(window.location.search);
     const slugParam = params.get('slug');
+    const isSuperAdminParam = params.get('superadmin') === '1';
 
-    // Resolve from subdomain
-    if (host.endsWith(`.${APP_DOMAIN}`)) {
-      const slug = host.replace(`.${APP_DOMAIN}`, '');
-      const sb = supabase;
-      if (sb) sb.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => { if (data?.id) setClientTenantId(data.id); });
+    // God mode: always use slug param if present
+    if (slugParam && isSuperAdminParam) {
+      supabase.from('tenants').select('id').eq('slug', slugParam).single().then(({ data }) => {
+        if (data?.id) setClientTenantId(data.id);
+      });
     }
-    // Resolve from ?slug= param (god mode from root domain)
-    else if (slugParam && supabase) {
-      supabase.from('tenants').select('id').eq('slug', slugParam).single().then(({ data }) => { if (data?.id) setClientTenantId(data.id); });
+    // Resolve from subdomain
+    else if (host.endsWith(`.${APP_DOMAIN}`)) {
+      const slug = host.replace(`.${APP_DOMAIN}`, '');
+      supabase.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => {
+        if (data?.id) setClientTenantId(data.id);
+      });
+    }
+    // Fallback slug param without superadmin flag
+    else if (slugParam) {
+      supabase.from('tenants').select('id').eq('slug', slugParam).single().then(({ data }) => {
+        if (data?.id) setClientTenantId(data.id);
+      });
     }
   }, [supabase]);
   const router = useRouter();

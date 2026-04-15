@@ -8,14 +8,6 @@ export default function Home() {
   const [state, setState] = useState('loading');
   const [tenantId, setTenantId] = useState(null);
 
-  // Read cached bg colour synchronously so loader matches community on first render
-  const slug = typeof window !== 'undefined'
-    ? window.location.hostname.replace(`.${process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com'}`, '')
-    : '';
-  const cachedBg = typeof window !== 'undefined'
-    ? localStorage.getItem(`flock_bg_${slug}`) || '#F5EFE6'
-    : '#F5EFE6';
-
   useEffect(() => {
     const sb = getSupabase();
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
@@ -92,7 +84,7 @@ export default function Home() {
   }, []);
 
   if (state === 'loading') return (
-    <div style={{ minHeight: '100vh', background: cachedBg, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
+    <div style={{ minHeight: '100vh', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: '#8B1A2B', animation: 'pulse 1.5s ease-in-out infinite', opacity: 0.6 }}>✦</div>
       <style>{`@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.8} }`}</style>
     </div>
