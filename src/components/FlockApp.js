@@ -728,11 +728,7 @@ export function FlockApp({ tenantId: propTenantId }) {
         if (cfg.color_cream) document.documentElement.style.setProperty('--cream', cfg.color_cream);
         if (cfg.color_ink) {
           document.documentElement.style.setProperty('--ink', cfg.color_ink);
-        // Derive supporting colours from tenant palette
-        if (cfg.color_ink) {
-          // --slate: ink at 60% opacity blended - use ink with transparency
           document.documentElement.style.setProperty('--slate', cfg.color_ink + '99');
-          // --border: ink at 15% opacity for subtle borders
           document.documentElement.style.setProperty('--border', cfg.color_ink + '26');
         }
         if (cfg.color_cream) {
