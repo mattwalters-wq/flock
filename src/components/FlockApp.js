@@ -557,7 +557,14 @@ function ClaimRewardModal({ level, supabase, userId, fanEmail, fanName, tenantId
   const RUBY = 'var(--ruby)';
 
   const claim = async () => {
+    if (submitting) return;
     setSubmitting(true);
+
+    // Guard against duplicate claims
+    if (!isShippingUpdate) {
+      const { data: existing } = await supabase.from('reward_claims').select('id').eq('user_id', userId).eq('tenant_id', tenantId).eq('level_key', level.key).limit(1);
+      if (existing?.length > 0) { onClaimed(); return; }
+    }
     const shipping = { name, address, city, country, postcode };
 
     if (isShippingUpdate) {
