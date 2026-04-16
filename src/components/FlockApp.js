@@ -550,30 +550,41 @@ function ClaimRewardModal({ level, supabase, userId, fanEmail, fanName, tenantId
   const [name, setName] = useState(''); const [address, setAddress] = useState('');
   const [city, setCity] = useState(''); const [country, setCountry] = useState('');
   const [postcode, setPostcode] = useState(''); const [submitting, setSubmitting] = useState(false);
-  const needsShipping = level.reward && !['postcard', 'zoom', 'meetgreet', 'download', 'discount'].includes(level.reward);
+  const needsShipping = level.reward && ['postcard', 'merch', 'vinyl', 'cd', 'poster', 'package'].includes(level.reward);
+  const isShippingUpdate = !!level.updateShipping;
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const BORDER = 'var(--border)';
   const SLATE = 'var(--slate)'; const WARM_GOLD = 'var(--warm-gold)'; const SURFACE = 'var(--surface)';
   const RUBY = 'var(--ruby)';
 
   const claim = async () => {
     setSubmitting(true);
-    const shipping = needsShipping ? { name, address, city, country, postcode } : null;
-    await supabase.from('reward_claims').insert({
-      user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending',
-      shipping_name: shipping?.name || null, shipping_address: shipping?.address || null,
-      shipping_city: shipping?.city || null, shipping_country: shipping?.country || null, shipping_postcode: shipping?.postcode || null,
-    });
-    // Notify artist
-    fetch('/api/email/reward-claimed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-      tenantId, fanName, fanEmail, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
-      shipping: shipping?.address ? shipping : null,
-    }) }).catch(() => {});
-    // Confirm to fan
-    if (fanEmail) {
-      fetch('/api/email/reward-confirmed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        tenantId, fanEmail, fanName, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
-        shipping: shipping?.address ? shipping : null,
+    const shipping = { name, address, city, country, postcode };
+
+    if (isShippingUpdate) {
+      await supabase.from('reward_claims').update({
+        shipping_name: name, shipping_address: address,
+        shipping_city: city, shipping_country: country, shipping_postcode: postcode,
+      }).eq('id', level.claimId);
+      fetch('/api/email/reward-claimed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        tenantId, fanName, fanEmail, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name, shipping,
       }) }).catch(() => {});
+    } else {
+      const shippingData = needsShipping ? shipping : null;
+      await supabase.from('reward_claims').insert({
+        user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending',
+        shipping_name: shippingData?.name || null, shipping_address: shippingData?.address || null,
+        shipping_city: shippingData?.city || null, shipping_country: shippingData?.country || null, shipping_postcode: shippingData?.postcode || null,
+      });
+      fetch('/api/email/reward-claimed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        tenantId, fanName, fanEmail, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
+        shipping: shippingData?.address ? shippingData : null,
+      }) }).catch(() => {});
+      if (fanEmail) {
+        fetch('/api/email/reward-confirmed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+          tenantId, fanEmail, fanName, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
+          shipping: shippingData?.address ? shippingData : null,
+        }) }).catch(() => {});
+      }
     }
     onClaimed();
   };
@@ -590,13 +601,13 @@ function ClaimRewardModal({ level, supabase, userId, fanEmail, fanName, tenantId
       <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>{level.icon}</div>
-          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>claim your reward</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>{isShippingUpdate ? 'add shipping address' : 'claim your reward'}</div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD, marginTop: 6 }}>{level.name} · {level.stamps} ✦</div>
         </div>
-        <div style={{ background: SURFACE, borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${BORDER}` }}>
+        {!isShippingUpdate && <div style={{ background: SURFACE, borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${BORDER}` }}>
           <div style={{ fontSize: 13, color: INK, lineHeight: 1.5 }}>{level.rewardDesc}</div>
-        </div>
-        {needsShipping && <>
+        </div>}
+        {(needsShipping || isShippingUpdate) && <>
           <F label="full name" val={name} set={setName} placeholder="your name" />
           <F label="address" val={address} set={setAddress} placeholder="street address" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
@@ -607,8 +618,8 @@ function ClaimRewardModal({ level, supabase, userId, fanEmail, fanName, tenantId
         </>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
-          <button onClick={claim} disabled={submitting || (needsShipping && (!name || !address || !city || !country || !postcode))} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (submitting || (needsShipping && (!name || !address || !city || !country || !postcode))) ? 0.5 : 1 }}>
-            {submitting ? 'claiming...' : 'claim ✦'}
+          <button onClick={claim} disabled={submitting || ((needsShipping || isShippingUpdate) && (!name || !address || !city || !country || !postcode))} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (submitting || ((needsShipping || isShippingUpdate) && (!name || !address || !city || !country || !postcode))) ? 0.5 : 1 }}>
+            {submitting ? 'saving...' : isShippingUpdate ? 'save address ✦' : 'claim ✦'}
           </button>
         </div>
       </div>
@@ -1339,8 +1350,19 @@ export function FlockApp({ tenantId: propTenantId }) {
                   </div>
                   {unlocked && level.reward && (
                     <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BORDER}` }}>
-                      {claimed ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span> :
-                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>}
+                      {claimed ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span>
+                          {['postcard','merch','vinyl','cd','poster','package'].includes(level.reward) && !rewardClaims.find(c => c.level_key === level.key)?.shipping_address && (
+                            <button onClick={() => setClaimingLevel({ ...level, updateShipping: true, claimId: rewardClaims.find(c => c.level_key === level.key)?.id })}
+                              style={{ padding: '5px 12px', background: 'transparent', color: RUBY, border: `1px solid ${RUBY}44`, borderRadius: 8, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
+                              add shipping address
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>
+                      )}
                     </div>
                   )}
                 </div>

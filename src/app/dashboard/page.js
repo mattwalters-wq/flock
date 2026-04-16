@@ -848,6 +848,43 @@ function Rewards({ supabase, tenantId, currencyIcon }) {
   const update = async (id, status) => {
     await supabase.from('reward_claims').update({ status }).eq('id', id);
     setClaims(p => p.map(x => x.id === id ? { ...x, status } : x));
+
+    // Send confirmation email to fan when approved
+    if (status === 'approved') {
+      const claim = claims.find(c => c.id === id);
+      if (claim) {
+        // Get fan email via API
+        const { data: { session } } = await supabase.auth.getSession();
+        const emailRes = await fetch('/api/admin/user-emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds: [claim.user_id], requestingUserId: session?.user?.id }),
+        });
+        const { emails = {} } = await emailRes.json();
+        const fanEmail = emails[claim.user_id];
+        if (fanEmail) {
+          fetch('/api/email/reward-confirmed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tenantId,
+              fanEmail,
+              fanName: claim.profile?.display_name,
+              rewardType: claim.reward_type,
+              rewardDesc: claim.reward_type,
+              levelName: claim.level_key?.replace(/_/g, ' '),
+              shipping: claim.shipping_name ? {
+                name: claim.shipping_name,
+                address: claim.shipping_address,
+                city: claim.shipping_city,
+                postcode: claim.shipping_postcode,
+                country: claim.shipping_country,
+              } : null,
+            }),
+          }).catch(() => {});
+        }
+      }
+    }
   };
 
   const statusColor = s => s === 'pending' ? WARM_GOLD : s === 'approved' ? SAGE : s === 'shipped' ? '#6B5B8D' : SLATE;
