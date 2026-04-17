@@ -1012,7 +1012,8 @@ export function FlockApp({ tenantId: propTenantId }) {
       if (up) { const { data: url } = supabase.storage.from('media').getPublicUrl(path); imageUrl = url.publicUrl; }
       setMessageImageFile(null); setMessageImagePreview(null);
     }
-    await supabase.from('messages').insert({ sender_id: user.id, recipient_id: recipientId, tenant_id: tenantId, content: msgText || null, image_url: imageUrl, read_at: null });
+    const { error: insertErr } = await supabase.from('messages').insert({ sender_id: user.id, recipient_id: recipientId, tenant_id: tenantId, content: msgText || null, image_url: imageUrl, read_at: null });
+    if (insertErr) { console.error('[sendMessage] insert error:', insertErr); setSendingMessage(false); return; }
     setSendingMessage(false);
     fetchThreadMessages(recipientId);
     fetch('/api/email/new-message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, senderId: user.id, recipientId, content: msgText }) }).catch(() => {});
@@ -1516,7 +1517,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                   ))}
                 </div>
               )
-            ) : (
+            ) : activeThread ? (
               <MessageThread
                 messages={messages} user={user} supabase={supabase} tenantId={tenantId}
                 recipientId={activeThread} otherName={msgOtherName} otherInitial={msgOtherInitial}
@@ -1527,6 +1528,8 @@ export function FlockApp({ tenantId: propTenantId }) {
                 onBack={null} isArtist={isArtist}
                 INK={INK} CREAM={CREAM} RUBY={RUBY} SLATE={SLATE} SURFACE={SURFACE} BORDER={BORDER}
               />
+            ) : (
+              <div style={{ padding: 40, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading...</div>
             )}
           </div>
         )}
