@@ -879,6 +879,70 @@ export function FlockApp({ tenantId: propTenantId }) {
   }, [user, supabase, tenantId]);
 
   useEffect(() => { if (supabase && tenantId) fetchPosts(); }, [feedView, supabase, tenantId]);
+
+  const fetchMessages = async () => {
+    if (!supabase || !user || !tenantId) return;
+    if (isArtist) {
+      const { data } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+      if (data) {
+        const threadMap = {};
+        data.forEach(m => {
+          const otherId = m.sender_id === user.id ? m.recipient_id : m.sender_id;
+          if (!threadMap[otherId]) threadMap[otherId] = m;
+        });
+        const otherIds = Object.keys(threadMap);
+        let profileMap = {};
+        if (otherIds.length) {
+          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', otherIds).eq('tenant_id', tenantId);
+          if (profiles) profiles.forEach(p => { profileMap[p.id] = p; });
+        }
+        const threads = Object.entries(threadMap).map(([otherId, lastMsg]) => ({
+          otherId, otherProfile: profileMap[otherId], lastMessage: lastMsg,
+          unread: !lastMsg.read_at && lastMsg.recipient_id === user.id,
+        })).sort((a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at));
+        setMessageThreads(threads);
+        setUnreadMessages(threads.filter(t => t.unread).length);
+      }
+    } else {
+      const { data: artistProfile } = await supabase.from('profiles').select('id').eq('tenant_id', tenantId).in('role', ['admin', 'band']).limit(1).single();
+      if (artistProfile) {
+        const { data } = await supabase.from('messages').select('*').eq('tenant_id', tenantId)
+          .or(`and(sender_id.eq.${user.id},recipient_id.eq.${artistProfile.id}),and(sender_id.eq.${artistProfile.id},recipient_id.eq.${user.id})`)
+          .order('created_at', { ascending: true });
+        setMessages(data || []);
+        setActiveThread(artistProfile.id);
+        const unread = (data || []).filter(m => m.recipient_id === user.id && !m.read_at).length;
+        setUnreadMessages(unread);
+        if (unread > 0) await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('recipient_id', user.id).is('read_at', null);
+      }
+    }
+  };
+
+  const fetchThreadMessages = async (otherId) => {
+    if (!supabase || !user || !tenantId) return;
+    const { data } = await supabase.from('messages').select('*').eq('tenant_id', tenantId)
+      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${otherId}),and(sender_id.eq.${otherId},recipient_id.eq.${user.id})`)
+      .order('created_at', { ascending: true });
+    setMessages(data || []);
+    await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('recipient_id', user.id).is('read_at', null);
+  };
+
+  const sendMessage = async (recipientId) => {
+    if ((!newMessage.trim() && !messageImageFile) || sendingMessage || !user || !tenantId) return;
+    setSendingMessage(true);
+    let imageUrl = null;
+    if (messageImageFile) {
+      const ext = messageImageFile.name.split('.').pop();
+      const path = `messages/${tenantId}/${user.id}/${Date.now()}.${ext}`;
+      const { data: up } = await supabase.storage.from('media').upload(path, messageImageFile, { upsert: true });
+      if (up) { const { data: url } = supabase.storage.from('media').getPublicUrl(path); imageUrl = url.publicUrl; }
+    }
+    await supabase.from('messages').insert({ sender_id: user.id, recipient_id: recipientId, tenant_id: tenantId, content: newMessage.trim() || null, image_url: imageUrl, read_at: null });
+    setNewMessage(''); setMessageImageFile(null); setMessageImagePreview(null); setSendingMessage(false);
+    fetchThreadMessages(recipientId);
+    fetch('/api/email/new-message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, senderId: user.id, recipientId, content: newMessage.trim() }) }).catch(() => {});
+  };
+
   useEffect(() => {
     if (mainTab === 'shows') fetchShows();
     if (mainTab === 'points') fetchStampData();
