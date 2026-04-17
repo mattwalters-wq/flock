@@ -652,6 +652,72 @@ function MemberHeader({ member, memberMap }) {
 
 const SUPER_ADMIN_ID = '5cdcf898-6bda-42b7-860e-0964562c9c22';
 
+// ─── MESSAGE THREAD COMPONENT ────────────────────────────────────────────────
+
+function MessageThread({ messages, user, recipientId, otherName, otherInitial, newMessage, setNewMessage, sendingMessage, sendMessage, messageImageFile, setMessageImageFile, messageImagePreview, setMessageImagePreview, onBack, INK, CREAM, RUBY, SLATE, SURFACE, BORDER }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '70vh', background: SURFACE, borderRadius: 16, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10, background: CREAM, flexShrink: 0 }}>
+        {onBack && <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE, fontSize: 20, padding: '0 4px 0 0', lineHeight: 1 }}>←</button>}
+        <div style={{ width: 32, height: 32, borderRadius: 16, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{otherInitial}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: INK }}>{otherName}</div>
+      </div>
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}
+        ref={el => { if (el) { el.scrollTop = el.scrollHeight; } }}>
+        {messages.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 40 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 26, background: CREAM, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✉</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, textAlign: 'center' }}>start the conversation</div>
+          </div>
+        ) : messages.map((m, i) => {
+          const isMe = m.sender_id === user?.id;
+          const prev = messages[i - 1];
+          const showTime = !prev || (new Date(m.created_at) - new Date(prev.created_at)) > 5 * 60 * 1000;
+          const isTemp = m.id?.toString().startsWith('temp-');
+          return (
+            <div key={m.id}>
+              {showTime && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66', textAlign: 'center', margin: '10px 0 6px' }}>
+                {new Date(m.created_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
+              </div>}
+              <div style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6, marginBottom: 2 }}>
+                {!isMe && <div style={{ width: 26, height: 26, borderRadius: 13, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{otherInitial}</div>}
+                <div style={{ maxWidth: '72%', background: isMe ? RUBY : CREAM, color: isMe ? CREAM : INK, borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '9px 14px', fontSize: 14, lineHeight: 1.45, opacity: isTemp ? 0.65 : 1 }}>
+                  {m.content && <div>{m.content}</div>}
+                  {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '100%', borderRadius: 10, marginTop: m.content ? 6 : 0, display: 'block' }} />}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Input */}
+      <div style={{ padding: '10px 12px', borderTop: `1px solid ${BORDER}`, background: CREAM, display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+        {messageImagePreview && (
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <img src={messageImagePreview} alt="" style={{ height: 48, borderRadius: 8 }} />
+            <button onClick={() => { setMessageImageFile(null); setMessageImagePreview(null); }} style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: 8, background: RUBY, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          </div>
+        )}
+        <label style={{ cursor: 'pointer', flexShrink: 0, fontSize: 20, lineHeight: 1, opacity: 0.6 }}>
+          📷
+          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) { setMessageImageFile(f); const r = new FileReader(); r.onload = ev => setMessageImagePreview(ev.target.result); r.readAsDataURL(f); } }} />
+        </label>
+        <input value={newMessage} onChange={e => setNewMessage(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && recipientId) { e.preventDefault(); sendMessage(recipientId); } }}
+          placeholder={`message ${otherName}...`}
+          style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 22, padding: '9px 16px', fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
+        <button onClick={() => recipientId && sendMessage(recipientId)}
+          disabled={sendingMessage || (!newMessage.trim() && !messageImageFile)}
+          style={{ width: 38, height: 38, borderRadius: 19, background: (newMessage.trim() || messageImageFile) ? RUBY : BORDER, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
+          {sendingMessage ? '·' : '↑'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function FlockApp({ tenantId: propTenantId }) {
   const { user, profile, signOut, supabase, tenantId: authTenantId, refreshProfile, updateProfile } = useAuth();
   const tenantId = propTenantId || authTenantId;
@@ -1058,6 +1124,12 @@ export function FlockApp({ tenantId: propTenantId }) {
   ];
 
   const visiblePosts = feedTagFilter ? posts.filter(p => p.tag === feedTagFilter) : posts;
+  const msgOtherName = isArtist
+    ? (messageThreads.find(t => t.otherId === activeThread)?.otherProfile?.display_name?.toLowerCase() || 'fan')
+    : (members[0]?.name?.toLowerCase() || 'the artist');
+  const msgOtherInitial = isArtist
+    ? (messageThreads.find(t => t.otherId === activeThread)?.otherProfile?.display_name?.charAt(0)?.toLowerCase() || '?')
+    : (members[0]?.name?.charAt(0)?.toLowerCase() || '✦');
 
   return (
     <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif", color: INK }}>
@@ -1402,73 +1474,21 @@ export function FlockApp({ tenantId: propTenantId }) {
         )}
 
         {/* ─── MESSAGES TAB ─── */}
-        {mainTab === 'messages' && (() => {
-          const otherName = isArtist
-            ? (messageThreads.find(t => t.otherId === activeThread)?.otherProfile?.display_name?.toLowerCase() || 'fan')
-            : (members[0]?.name?.toLowerCase() || 'the artist');
-          const otherInitial = isArtist
-            ? (messageThreads.find(t => t.otherId === activeThread)?.otherProfile?.display_name?.charAt(0)?.toLowerCase() || '?')
-            : (members[0]?.name?.charAt(0)?.toLowerCase() || '✦');
-
-          const MsgBubbles = ({ recipientId, placeholder }) => (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '60vh', background: SURFACE, borderRadius: 16, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-              {/* Thread header */}
-              <div style={{ padding: '14px 16px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10, background: CREAM }}>
-                {isArtist && <button onClick={() => { setActiveThread(null); setMessages([]); fetchMessages(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE, fontSize: 18, padding: 0, marginRight: 4 }}>←</button>}
-                <div style={{ width: 32, height: 32, borderRadius: 16, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600 }}>{otherInitial}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{otherName}</div>
-              </div>
-              {/* Messages */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}
-                ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>
-                {messages.length === 0 ? (
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 24, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>✉</div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>start the conversation</div>
-                  </div>
-                ) : messages.map((m, i) => {
-                  const isMe = m.sender_id === user?.id;
-                  const prevMsg = messages[i - 1];
-                  const showTime = !prevMsg || (new Date(m.created_at) - new Date(prevMsg.created_at)) > 5 * 60 * 1000;
-                  return (
-                    <div key={m.id}>
-                      {showTime && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66', textAlign: 'center', margin: '8px 0 4px' }}>{new Date(m.created_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</div>}
-                      <div style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6 }}>
-                        {!isMe && <div style={{ width: 24, height: 24, borderRadius: 12, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, flexShrink: 0, marginBottom: 2 }}>{otherInitial}</div>}
-                        <div style={{ maxWidth: '72%', background: isMe ? RUBY : CREAM, color: isMe ? CREAM : INK, borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '10px 14px', fontSize: 14, lineHeight: 1.4, opacity: m.id?.toString().startsWith('temp-') ? 0.6 : 1 }}>
-                          {m.content && <div>{m.content}</div>}
-                          {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '100%', borderRadius: 10, marginTop: m.content ? 6 : 0, display: 'block' }} />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Input bar */}
-              <div style={{ padding: '10px 12px', borderTop: `1px solid ${BORDER}`, background: CREAM, display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                {messageImagePreview && (
-                  <div style={{ position: 'relative', display: 'inline-block', marginBottom: 4 }}>
-                    <img src={messageImagePreview} alt="" style={{ maxHeight: 60, borderRadius: 8 }} />
-                    <button onClick={() => { setMessageImageFile(null); setMessageImagePreview(null); }} style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: RUBY, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 11, lineHeight: 1 }}>×</button>
-                  </div>
-                )}
-                <label style={{ cursor: 'pointer', flexShrink: 0, color: SLATE, fontSize: 18, padding: '6px 2px' }}>
-                  📷
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) { setMessageImageFile(f); const r = new FileReader(); r.onload = ev => setMessageImagePreview(ev.target.result); r.readAsDataURL(f); } }} />
-                </label>
-                <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (sendMessage(recipientId), e.preventDefault())} placeholder={placeholder} style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: '9px 16px', fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
-                <button onClick={() => sendMessage(recipientId)} disabled={sendingMessage || (!newMessage.trim() && !messageImageFile)}
-                  style={{ width: 36, height: 36, borderRadius: 18, background: newMessage.trim() || messageImageFile ? RUBY : BORDER, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
-                  {sendingMessage ? '·' : '↑'}
-                </button>
-              </div>
-            </div>
-          );
-
-          return (
+        {mainTab === 'messages' && (
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 8 }}>
             {isArtist ? (
-              activeThread ? <MsgBubbles recipientId={activeThread} placeholder="reply..." /> : (
+              activeThread ? (
+                <MessageThread
+                  messages={messages} user={user} supabase={supabase} tenantId={tenantId}
+                  recipientId={activeThread} otherName={msgOtherName} otherInitial={msgOtherInitial}
+                  newMessage={newMessage} setNewMessage={setNewMessage}
+                  sendingMessage={sendingMessage} sendMessage={sendMessage}
+                  messageImageFile={messageImageFile} setMessageImageFile={setMessageImageFile}
+                  messageImagePreview={messageImagePreview} setMessageImagePreview={setMessageImagePreview}
+                  onBack={() => { setActiveThread(null); setMessages([]); fetchMessages(); }}
+                  isArtist={isArtist} INK={INK} CREAM={CREAM} RUBY={RUBY} SLATE={SLATE} SURFACE={SURFACE} BORDER={BORDER}
+                />
+              ) : (
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: INK, marginBottom: 16 }}>messages</div>
                   {messageThreads.length === 0 ? (
@@ -1485,11 +1505,11 @@ export function FlockApp({ tenantId: propTenantId }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: thread.unread ? 700 : 500, color: INK, marginBottom: 2 }}>{thread.otherProfile?.display_name?.toLowerCase() || 'fan'}</div>
                         <div style={{ fontSize: 12, color: SLATE, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {thread.lastMessage.image_url && !thread.lastMessage.content ? '📷 photo' : thread.lastMessage.content || ''}
+                          {thread.lastMessage?.image_url && !thread.lastMessage?.content ? '📷 photo' : thread.lastMessage?.content || ''}
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77' }}>{new Date(thread.lastMessage.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77' }}>{new Date(thread.lastMessage?.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</div>
                         {thread.unread && <div style={{ width: 8, height: 8, borderRadius: 4, background: RUBY }} />}
                       </div>
                     </div>
@@ -1497,14 +1517,16 @@ export function FlockApp({ tenantId: propTenantId }) {
                 </div>
               )
             ) : (
-              <MsgBubbles recipientId={activeThread} placeholder={`message ${members[0]?.name?.toLowerCase() || 'the artist'}...`} />
-            )}
-          </div>
-          );
-        })()}
-                  </div>
-                )}
-              </div>
+              <MessageThread
+                messages={messages} user={user} supabase={supabase} tenantId={tenantId}
+                recipientId={activeThread} otherName={msgOtherName} otherInitial={msgOtherInitial}
+                newMessage={newMessage} setNewMessage={setNewMessage}
+                sendingMessage={sendingMessage} sendMessage={sendMessage}
+                messageImageFile={messageImageFile} setMessageImageFile={setMessageImageFile}
+                messageImagePreview={messageImagePreview} setMessageImagePreview={setMessageImagePreview}
+                onBack={null} isArtist={isArtist}
+                INK={INK} CREAM={CREAM} RUBY={RUBY} SLATE={SLATE} SURFACE={SURFACE} BORDER={BORDER}
+              />
             )}
           </div>
         )}
