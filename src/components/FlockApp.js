@@ -883,7 +883,9 @@ export function FlockApp({ tenantId: propTenantId }) {
   const fetchMessages = async () => {
     if (!supabase || !user || !tenantId) return;
     if (isArtist) {
-      const { data } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+      const { data: sent } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', user.id);
+      const { data: received } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('recipient_id', user.id);
+      const data = [...(sent || []), ...(received || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       if (data) {
         const threadMap = {};
         data.forEach(m => {
@@ -906,12 +908,12 @@ export function FlockApp({ tenantId: propTenantId }) {
     } else {
       const { data: artistProfile } = await supabase.from('profiles').select('id').eq('tenant_id', tenantId).in('role', ['admin', 'band']).limit(1).single();
       if (artistProfile) {
-        const { data } = await supabase.from('messages').select('*').eq('tenant_id', tenantId)
-          .or(`and(sender_id.eq.${user.id},recipient_id.eq.${artistProfile.id}),and(sender_id.eq.${artistProfile.id},recipient_id.eq.${user.id})`)
-          .order('created_at', { ascending: true });
-        setMessages(data || []);
+        const { data: sent } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', user.id).eq('recipient_id', artistProfile.id);
+        const { data: received } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', artistProfile.id).eq('recipient_id', user.id);
+        const all = [...(sent || []), ...(received || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        setMessages(all);
         setActiveThread(artistProfile.id);
-        const unread = (data || []).filter(m => m.recipient_id === user.id && !m.read_at).length;
+        const unread = (received || []).filter(m => !m.read_at).length;
         setUnreadMessages(unread);
         if (unread > 0) await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('recipient_id', user.id).is('read_at', null);
       }
@@ -920,11 +922,13 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   const fetchThreadMessages = async (otherId) => {
     if (!supabase || !user || !tenantId) return;
-    const { data } = await supabase.from('messages').select('*').eq('tenant_id', tenantId)
-      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${otherId}),and(sender_id.eq.${otherId},recipient_id.eq.${user.id})`)
-      .order('created_at', { ascending: true });
-    setMessages(data || []);
-    await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('recipient_id', user.id).is('read_at', null);
+    const { data: sent } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', user.id).eq('recipient_id', otherId);
+    const { data: received } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', otherId).eq('recipient_id', user.id);
+    const all = [...(sent || []), ...(received || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    setMessages(all);
+    if ((received || []).some(m => !m.read_at)) {
+      await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('recipient_id', user.id).is('read_at', null);
+    }
   };
 
   const sendMessage = async (recipientId) => {
