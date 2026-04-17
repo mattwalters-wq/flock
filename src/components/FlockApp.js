@@ -671,6 +671,14 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   // UI state
   const [mainTab, setMainTab] = useState('feed');
+  const [messages, setMessages] = useState([]);
+  const [messageThreads, setMessageThreads] = useState([]);
+  const [activeThread, setActiveThread] = useState(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [messageImageFile, setMessageImageFile] = useState(null);
+  const [messageImagePreview, setMessageImagePreview] = useState(null);
   const [feedView, setFeedView] = useState('community');
   const [feedTagFilter, setFeedTagFilter] = useState(null);
 
@@ -874,6 +882,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   useEffect(() => {
     if (mainTab === 'shows') fetchShows();
     if (mainTab === 'points') fetchStampData();
+    if (mainTab === 'messages') fetchMessages();
     if (mainTab === 'you') refreshProfile();
     fetchNotifications();
   }, [mainTab]);
@@ -969,6 +978,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const mainTabs = [
     { id: 'feed', label: 'feed', icon: '◎' },
     { id: 'shows', label: 'shows', icon: '♫' },
+    { id: 'messages', label: 'messages', icon: '✉' },
     { id: 'points', label: currencyName, icon: currencyIcon },
     { id: 'you', label: 'you', icon: '○' },
     ...(isArtist ? [{ id: 'dashboard', label: 'dashboard', icon: '⚙', href: `/dashboard?superadmin=1` }] : []),
@@ -1318,6 +1328,130 @@ export function FlockApp({ tenantId: propTenantId }) {
           </div>
         )}
 
+        {/* ─── MESSAGES TAB ─── */}
+        {mainTab === 'messages' && (
+          <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
+            {isArtist ? (
+              // ── ARTIST INBOX ──
+              activeThread ? (
+                <div>
+                  <button onClick={() => { setActiveThread(null); setMessages([]); fetchMessages(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 14, padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}>← back to inbox</button>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 14 }}>
+                    {messageThreads.find(t => t.otherId === activeThread)?.otherProfile?.display_name?.toLowerCase() || 'fan'}
+                  </div>
+                  <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, marginBottom: 12, maxHeight: 420, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {messages.length === 0 ? <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, textAlign: 'center', padding: 20 }}>no messages yet</div> :
+                      messages.map(m => {
+                        const isMe = m.sender_id === user?.id;
+                        return (
+                          <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                            <div style={{ maxWidth: '75%', background: isMe ? INK : CREAM, color: isMe ? CREAM : INK, borderRadius: isMe ? '12px 12px 4px 12px' : '12px 12px 12px 4px', padding: '10px 14px', fontSize: 13 }}>
+                              {m.content && <div>{m.content}</div>}
+                              {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: m.content ? 8 : 0 }} />}
+                            </div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', marginTop: 3 }}>
+                              {new Date(m.created_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                  {/* Message input */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                    <div style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px' }}>
+                      {messageImagePreview && <div style={{ marginBottom: 8, position: 'relative', display: 'inline-block' }}>
+                        <img src={messageImagePreview} alt="" style={{ maxHeight: 80, borderRadius: 6 }} />
+                        <button onClick={() => { setMessageImageFile(null); setMessageImagePreview(null); }} style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: RUBY, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                      </div>}
+                      <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(activeThread)} placeholder="say something..." style={{ width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 14, color: INK, fontFamily: "'DM Sans', sans-serif" }} />
+                    </div>
+                    <label style={{ cursor: 'pointer', padding: '10px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
+                      <span style={{ fontSize: 16 }}>📷</span>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) { setMessageImageFile(f); const r = new FileReader(); r.onload = ev => setMessageImagePreview(ev.target.result); r.readAsDataURL(f); } }} />
+                    </label>
+                    <button onClick={() => sendMessage(activeThread)} disabled={sendingMessage || (!newMessage.trim() && !messageImageFile)} style={{ padding: '10px 18px', background: RUBY, color: CREAM, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (sendingMessage || (!newMessage.trim() && !messageImageFile)) ? 0.5 : 1 }}>
+                      {sendingMessage ? '...' : 'send'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: INK, marginBottom: 16 }}>messages</div>
+                  {messageThreads.length === 0 ? (
+                    <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, padding: 32, textAlign: 'center' }}>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 8 }}>no messages yet</div>
+                      <div style={{ fontSize: 12, color: SLATE }}>fans can message you from their messages tab</div>
+                    </div>
+                  ) : messageThreads.map(thread => (
+                    <div key={thread.otherId} onClick={() => { setActiveThread(thread.otherId); fetchThreadMessages(thread.otherId); }} style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${thread.unread ? RUBY + '44' : BORDER}`, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 18, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
+                        {thread.otherProfile?.display_name?.charAt(0)?.toLowerCase() || '?'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: thread.unread ? 700 : 500, color: INK }}>{thread.otherProfile?.display_name?.toLowerCase() || 'fan'}</div>
+                        <div style={{ fontSize: 11, color: SLATE, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                          {thread.lastMessage.image_url && !thread.lastMessage.content ? '📷 photo' : thread.lastMessage.content || ''}
+                        </div>
+                      </div>
+                      {thread.unread && <div style={{ width: 8, height: 8, borderRadius: 4, background: RUBY, flexShrink: 0 }} />}
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77' }}>
+                        {new Date(thread.lastMessage.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              // ── FAN VIEW - single thread with artist ──
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: INK, marginBottom: 4 }}>messages</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 16 }}>direct messages with {profile?.display_name ? members[0]?.name?.toLowerCase() || 'the artist' : 'the artist'}</div>
+                <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, marginBottom: 12, minHeight: 280, maxHeight: 420, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {messages.length === 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: 32, textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>✉</div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 4 }}>no messages yet</div>
+                      <div style={{ fontSize: 12, color: SLATE }}>send a message to the artist</div>
+                    </div>
+                  ) : messages.map(m => {
+                    const isMe = m.sender_id === user?.id;
+                    return (
+                      <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                        <div style={{ maxWidth: '75%', background: isMe ? INK : CREAM, color: isMe ? CREAM : INK, borderRadius: isMe ? '12px 12px 4px 12px' : '12px 12px 12px 4px', padding: '10px 14px', fontSize: 13 }}>
+                          {m.content && <div>{m.content}</div>}
+                          {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: m.content ? 8 : 0 }} />}
+                        </div>
+                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', marginTop: 3 }}>
+                          {new Date(m.created_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {activeThread && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                    <div style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px' }}>
+                      {messageImagePreview && <div style={{ marginBottom: 8, position: 'relative', display: 'inline-block' }}>
+                        <img src={messageImagePreview} alt="" style={{ maxHeight: 80, borderRadius: 6 }} />
+                        <button onClick={() => { setMessageImageFile(null); setMessageImagePreview(null); }} style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: RUBY, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 10 }}>×</button>
+                      </div>}
+                      <input value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(activeThread)} placeholder="message the artist..." style={{ width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: 14, color: INK, fontFamily: "'DM Sans', sans-serif" }} />
+                    </div>
+                    <label style={{ cursor: 'pointer', padding: '10px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
+                      <span style={{ fontSize: 16 }}>📷</span>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) { setMessageImageFile(f); const r = new FileReader(); r.onload = ev => setMessageImagePreview(ev.target.result); r.readAsDataURL(f); } }} />
+                    </label>
+                    <button onClick={() => sendMessage(activeThread)} disabled={sendingMessage || (!newMessage.trim() && !messageImageFile)} style={{ padding: '10px 18px', background: RUBY, color: CREAM, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (sendingMessage || (!newMessage.trim() && !messageImageFile)) ? 0.5 : 1 }}>
+                      {sendingMessage ? '...' : 'send'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ─── POINTS TAB ─── */}
         {mainTab === 'points' && (
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
@@ -1498,8 +1632,9 @@ export function FlockApp({ tenantId: propTenantId }) {
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE + '66' }}>{tab.icon}</span>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66' }}>{tab.label}</span>
                 </a>
-              : <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56 }}>
+              : <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56, position: 'relative' }}>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: mainTab === tab.id ? RUBY : SLATE + '66' }}>{tab.icon}</span>
+                  {tab.id === 'messages' && unreadMessages > 0 && <div style={{ position: 'absolute', top: 6, right: 10, width: 8, height: 8, borderRadius: 4, background: RUBY }} />}
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: mainTab === tab.id ? 500 : 400, color: mainTab === tab.id ? INK : SLATE + '66' }}>{tab.label}</span>
                 </button>
           ))}
