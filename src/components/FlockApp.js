@@ -727,7 +727,19 @@ export function FlockApp({ tenantId: propTenantId }) {
   const isGodMode = isSuperAdmin && superAdminParam;
 
   // Tenant config
-  const [tenant, setTenant] = useState(null);
+  const [tenant, setTenant] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+      const host = window.location.hostname;
+      if (host.endsWith(`.${APP_DOMAIN}`)) {
+        const slug = host.replace(`.${APP_DOMAIN}`, '');
+        const cachedName = localStorage.getItem(`flock_name_${slug}`);
+        if (cachedName) return { name: cachedName, slug };
+      }
+    } catch (e) {}
+    return null;
+  });
   const [members, setMembers] = useState([]);
   const [memberMap, setMemberMap] = useState({});
   const [currencyName, setCurrencyName] = useState('points');
@@ -801,7 +813,18 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (!supabase || !tenantId) return;
     (async () => {
       const { data: t } = await supabase.from('tenants').select('*').eq('id', tenantId).single();
-      if (t) setTenant(t);
+      if (t) {
+        setTenant(t);
+        // Cache tenant name for flash-free loading
+        try {
+          const host = window.location.hostname;
+          const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+          if (host.endsWith(`.${APP_DOMAIN}`) && t.name) {
+            const slug = host.replace(`.${APP_DOMAIN}`, '');
+            localStorage.setItem(`flock_name_${slug}`, t.name);
+          }
+        } catch (e) {}
+      }
 
       const [cfgRes, memRes, tiersRes] = await Promise.all([
         supabase.from('tenant_config').select('key, value').eq('tenant_id', tenantId),
