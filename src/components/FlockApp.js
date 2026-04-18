@@ -998,7 +998,15 @@ export function FlockApp({ tenantId: propTenantId }) {
   };
 
   const sendMessage = async (recipientId) => {
-    if ((!newMessage.trim() && !messageImageFile) || sendingMessage || !user || !tenantId) return;
+    console.log('[sendMessage] called', { recipientId, activeThread, userId: user?.id, tenantId, content: newMessage });
+    if ((!newMessage.trim() && !messageImageFile) || sendingMessage || !user || !tenantId) {
+      console.log('[sendMessage] bailing on initial check', { hasText: !!newMessage.trim(), hasImage: !!messageImageFile, sendingMessage, hasUser: !!user, tenantId });
+      return;
+    }
+    if (!recipientId) {
+      console.error('[sendMessage] no recipientId!');
+      return;
+    }
     setSendingMessage(true);
     const tempMsg = { id: `temp-${Date.now()}`, sender_id: user.id, recipient_id: recipientId, tenant_id: tenantId, content: newMessage.trim() || null, image_url: null, read_at: null, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, tempMsg]);
@@ -1013,7 +1021,12 @@ export function FlockApp({ tenantId: propTenantId }) {
       setMessageImageFile(null); setMessageImagePreview(null);
     }
     const { error: insertErr } = await supabase.from('messages').insert({ sender_id: user.id, recipient_id: recipientId, tenant_id: tenantId, content: msgText || null, image_url: imageUrl, read_at: null });
-    if (insertErr) { console.error('[sendMessage] insert error:', insertErr); setSendingMessage(false); return; }
+    if (insertErr) {
+      console.error('[sendMessage] insert error:', insertErr);
+      alert('Message failed: ' + insertErr.message + ' | code: ' + insertErr.code);
+      setSendingMessage(false);
+      return;
+    }
     setSendingMessage(false);
     fetchThreadMessages(recipientId);
     fetch('/api/email/new-message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, senderId: user.id, recipientId, content: msgText }) }).catch(() => {});
