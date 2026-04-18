@@ -8,15 +8,28 @@ export default function Home() {
   const [state, setState] = useState('loading');
   const [tenantId, setTenantId] = useState(null);
 
+  // Read cached tenant cream colour synchronously - falls back to default cream (never dark)
+  const getCachedCream = () => {
+    if (typeof window === 'undefined') return '#F5EFE6';
+    const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+    const host = window.location.hostname;
+    if (!host.endsWith(`.${APP_DOMAIN}`)) return '#F5EFE6';
+    const slug = host.replace(`.${APP_DOMAIN}`, '');
+    const cached = localStorage.getItem(`flock_cream_${slug}`);
+    // Only use cached if it's a light colour (starts with F, E, D, C — i.e. not dark)
+    if (cached && /^#[A-F0-9]{6}$/i.test(cached) && ['F', 'E', 'D', 'C'].includes(cached[1].toUpperCase())) {
+      return cached;
+    }
+    return '#F5EFE6';
+  };
+  const [bgColor] = useState(getCachedCream);
+
   useEffect(() => {
     const sb = getSupabase();
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     const host = window.location.hostname;
 
     const init = async () => {
-      // Clear any bad cached bg colours from previous deploy
-      Object.keys(localStorage).filter(k => k.startsWith('flock_bg_')).forEach(k => localStorage.removeItem(k));
-
       // Root domain - redirect to marketing page
       if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
         window.location.href = '/start';
@@ -87,7 +100,7 @@ export default function Home() {
   }, []);
 
   if (state === 'loading') return (
-    <div style={{ minHeight: '100vh', background: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
+    <div style={{ minHeight: '100vh', background: bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', inset: 0, zIndex: 9999 }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: '#8B1A2B', animation: 'pulse 1.5s ease-in-out infinite', opacity: 0.6 }}>✦</div>
       <style>{`@keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.8} }`}</style>
     </div>

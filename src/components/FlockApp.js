@@ -817,7 +817,16 @@ export function FlockApp({ tenantId: propTenantId }) {
       // Apply colours + font client-side
       if (typeof document !== 'undefined') {
         if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
-        if (cfg.color_cream) document.documentElement.style.setProperty('--cream', cfg.color_cream);
+        if (cfg.color_cream) {
+          document.documentElement.style.setProperty('--cream', cfg.color_cream);
+          // Cache for flash-free loading next visit
+          const host = window.location.hostname;
+          const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+          if (host.endsWith(`.${APP_DOMAIN}`)) {
+            const slug = host.replace(`.${APP_DOMAIN}`, '');
+            try { localStorage.setItem(`flock_cream_${slug}`, cfg.color_cream); } catch (e) {}
+          }
+        }
         if (cfg.color_ink) {
           document.documentElement.style.setProperty('--ink', cfg.color_ink);
           document.documentElement.style.setProperty('--slate', cfg.color_ink + '99');
