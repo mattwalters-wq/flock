@@ -15,8 +15,23 @@ export default function Home() {
     const host = window.location.hostname;
     if (!host.endsWith(`.${APP_DOMAIN}`)) return '#F5EFE6';
     const slug = host.replace(`.${APP_DOMAIN}`, '');
+
+    // Apply full palette synchronously if cached - prevents flash of default colours
+    try {
+      const paletteStr = localStorage.getItem(`flock_palette_${slug}`);
+      if (paletteStr) {
+        const palette = JSON.parse(paletteStr);
+        if (palette.ruby && /^#[A-F0-9]{6}$/i.test(palette.ruby)) document.documentElement.style.setProperty('--ruby', palette.ruby);
+        if (palette.cream && /^#[A-F0-9]{6}$/i.test(palette.cream) && ['F','E','D','C'].includes(palette.cream[1].toUpperCase())) document.documentElement.style.setProperty('--cream', palette.cream);
+        if (palette.ink && /^#[A-F0-9]{6}$/i.test(palette.ink)) {
+          document.documentElement.style.setProperty('--ink', palette.ink);
+          document.documentElement.style.setProperty('--slate', palette.ink + '99');
+          document.documentElement.style.setProperty('--border', palette.ink + '26');
+        }
+      }
+    } catch (e) {}
+
     const cached = localStorage.getItem(`flock_cream_${slug}`);
-    // Only use cached if it's a light colour (starts with F, E, D, C — i.e. not dark)
     if (cached && /^#[A-F0-9]{6}$/i.test(cached) && ['F', 'E', 'D', 'C'].includes(cached[1].toUpperCase())) {
       return cached;
     }
