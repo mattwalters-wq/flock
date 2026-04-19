@@ -620,7 +620,7 @@ export default function StartClient({ showForm: initialShowForm = false }) {
   if (showForm) return <OnboardingWizard />;
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#0E0C0F', color: '#F5EFE6', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#1A1018', color: '#F5EFE6', minHeight: '100vh' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -638,7 +638,7 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       `}</style>
 
       {/* NAV */}
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(14,12,15,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(26,16,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
         <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.5px' }}>flock <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', letterSpacing: '2px', verticalAlign: 'middle', marginLeft: 4 }}>✦</span></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, '@media(max-width:600px)': { display: 'none' } }} className="nav-links">
@@ -653,8 +653,8 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       <style>{`.nav-links { display: flex; } .mobile-signin { display: none; } @media (max-width: 600px) { .nav-links { display: none !important; } .mobile-signin { display: block !important; } }`}</style>
 
       {/* HERO */}
-      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 80px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: 800, height: 800, background: 'radial-gradient(circle, rgba(139,26,43,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <section style={{ minHeight: '85vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 60px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translate(-50%, -50%)', width: 1000, height: 1000, background: 'radial-gradient(circle, rgba(139,26,43,0.18) 0%, rgba(201,146,42,0.04) 40%, transparent 70%)', pointerEvents: 'none' }} />
         <div className="fade-1" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 24 }}>✦ the future of fan relationships</div>
         <h1 className="fade-2" style={{ fontSize: 'clamp(48px, 8vw, 96px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '-2px', marginBottom: 28, maxWidth: 900 }}>
           social media<br /><span style={{ color: '#8B1A2B' }}>broke</span> the artist<br />fan relationship.
@@ -722,7 +722,7 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       </section>
 
       {/* TRANSITION BRIDGE */}
-      <div style={{ background: 'linear-gradient(to bottom, #0E0C0F 0%, #F5EFE6 100%)', height: 120 }} />
+      <div style={{ background: 'linear-gradient(to bottom, #1A1018 0%, #F5EFE6 100%)', height: 140 }} />
 
       {/* SOLUTION (cream) */}
       <section id="how" style={{ padding: '100px 24px', background: '#F5EFE6', color: '#1A1018' }}>
@@ -825,7 +825,7 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       </section>
 
       {/* FOOTER (back to dark for anchor) */}
-      <footer style={{ borderTop: '1px solid rgba(245,239,230,0.06)', padding: '40px', background: '#0E0C0F', color: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+      <footer style={{ borderTop: '1px solid rgba(245,239,230,0.06)', padding: '40px', background: '#1A1018', color: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>flock ✦</div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'rgba(245,239,230,0.3)', letterSpacing: '0.5px' }}>
           fan communities for independent artists
