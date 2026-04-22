@@ -469,10 +469,12 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
     let avatarUrl = profile?.avatar_url || null;
     if (file) {
       const ext = file.name.split('.').pop();
-      const { error: upErr } = await supabase.storage.from('media').upload(`avatars/${tenantId}/${profile.id}.${ext}`, file, { cacheControl: '3600', upsert: true });
+      const path = `avatars/${tenantId}/${profile.id}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
       if (!upErr) {
-        const { data: urlData } = supabase.storage.from('media').getPublicUrl(`avatars/${tenantId}/${profile.id}.${ext}`);
-        avatarUrl = urlData?.publicUrl;
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+        // Add cache-buster so new image shows immediately instead of stale CDN copy
+        avatarUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${Date.now()}` : null;
       }
     }
     await onSave({ display_name: displayName, bio, city, avatar_url: avatarUrl, email_notifications: emailNotifs });
