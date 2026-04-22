@@ -620,7 +620,7 @@ export default function StartClient({ showForm: initialShowForm = false }) {
   if (showForm) return <OnboardingWizard />;
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#1A1018', color: '#F5EFE6', minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: '#0E0C0F', color: '#F5EFE6', minHeight: '100vh' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -638,23 +638,19 @@ export default function StartClient({ showForm: initialShowForm = false }) {
       `}</style>
 
       {/* NAV */}
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(26,16,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, padding: '18px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(14,12,15,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
         <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.5px' }}>flock <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', letterSpacing: '2px', verticalAlign: 'middle', marginLeft: 4 }}>✦</span></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, '@media(max-width:600px)': { display: 'none' } }} className="nav-links">
-            <a href="#how" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>how it works</a>
-            <a href="#pricing" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>pricing</a>
-            <a href="/login" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>sign in</a>
-          </div>
-          <a href="/login" style={{ color: 'rgba(245,239,230,0.5)', textDecoration: 'none', fontSize: 12, fontFamily: "'DM Mono', monospace" }} className="mobile-signin">sign in</a>
-          <button onClick={() => setShowForm(true)} className="cta-btn" style={{ padding: '9px 18px', fontSize: 13 }}>get started</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <a href="#how" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>how it works</a>
+          <a href="#pricing" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>pricing</a>
+          <a href="/login" style={{ color: 'rgba(245,239,230,0.6)', textDecoration: 'none', fontSize: 13 }}>sign in</a>
+          <button onClick={() => setShowForm(true)} className="cta-btn" style={{ padding: '10px 22px', fontSize: 13 }}>get started</button>
         </div>
       </nav>
-      <style>{`.nav-links { display: flex; } .mobile-signin { display: none; } @media (max-width: 600px) { .nav-links { display: none !important; } .mobile-signin { display: block !important; } }`}</style>
 
       {/* HERO */}
-      <section style={{ minHeight: '85vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 60px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translate(-50%, -50%)', width: 1000, height: 1000, background: 'radial-gradient(circle, rgba(139,26,43,0.18) 0%, rgba(201,146,42,0.04) 40%, transparent 70%)', pointerEvents: 'none' }} />
+      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 80px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: 800, height: 800, background: 'radial-gradient(circle, rgba(139,26,43,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div className="fade-1" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 24 }}>✦ the future of fan relationships</div>
         <h1 className="fade-2" style={{ fontSize: 'clamp(48px, 8vw, 96px)', fontWeight: 700, lineHeight: 1.0, letterSpacing: '-2px', marginBottom: 28, maxWidth: 900 }}>
           social media<br /><span style={{ color: '#8B1A2B' }}>broke</span> the artist<br />fan relationship.
@@ -721,17 +717,14 @@ export default function StartClient({ showForm: initialShowForm = false }) {
         </div>
       </section>
 
-      {/* TRANSITION BRIDGE */}
-      <div style={{ background: 'linear-gradient(to bottom, #1A1018 0%, #F5EFE6 100%)', height: 140 }} />
-
-      {/* SOLUTION (cream) */}
-      <section id="how" style={{ padding: '100px 24px', background: '#F5EFE6', color: '#1A1018' }}>
+      {/* SOLUTION */}
+      <section id="how" style={{ padding: '100px 24px', background: 'rgba(245,239,230,0.02)', borderTop: '1px solid rgba(245,239,230,0.06)', borderBottom: '1px solid rgba(245,239,230,0.06)' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>the solution</div>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16, color: '#1A1018' }}>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 54px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16 }}>
             your community.<br />your currency.<br />your rules.
           </h2>
-          <p style={{ fontSize: 16, color: 'rgba(26,16,24,0.6)', lineHeight: 1.7, maxWidth: 520, marginBottom: 64 }}>
+          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.7, maxWidth: 520, marginBottom: 64 }}>
             Every artist gets a fully branded fan community with a custom loyalty system - their own economy, their own language, their own world.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
@@ -743,57 +736,55 @@ export default function StartClient({ showForm: initialShowForm = false }) {
               { icon: '♛', title: 'reward tiers', desc: 'Postcards, merch, signed vinyl, zoom calls, meet and greets. You set the milestones.' },
               { icon: '▶', title: 'live to your community', desc: 'Go live on YouTube or Twitch and embed it inside Flock. Fans watch and chat inside your community, not on someone else\'s platform.' },
             ].map(f => (
-              <div key={f.title} style={{ background: '#fff', border: '1px solid rgba(26,16,24,0.08)', borderRadius: 14, padding: 28, transition: 'all 0.2s' }}>
+              <div key={f.title} className="feature-card">
                 <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: '#C9922A', marginBottom: 14 }}>{f.icon}</div>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, color: '#1A1018' }}>{f.title}</div>
-                <div style={{ fontSize: 13, color: 'rgba(26,16,24,0.6)', lineHeight: 1.6 }}>{f.desc}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{f.title}</div>
+                <div style={{ fontSize: 13, color: 'rgba(245,239,230,0.5)', lineHeight: 1.6 }}>{f.desc}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS (cream) */}
-      <section style={{ padding: '100px 24px', background: '#F5EFE6', color: '#1A1018' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>how it works</div>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 56, color: '#1A1018' }}>up in minutes. yours forever.</h2>
-          {[
-            { num: '01', title: 'sign up and name your world', desc: 'Choose your community name, subdomain, colours, and what to call your fan currency. Takes 3 minutes.' },
-            { num: '02', title: 'swap your link in bio', desc: 'Replace your linktree, website link, and everything else with one URL. Fans join, post, earn, and check into shows - all in one place.' },
-            { num: '03', title: 'post, connect, reward', desc: 'Post to your community feed. Audio drops, polls, livestreams. Fans earn currency for engaging.' },
-            { num: '04', title: 'play the long game', desc: 'Fans climb your loyalty ladder. The ones who show up most earn the rewards that matter.' },
-          ].map((step, i) => (
-            <div key={step.num} style={{ display: 'flex', gap: 32, padding: '32px 0', borderBottom: i < 3 ? '1px solid rgba(26,16,24,0.1)' : 'none' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#8B1A2B', minWidth: 36, paddingTop: 4 }}>{step.num}</div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, color: '#1A1018' }}>{step.title}</div>
-                <div style={{ fontSize: 14, color: 'rgba(26,16,24,0.6)', lineHeight: 1.7 }}>{step.desc}</div>
-              </div>
+      {/* HOW IT WORKS */}
+      <section style={{ padding: '100px 24px', maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>how it works</div>
+        <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 56 }}>up in minutes. yours forever.</h2>
+        {[
+          { num: '01', title: 'sign up and name your world', desc: 'Choose your community name, subdomain, colours, and what to call your fan currency. Takes 3 minutes.' },
+          { num: '02', title: 'swap your link in bio', desc: 'Replace your linktree, website link, and everything else with one URL. Fans join, post, earn, and check into shows - all in one place.' },
+          { num: '03', title: 'post, connect, reward', desc: 'Post to your community feed. Audio drops, polls, livestreams. Fans earn currency for engaging.' },
+          { num: '04', title: 'play the long game', desc: 'Fans climb your loyalty ladder. The ones who show up most earn the rewards that matter.' },
+        ].map((step, i) => (
+          <div key={step.num} style={{ display: 'flex', gap: 32, padding: '32px 0', borderBottom: i < 3 ? '1px solid rgba(245,239,230,0.08)' : 'none' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: '#8B1A2B', minWidth: 36, paddingTop: 4 }}>{step.num}</div>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{step.title}</div>
+              <div style={{ fontSize: 14, color: 'rgba(245,239,230,0.5)', lineHeight: 1.7 }}>{step.desc}</div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </section>
 
-      {/* PRICING (cream, slightly warmer) */}
-      <section id="pricing" style={{ padding: '100px 24px', background: '#EFE7DB', color: '#1A1018', borderTop: '1px solid rgba(26,16,24,0.08)' }}>
+      {/* PRICING */}
+      <section id="pricing" style={{ padding: '100px 24px', background: 'rgba(245,239,230,0.02)', borderTop: '1px solid rgba(245,239,230,0.06)' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#8B1A2B', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 20 }}>pricing</div>
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16, color: '#1A1018' }}>
-            instagram is free.<br /><span style={{ color: 'rgba(26,16,24,0.45)' }}>so is handing them everything.</span>
+          <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-1px', marginBottom: 16 }}>
+            instagram is free.<br /><span style={{ color: 'rgba(245,239,230,0.35)' }}>so is handing them everything.</span>
           </h2>
-          <p style={{ fontSize: 16, color: 'rgba(26,16,24,0.65)', lineHeight: 1.8, maxWidth: 520, margin: '0 auto 48px' }}>
+          <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.6)', lineHeight: 1.8, maxWidth: 520, margin: '0 auto 48px' }}>
             Every post you make on their platform makes them richer and you more dependent. You're paying with your fan list, your relationship data, and your leverage.<br /><br />
-            Flock is <strong style={{ color: '#1A1018' }}>free while we're in beta</strong>. In exchange, you own everything.
+            Flock is <strong style={{ color: '#F5EFE6' }}>free while we're in beta</strong>. In exchange, you own everything.
           </p>
 
-          <div style={{ background: '#fff', border: '1px solid rgba(139,26,43,0.25)', borderRadius: 16, padding: '40px', marginBottom: 32, boxShadow: '0 4px 24px rgba(26,16,24,0.06)' }}>
+          <div style={{ background: 'rgba(139,26,43,0.12)', border: '1px solid rgba(139,26,43,0.3)', borderRadius: 16, padding: '40px', marginBottom: 32 }}>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 16 }}>beta access</div>
-            <div style={{ fontSize: 56, fontWeight: 700, letterSpacing: '-2px', color: '#1A1018', marginBottom: 8 }}>free</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'rgba(26,16,24,0.55)', marginBottom: 28 }}>for independent artists while we build</div>
+            <div style={{ fontSize: 56, fontWeight: 700, letterSpacing: '-2px', color: '#F5EFE6', marginBottom: 8 }}>free</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'rgba(245,239,230,0.5)', marginBottom: 28 }}>for independent artists while we build</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 32, textAlign: 'left' }}>
               {['your own community', 'custom fan currency', 'show check-ins', 'reward tiers', 'member feeds', 'direct email digest', 'fan map', 'livestream embeds', 'no revenue share. ever'].map(f => (
-                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(26,16,24,0.75)' }}>
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(245,239,230,0.7)' }}>
                   <span style={{ color: '#8B1A2B', fontFamily: "'DM Mono', monospace" }}>✓</span> {f}
                 </div>
               ))}
@@ -801,31 +792,29 @@ export default function StartClient({ showForm: initialShowForm = false }) {
             <button onClick={() => setShowForm(true)} className="cta-btn" style={{ fontSize: 16, padding: '16px 48px' }}>launch your community ✦</button>
           </div>
 
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(26,16,24,0.4)' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>
             pricing coming post-beta · early artists get a founder rate · no credit card now
           </div>
         </div>
       </section>
 
-      {/* MANIFESTO CTA (cream) */}
-      <section style={{ padding: '120px 24px', textAlign: 'center', background: '#F5EFE6', color: '#1A1018' }}>
-        <div style={{ maxWidth: 740, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-1px', marginBottom: 28, color: '#1A1018' }}>
-            the best fan relationships<br /><span style={{ color: 'rgba(26,16,24,0.4)' }}>were never built on social media.</span>
-          </h2>
-          <p style={{ fontSize: 16, color: 'rgba(26,16,24,0.6)', lineHeight: 1.8, marginBottom: 20 }}>
-            They were built in living rooms. At intimate shows. Through email lists and forums and MySpace pages and zines. Direct. Unmediated. Real.
-          </p>
-          <p style={{ fontSize: 16, color: 'rgba(26,16,24,0.6)', lineHeight: 1.8, marginBottom: 52 }}>
-            Flock is the infrastructure for that. A place you own. Fans who chose to be there. A community that grows because people give a damn, not because an algorithm decided to show your post today.
-          </p>
-          <button onClick={() => setShowForm(true)} className="cta-btn" style={{ fontSize: 16, padding: '18px 48px' }}>build your community ✦</button>
-          <div style={{ marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(26,16,24,0.4)' }}>free in beta · no credit card needed</div>
-        </div>
+      {/* MANIFESTO CTA */}
+      <section style={{ padding: '120px 24px', textAlign: 'center', maxWidth: 740, margin: '0 auto' }}>
+        <h2 style={{ fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 700, lineHeight: 1.15, letterSpacing: '-1px', marginBottom: 28 }}>
+          the best fan relationships<br /><span style={{ color: 'rgba(245,239,230,0.35)' }}>were never built on social media.</span>
+        </h2>
+        <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.8, marginBottom: 20 }}>
+          They were built in living rooms. At intimate shows. Through email lists and forums and MySpace pages and zines. Direct. Unmediated. Real.
+        </p>
+        <p style={{ fontSize: 16, color: 'rgba(245,239,230,0.5)', lineHeight: 1.8, marginBottom: 52 }}>
+          Flock is the infrastructure for that. A place you own. Fans who chose to be there. A community that grows because people give a damn, not because an algorithm decided to show your post today.
+        </p>
+        <button onClick={() => setShowForm(true)} className="cta-btn" style={{ fontSize: 16, padding: '18px 48px' }}>build your community ✦</button>
+        <div style={{ marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'rgba(245,239,230,0.3)' }}>free in beta · no credit card needed</div>
       </section>
 
-      {/* FOOTER (back to dark for anchor) */}
-      <footer style={{ borderTop: '1px solid rgba(245,239,230,0.06)', padding: '40px', background: '#1A1018', color: '#F5EFE6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+      {/* FOOTER */}
+      <footer style={{ borderTop: '1px solid rgba(245,239,230,0.06)', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>flock ✦</div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'rgba(245,239,230,0.3)', letterSpacing: '0.5px' }}>
           fan communities for independent artists

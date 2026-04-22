@@ -60,7 +60,7 @@ function TenantRow({ tenant, onSelect, onDelete }) {
           style={{ padding: '6px 12px', background: 'transparent', color: RUBY, border: `1px solid ${RUBY}44`, borderRadius: 8, fontSize: 11, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
           visit ↗
         </a>
-        <a href={`https://fans-flock.com/dashboard?slug=${tenant.slug}&superadmin=1`} target="_blank" rel="noopener noreferrer"
+        <a href={`https://${tenant.slug}.fans-flock.com/dashboard?superadmin=1`} target="_blank" rel="noopener noreferrer"
           style={{ padding: '6px 12px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
           manage ⚡
         </a>
@@ -105,18 +105,6 @@ function TenantDetail({ tenant, supabase, onBack }) {
       (configRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
       setConfig(cfg);
       setConfigEdits(cfg);
-
-      // Fetch emails via server API route (requires service role)
-      const fanIds = new Set((fansRes.data || []).map(f => f.id));
-      const { data: { session } } = await supabase.auth.getSession();
-      const emailRes = await fetch('/api/admin/user-emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds: [...fanIds], requestingUserId: session?.user?.id }),
-      });
-      const { emails: emailMap = {} } = await emailRes.json();
-      setFans((fansRes.data || []).map(f => ({ ...f, email: emailMap[f.id] || null })));
-
       setLoading(false);
     })();
   }, [tenant.id]);
@@ -233,19 +221,18 @@ function TenantDetail({ tenant, supabase, onBack }) {
                 {fans.length === 0 ? <Mono style={{ padding: 24, textAlign: 'center' }}>no fans yet</Mono> : fans.map((f, i) => (
                   <div key={f.id} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: i < fans.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                     <div style={{ width: 30, height: 30, borderRadius: 6, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>{f.display_name?.charAt(0)?.toLowerCase()}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: INK }}>{f.display_name?.toLowerCase()}</div>
-                      <Mono size={9} color={SLATE + '99'} style={{ marginTop: 2 }}>{f.email || '—'}</Mono>
-                      <Mono size={9} color={SLATE + '66'} style={{ marginTop: 1 }}>{[f.signup_city, f.signup_country].filter(Boolean).join(', ') || 'location unknown'}{f.created_at ? ` · joined ${new Date(f.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}</Mono>
+                      <Mono size={9} color={SLATE + '77'}>{f.city || ''}{f.city ? ' · ' : ''}{f.role}</Mono>
                     </div>
-                    <Mono size={11} color={WARM_GOLD} style={{ minWidth: 50, textAlign: 'right', flexShrink: 0 }}>{f.stamp_count || 0} {currencyIcon}</Mono>
+                    <Mono size={11} color={WARM_GOLD} style={{ minWidth: 50, textAlign: 'right' }}>{f.stamp_count || 0} {currencyIcon}</Mono>
                     <select value={f.role} onChange={e => updateFanRole(f, e.target.value)}
-                      style={{ padding: '4px 8px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 11, color: INK, fontFamily: "'DM Mono', monospace", cursor: 'pointer', flexShrink: 0 }}>
+                      style={{ padding: '4px 8px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 11, color: INK, fontFamily: "'DM Mono', monospace", cursor: 'pointer' }}>
                       <option value="fan">fan</option>
                       <option value="band">band</option>
                       <option value="admin">admin</option>
                     </select>
-                    <button onClick={() => awardPoints(f, 10)} style={{ padding: '4px 8px', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 10, color: WARM_GOLD, cursor: 'pointer', fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>+10</button>
+                    <button onClick={() => awardPoints(f, 10)} style={{ padding: '4px 8px', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 10, color: WARM_GOLD, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>+10</button>
                   </div>
                 ))}
               </div>
@@ -348,10 +335,6 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [search, setSearch] = useState('');
-  const [allFans, setAllFans] = useState([]);
-  const [fansLoading, setFansLoading] = useState(false);
-  const [showAllFans, setShowAllFans] = useState(false);
-  const [fanSearch, setFanSearch] = useState('');
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -385,31 +368,6 @@ export default function SuperAdmin() {
       posts: enriched.reduce((s, t) => s + (t.post_count || 0), 0),
     });
     setLoading(false);
-  };
-
-
-  const loadAllFans = async () => {
-    setFansLoading(true);
-    const { data: profiles } = await supabase.from('profiles').select('*').eq('role', 'fan').order('created_at', { ascending: false });
-    if (!profiles) { setFansLoading(false); return; }
-
-    // Get tenant names
-    const { data: tenantList } = await supabase.from('tenants').select('id, name, slug');
-    const tenantMap = {};
-    (tenantList || []).forEach(t => { tenantMap[t.id] = t; });
-
-    // Get emails via server API route
-    const fanIds = new Set(profiles.map(p => p.id));
-    const { data: { session } } = await supabase.auth.getSession();
-    const emailRes = await fetch('/api/admin/user-emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userIds: [...fanIds], requestingUserId: session?.user?.id }),
-    });
-    const { emails: emailMap = {} } = await emailRes.json();
-
-    setAllFans(profiles.map(p => ({ ...p, email: emailMap[p.id] || null, tenant: tenantMap[p.tenant_id] || null })));
-    setFansLoading(false);
   };
 
   const deleteTenant = async (id) => {
@@ -487,50 +445,6 @@ export default function SuperAdmin() {
               ) : filtered.map(t => (
                 <TenantRow key={t.id} tenant={t} onSelect={setSelectedTenant} onDelete={deleteTenant} />
               ))}
-            </div>
-
-            {/* All Signups */}
-            <div style={{ marginTop: 32 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <H size={18}>all signups</H>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  {showAllFans && <input type="text" value={fanSearch} onChange={e => setFanSearch(e.target.value)} placeholder="search name, email, city..." style={{ padding: '6px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", width: 220 }} />}
-                  <Btn onClick={() => { setShowAllFans(!showAllFans); if (!showAllFans && allFans.length === 0) loadAllFans(); }} variant="ghost" style={{ fontSize: 11 }}>
-                    {showAllFans ? 'hide' : `show all ${stats.fans} fans`}
-                  </Btn>
-                </div>
-              </div>
-              {showAllFans && (
-                <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-                  {fansLoading ? (
-                    <div style={{ padding: 40, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading fans...</div>
-                  ) : (
-                    <>
-                      <div style={{ padding: '10px 16px', background: BORDER + '44', display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr 0.6fr 0.5fr', gap: 12 }}>
-                        {['fan', 'email', 'location', 'joined', 'points'].map(h => (
-                          <Mono key={h} size={9} style={{ letterSpacing: '1px', textTransform: 'uppercase' }}>{h}</Mono>
-                        ))}
-                      </div>
-                      {allFans.filter(f => {
-                        if (!fanSearch) return true;
-                        const q = fanSearch.toLowerCase();
-                        return f.display_name?.toLowerCase().includes(q) || f.email?.toLowerCase().includes(q) || f.signup_city?.toLowerCase().includes(q) || f.signup_country?.toLowerCase().includes(q) || f.tenant?.name?.toLowerCase().includes(q);
-                      }).map((f, i, arr) => (
-                        <div key={f.id} style={{ padding: '11px 16px', display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr 0.6fr 0.5fr', gap: 12, alignItems: 'center', borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? 'transparent' : BORDER + '22' }}>
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 500, color: INK }}>{f.display_name?.toLowerCase()}</div>
-                            <Mono size={9} color={RUBY + '99'}>{f.tenant?.name?.toLowerCase() || '—'}</Mono>
-                          </div>
-                          <Mono size={10} color={SLATE} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.email || '—'}</Mono>
-                          <Mono size={10} color={SLATE}>{[f.signup_city, f.signup_country].filter(Boolean).join(', ') || '—'}</Mono>
-                          <Mono size={10} color={SLATE}>{f.created_at ? new Date(f.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '—'}</Mono>
-                          <Mono size={11} color={WARM_GOLD}>{f.stamp_count || 0}</Mono>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           </>
         )}

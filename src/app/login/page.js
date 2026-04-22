@@ -21,23 +21,13 @@ export default function LoginPage() {
     const sb = getSupabase();
     const { data, error: signInErr } = await sb.auth.signInWithPassword({ email: email.trim(), password });
     if (signInErr) { setError(signInErr.message); setLoading(false); return; }
-    // Super admin goes straight to admin panel
-    if (data.user.id === '5cdcf898-6bda-42b7-860e-0964562c9c22') {
-      window.location.href = '/admin';
-      return;
+    const { data: profiles } = await sb.from('profiles').select('tenant_id, tenants(slug)').eq('id', data.user.id).limit(1);
+    const slug = profiles?.[0]?.tenants?.slug;
+    if (slug) {
+      window.location.href = `https://${slug}.${APP_DOMAIN}`;
+    } else {
+      window.location.href = `/start`;
     }
-    const { data: profiles } = await sb.from('profiles').select('tenant_id, role, created_at').eq('id', data.user.id).order('created_at', { ascending: false });
-    // Prefer admin/band role, otherwise most recent
-    const profile = profiles?.find(p => p.role === 'admin' || p.role === 'band') || profiles?.[0];
-    const tenantId = profile?.tenant_id;
-    if (tenantId) {
-      const { data: tenant } = await sb.from('tenants').select('slug').eq('id', tenantId).single();
-      if (tenant?.slug) {
-        window.location.href = `https://${tenant.slug}.${APP_DOMAIN}`;
-        return;
-      }
-    }
-    window.location.href = `/start`;
   };
 
   const sendReset = async () => {

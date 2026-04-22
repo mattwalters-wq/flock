@@ -129,7 +129,7 @@ function LinkPreviewCard({ url }) {
 
 // ─── COMMENTS ────────────────────────────────────────────────────────────────
 
-function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUserId, currentProfile, tenantId, onClose, onCommentAdded, onViewProfile, onStampsAwarded }) {
+function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenantId, onClose, onCommentAdded, onViewProfile }) {
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
@@ -166,24 +166,6 @@ function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUse
       setText(''); setReplyTo(null);
       await load();
       if (onCommentAdded) onCommentAdded();
-      if (currentProfile?.role === 'fan') {
-        supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'comment_created', p_tenant_id: tenantId }).then(() => onStampsAwarded?.()).catch(() => {});
-      }
-      // Notify post author if artist commented on fan post, or fan commented on artist post
-      if (postAuthorId && postAuthorId !== currentUserId) {
-        fetch('/api/email/comment-notification', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tenantId,
-            commentAuthorName: currentProfile?.display_name,
-            commentAuthorRole: currentProfile?.role,
-            commentContent: text.trim(),
-            postAuthorId,
-            postContent,
-          }),
-        }).catch(() => {});
-      }
     }
     setPosting(false);
   };
@@ -250,7 +232,7 @@ function CommentsPanel({ postId, postAuthorId, postContent, supabase, currentUse
 
 // ─── POST CARD ───────────────────────────────────────────────────────────────
 
-function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, currencyName, currencyIcon, onRefresh, onViewProfile, onStampsAwarded }) {
+function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, currencyName, currencyIcon, onRefresh, onViewProfile }) {
   const [liked, setLiked] = useState(post.user_has_liked || false);
   const [likeCount, setLikeCount] = useState(post.like_count || 0);
   const [showComments, setShowComments] = useState(false);
@@ -277,9 +259,9 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
     setLiked(nl); setLikeCount(c => c + (nl ? 1 : -1));
     if (nl) await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUserId, tenant_id: tenantId });
     else await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', currentUserId);
-    // Award stamp for liking (fans only, not artist liking their own community)
-    if (nl && currentUserId !== post.author_id && currentProfile?.role === 'fan') {
-      supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'post_liked', p_tenant_id: tenantId }).then(() => onStampsAwarded?.()).catch(() => {});
+    // Award stamp for liking (stamping a post)
+    if (nl && currentUserId !== post.author_id) {
+      supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'post_liked', p_tenant_id: tenantId }).catch(() => {});
     }
   };
 
@@ -423,7 +405,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
 
       {/* Comments */}
       {showComments && (
-        <CommentsPanel postId={post.id} postAuthorId={post.author_id} postContent={post.content} supabase={supabase} currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId} onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)} onViewProfile={onViewProfile} onStampsAwarded={onStampsAwarded} />
+        <CommentsPanel postId={post.id} supabase={supabase} currentUserId={currentUserId} currentProfile={currentProfile} tenantId={tenantId} onClose={() => setShowComments(false)} onCommentAdded={() => setCommentCount(c => c + 1)} onViewProfile={onViewProfile} />
       )}
     </>
   );
@@ -477,7 +459,6 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(profile?.avatar_url || null);
   const [file, setFile] = useState(null);
-  const [uploadError, setUploadError] = useState('');
   const [emailNotifs, setEmailNotifs] = useState(profile?.email_notifications !== false);
 
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
@@ -487,16 +468,12 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
     setSaving(true);
     let avatarUrl = profile?.avatar_url || null;
     if (file) {
-      const ext = file.name.split('.').pop().toLowerCase();
-      const path = `avatars/${tenantId}/${profile.id}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
-      if (upErr) {
-        console.error('[avatar upload]', upErr);
-        alert(`photo upload failed: ${upErr.message}`);
-        setSaving(false); return;
+      const ext = file.name.split('.').pop();
+      const { error: upErr } = await supabase.storage.from('media').upload(`avatars/${tenantId}/${profile.id}.${ext}`, file, { cacheControl: '3600', upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(`avatars/${tenantId}/${profile.id}.${ext}`);
+        avatarUrl = urlData?.publicUrl;
       }
-      const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-      avatarUrl = urlData?.publicUrl;
     }
     await onSave({ display_name: displayName, bio, city, avatar_url: avatarUrl, email_notifications: emailNotifs });
     setSaving(false); onClose();
@@ -508,7 +485,7 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
         <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, marginBottom: 20, textTransform: 'lowercase' }}>edit profile</div>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <label style={{ cursor: 'pointer', display: 'inline-block', position: 'relative' }}>
-            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 5 * 1024 * 1024) { setUploadError('image must be under 5MB'); return; } setUploadError(''); setFile(f); const r = new FileReader(); r.onload = ev => setPreview(ev.target.result); r.readAsDataURL(f); }} style={{ display: 'none' }} />
+            <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 2 * 1024 * 1024) { alert('image must be under 2MB'); return; } setFile(f); const r = new FileReader(); r.onload = ev => setPreview(ev.target.result); r.readAsDataURL(f); }} style={{ display: 'none' }} />
             {preview ? <img src={preview} alt="" style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', border: `2px solid ${BORDER}` }} /> : <div style={{ width: 72, height: 72, borderRadius: 10, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: SLATE }}>{displayName?.charAt(0)?.toLowerCase() || '○'}</div>}
             <div style={{ position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: '50%', background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>✎</div>
           </label>
@@ -532,7 +509,6 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
             <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: emailNotifs ? 22 : 2, transition: 'left 0.2s' }} />
           </button>
         </div>
-        {uploadError && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--ruby)', marginBottom: 12 }}>{uploadError}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
           <button onClick={save} disabled={saving || !displayName.trim()} style={{ padding: '10px 20px', background: INK, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: saving || !displayName.trim() ? 0.5 : 1 }}>
@@ -546,87 +522,67 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
 
 // ─── CLAIM REWARD MODAL ──────────────────────────────────────────────────────
 
-function ClaimRewardModal({ level, supabase, userId, fanEmail, fanName, tenantId, onClaimed, onClose }) {
+function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClose }) {
   const [name, setName] = useState(''); const [address, setAddress] = useState('');
   const [city, setCity] = useState(''); const [country, setCountry] = useState('');
   const [postcode, setPostcode] = useState(''); const [submitting, setSubmitting] = useState(false);
-  const needsShipping = level.reward && ['postcard', 'merch', 'vinyl', 'cd', 'poster', 'package'].includes(level.reward);
-  const isShippingUpdate = !!level.updateShipping;
+  const needsShipping = ['tshirt', 'vinyl'].includes(level.reward);
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const BORDER = 'var(--border)';
   const SLATE = 'var(--slate)'; const WARM_GOLD = 'var(--warm-gold)'; const SURFACE = 'var(--surface)';
   const RUBY = 'var(--ruby)';
 
   const claim = async () => {
-    if (submitting) return;
     setSubmitting(true);
-
-    // Guard against duplicate claims
-    if (!isShippingUpdate) {
-      const { data: existing } = await supabase.from('reward_claims').select('id').eq('user_id', userId).eq('tenant_id', tenantId).eq('level_key', level.key).limit(1);
-      if (existing?.length > 0) { onClaimed(); return; }
-    }
-    const shipping = { name, address, city, country, postcode };
-
-    if (isShippingUpdate) {
-      await supabase.from('reward_claims').update({
-        shipping_name: name, shipping_address: address,
-        shipping_city: city, shipping_country: country, shipping_postcode: postcode,
-      }).eq('id', level.claimId);
-      fetch('/api/email/reward-claimed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        tenantId, fanName, fanEmail, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name, shipping,
-      }) }).catch(() => {});
-    } else {
-      const shippingData = needsShipping ? shipping : null;
-      await supabase.from('reward_claims').insert({
-        user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending',
-        shipping_name: shippingData?.name || null, shipping_address: shippingData?.address || null,
-        shipping_city: shippingData?.city || null, shipping_country: shippingData?.country || null, shipping_postcode: shippingData?.postcode || null,
-      });
-      fetch('/api/email/reward-claimed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        tenantId, fanName, fanEmail, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
-        shipping: shippingData?.address ? shippingData : null,
-      }) }).catch(() => {});
-      if (fanEmail) {
-        fetch('/api/email/reward-confirmed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-          tenantId, fanEmail, fanName, rewardType: level.reward, rewardDesc: level.rewardDesc, levelName: level.name,
-          shipping: shippingData?.address ? shippingData : null,
-        }) }).catch(() => {});
-      }
-    }
+    await supabase.from('reward_claims').insert({
+      user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending',
+      shipping_name: needsShipping ? name : null, shipping_address: needsShipping ? address : null,
+      shipping_city: needsShipping ? city : null, shipping_country: needsShipping ? country : null, shipping_postcode: needsShipping ? postcode : null,
+    });
     onClaimed();
   };
 
-  const F = ({ label, val, set, placeholder }) => (
-    <div style={{ marginBottom: 10 }}>
-      <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 4 }}>{label}</label>
-      <input type="text" value={val} onChange={e => set(e.target.value)} placeholder={placeholder} style={{ width: '100%', padding: '9px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
-    </div>
-  );
+  const fieldStyle = { width: '100%', padding: '9px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' };
+  const labelStyle = { fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 4 };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,26,26,0.6)', backdropFilter: 'blur(8px)', padding: 20 }} onClick={onClose}>
       <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>{level.icon}</div>
-          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>{isShippingUpdate ? 'add shipping address' : 'claim your reward'}</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>claim your reward</div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD, marginTop: 6 }}>{level.name} · {level.stamps} ✦</div>
         </div>
-        {!isShippingUpdate && <div style={{ background: SURFACE, borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${BORDER}` }}>
+        <div style={{ background: SURFACE, borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${BORDER}` }}>
           <div style={{ fontSize: 13, color: INK, lineHeight: 1.5 }}>{level.rewardDesc}</div>
-        </div>}
-        {(needsShipping || isShippingUpdate) && <>
-          <F label="full name" val={name} set={setName} placeholder="your name" />
-          <F label="address" val={address} set={setAddress} placeholder="street address" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-            <F label="city" val={city} set={setCity} placeholder="city" />
-            <F label="postcode" val={postcode} set={setPostcode} placeholder="postcode" />
+        </div>
+        {needsShipping && <>
+          <div style={{ marginBottom: 10 }}>
+            <label style={labelStyle}>full name</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="your name" style={fieldStyle} />
           </div>
-          <F label="country" val={country} set={setCountry} placeholder="country" />
+          <div style={{ marginBottom: 10 }}>
+            <label style={labelStyle}>address</label>
+            <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="street address" style={fieldStyle} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>city</label>
+              <input type="text" value={city} onChange={e => setCity(e.target.value)} placeholder="city" style={fieldStyle} />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={labelStyle}>postcode</label>
+              <input type="text" value={postcode} onChange={e => setPostcode(e.target.value)} placeholder="postcode" style={fieldStyle} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={labelStyle}>country</label>
+            <input type="text" value={country} onChange={e => setCountry(e.target.value)} placeholder="country" style={fieldStyle} />
+          </div>
         </>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
-          <button onClick={claim} disabled={submitting || ((needsShipping || isShippingUpdate) && (!name || !address || !city || !country || !postcode))} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (submitting || ((needsShipping || isShippingUpdate) && (!name || !address || !city || !country || !postcode))) ? 0.5 : 1 }}>
-            {submitting ? 'saving...' : isShippingUpdate ? 'save address ✦' : 'claim ✦'}
+          <button onClick={claim} disabled={submitting || (needsShipping && (!name || !address || !city || !country || !postcode))} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }}>
+            {submitting ? 'claiming...' : 'claim ✦'}
           </button>
         </div>
       </div>
@@ -650,121 +606,27 @@ function MemberHeader({ member, memberMap }) {
 
 // ─── MAIN FLOCK APP ──────────────────────────────────────────────────────────
 
-const SUPER_ADMIN_ID = '5cdcf898-6bda-42b7-860e-0964562c9c22';
-
-// ─── MESSAGE THREAD COMPONENT ────────────────────────────────────────────────
-
-function MessageThread({ messages, user, recipientId, otherName, otherInitial, newMessage, setNewMessage, sendingMessage, sendMessage, messageImageFile, setMessageImageFile, messageImagePreview, setMessageImagePreview, onBack, INK, CREAM, RUBY, SLATE, SURFACE, BORDER }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '70vh', background: SURFACE, borderRadius: 16, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10, background: CREAM, flexShrink: 0 }}>
-        {onBack && <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE, fontSize: 20, padding: '0 4px 0 0', lineHeight: 1 }}>←</button>}
-        <div style={{ width: 32, height: 32, borderRadius: 16, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{otherInitial}</div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: INK }}>{otherName}</div>
-      </div>
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}
-        ref={el => { if (el) { el.scrollTop = el.scrollHeight; } }}>
-        {messages.length === 0 ? (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 40 }}>
-            <div style={{ width: 52, height: 52, borderRadius: 26, background: CREAM, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✉</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, textAlign: 'center' }}>start the conversation</div>
-          </div>
-        ) : messages.map((m, i) => {
-          const isMe = m.sender_id === user?.id;
-          const prev = messages[i - 1];
-          const showTime = !prev || (new Date(m.created_at) - new Date(prev.created_at)) > 5 * 60 * 1000;
-          const isTemp = m.id?.toString().startsWith('temp-');
-          return (
-            <div key={m.id}>
-              {showTime && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66', textAlign: 'center', margin: '10px 0 6px' }}>
-                {new Date(m.created_at).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}
-              </div>}
-              <div style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', alignItems: 'flex-end', gap: 6, marginBottom: 2 }}>
-                {!isMe && <div style={{ width: 26, height: 26, borderRadius: 13, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, flexShrink: 0 }}>{otherInitial}</div>}
-                <div style={{ maxWidth: '72%', background: isMe ? RUBY : CREAM, color: isMe ? CREAM : INK, borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px', padding: '9px 14px', fontSize: 14, lineHeight: 1.45, opacity: isTemp ? 0.65 : 1 }}>
-                  {m.content && <div>{m.content}</div>}
-                  {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '100%', borderRadius: 10, marginTop: m.content ? 6 : 0, display: 'block' }} />}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {/* Input */}
-      <div style={{ padding: '10px 12px', borderTop: `1px solid ${BORDER}`, background: CREAM, display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-        {messageImagePreview && (
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            <img src={messageImagePreview} alt="" style={{ height: 48, borderRadius: 8 }} />
-            <button onClick={() => { setMessageImageFile(null); setMessageImagePreview(null); }} style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: 8, background: RUBY, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-          </div>
-        )}
-        <label style={{ cursor: 'pointer', flexShrink: 0, fontSize: 20, lineHeight: 1, opacity: 0.6 }}>
-          📷
-          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (f) { setMessageImageFile(f); const r = new FileReader(); r.onload = ev => setMessageImagePreview(ev.target.result); r.readAsDataURL(f); } }} />
-        </label>
-        <input value={newMessage} onChange={e => setNewMessage(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && recipientId) { e.preventDefault(); sendMessage(recipientId); } }}
-          placeholder={`message ${otherName}...`}
-          style={{ flex: 1, background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 22, padding: '9px 16px', fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
-        <button onClick={() => recipientId && sendMessage(recipientId)}
-          disabled={sendingMessage || (!newMessage.trim() && !messageImageFile)}
-          style={{ width: 38, height: 38, borderRadius: 19, background: (newMessage.trim() || messageImageFile) ? RUBY : BORDER, color: CREAM, border: 'none', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.15s' }}>
-          {sendingMessage ? '·' : '↑'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function FlockApp({ tenantId: propTenantId }) {
   const { user, profile, signOut, supabase, tenantId: authTenantId, refreshProfile, updateProfile } = useAuth();
   const tenantId = propTenantId || authTenantId;
 
-  const isSuperAdmin = user?.id === SUPER_ADMIN_ID;
-  const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
-  const isGodMode = isSuperAdmin && superAdminParam;
-
   // Tenant config
-  const [tenant, setTenant] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
-      const host = window.location.hostname;
-      if (host.endsWith(`.${APP_DOMAIN}`)) {
-        const slug = host.replace(`.${APP_DOMAIN}`, '');
-        const cachedName = localStorage.getItem(`flock_name_${slug}`);
-        if (cachedName) return { name: cachedName, slug };
-      }
-    } catch (e) {}
-    return null;
-  });
+  const [tenant, setTenant] = useState(null);
   const [members, setMembers] = useState([]);
   const [memberMap, setMemberMap] = useState({});
   const [currencyName, setCurrencyName] = useState('points');
   const [currencyIcon, setCurrencyIcon] = useState('✦');
   const [logoUrl, setLogoUrl] = useState(null);
-  const [backgroundUrl, setBackgroundUrl] = useState(null);
   const [STAMP_LEVELS, setStampLevels] = useState(DEFAULT_LEVELS);
 
   // UI state
   const [mainTab, setMainTab] = useState('feed');
-  const [messages, setMessages] = useState([]);
-  const [messageThreads, setMessageThreads] = useState([]);
-  const [activeThread, setActiveThread] = useState(null);
-  const [newMessage, setNewMessage] = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const [messageImageFile, setMessageImageFile] = useState(null);
-  const [messageImagePreview, setMessageImagePreview] = useState(null);
   const [feedView, setFeedView] = useState('community');
   const [feedTagFilter, setFeedTagFilter] = useState(null);
 
   // Data
   const [posts, setPosts] = useState([]);
   const [shows, setShows] = useState({});
-  const [linkTiles, setLinkTiles] = useState([]);
   const [stampActions, setStampActions] = useState([]);
   const [topCollectors, setTopCollectors] = useState([]);
   const [rewardClaims, setRewardClaims] = useState([]);
@@ -779,9 +641,6 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [postImagePreviews, setPostImagePreviews] = useState([]);
   const [postAudio, setPostAudio] = useState(null);
   const [postAudioName, setPostAudioName] = useState(null);
-  const [postVideo, setPostVideo] = useState(null);
-  const [postVideoName, setPostVideoName] = useState(null);
-  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [postTag, setPostTag] = useState('general');
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -815,59 +674,30 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (!supabase || !tenantId) return;
     (async () => {
       const { data: t } = await supabase.from('tenants').select('*').eq('id', tenantId).single();
-      if (t) {
-        setTenant(t);
-        // Cache tenant name for flash-free loading
-        try {
-          const host = window.location.hostname;
-          const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
-          if (host.endsWith(`.${APP_DOMAIN}`) && t.name) {
-            const slug = host.replace(`.${APP_DOMAIN}`, '');
-            localStorage.setItem(`flock_name_${slug}`, t.name);
-          }
-        } catch (e) {}
-      }
+      if (t) setTenant(t);
 
-      const [cfgRes, memRes, tiersRes, tilesRes] = await Promise.all([
+      const [cfgRes, memRes, tiersRes] = await Promise.all([
         supabase.from('tenant_config').select('key, value').eq('tenant_id', tenantId),
         supabase.from('tenant_members').select('*').eq('tenant_id', tenantId).order('display_order'),
         supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('sort_order'),
-        supabase.from('external_links').select('*').eq('tenant_id', tenantId).order('sort_order'),
       ]);
-      setLinkTiles(tilesRes.data || []);
 
       const cfg = {};
       (cfgRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
       if (cfg.currency_name) setCurrencyName(cfg.currency_name);
       if (cfg.currency_icon) setCurrencyIcon(cfg.currency_icon);
       if (cfg.logo_url) setLogoUrl(cfg.logo_url);
-      if (cfg.background_url) setBackgroundUrl(cfg.background_url);
       // Apply colours + font client-side
       if (typeof document !== 'undefined') {
-        if (cfg.color_ruby) {
-          document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
-        }
-        if (cfg.color_cream) {
-          document.documentElement.style.setProperty('--cream', cfg.color_cream);
-        }
+        if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
+        if (cfg.color_cream) document.documentElement.style.setProperty('--cream', cfg.color_cream);
+        if (cfg.color_ink) document.documentElement.style.setProperty('--ink', cfg.color_ink);
+        // Derive supporting colours from tenant palette
         if (cfg.color_ink) {
-          document.documentElement.style.setProperty('--ink', cfg.color_ink);
+          // --slate: ink at 60% opacity blended - use ink with transparency
           document.documentElement.style.setProperty('--slate', cfg.color_ink + '99');
+          // --border: ink at 15% opacity for subtle borders
           document.documentElement.style.setProperty('--border', cfg.color_ink + '26');
-        }
-        if (cfg.color_accent) {
-          document.documentElement.style.setProperty('--accent', cfg.color_accent);
-        }
-        // Cache all for flash-free loading next visit
-        const host = window.location.hostname;
-        const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
-        if (host.endsWith(`.${APP_DOMAIN}`)) {
-          const slug = host.replace(`.${APP_DOMAIN}`, '');
-          try {
-            const palette = { ruby: cfg.color_ruby, cream: cfg.color_cream, ink: cfg.color_ink, accent: cfg.color_accent };
-            localStorage.setItem(`flock_palette_${slug}`, JSON.stringify(palette));
-            if (cfg.color_cream) localStorage.setItem(`flock_cream_${slug}`, cfg.color_cream);
-          } catch (e) {}
         }
         if (cfg.color_cream) {
           // --surface: slightly darker than cream for card backgrounds
@@ -896,20 +726,8 @@ export function FlockApp({ tenantId: propTenantId }) {
     }
 
     // Geo capture
-    if (user && profile && (!profile.signup_ip || !profile.signup_lat)) {
+    if (user && profile && !profile.signup_ip) {
       fetch('/api/geo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, language: navigator.language }) }).catch(() => {});
-    }
-
-    // Daily login points - fans only, once per day per tenant
-    if (user && profile && profile.role === 'fan' && tenantId) {
-      const key = `flock_daily_login_${tenantId}_${user.id}`;
-      const today = new Date().toISOString().slice(0, 10);
-      const lastAwarded = localStorage.getItem(key);
-      if (lastAwarded !== today) {
-        supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'daily_login', p_tenant_id: tenantId })
-          .then(() => { localStorage.setItem(key, today); setTimeout(refreshProfile, 1000); })
-          .catch(() => {});
-      }
     }
   }, [supabase, tenantId]);
 
@@ -939,19 +757,7 @@ export function FlockApp({ tenantId: propTenantId }) {
         if (likes) likedIds = new Set(likes.map(l => l.post_id));
       }
 
-      // Fetch like and comment counts for all posts
-      const postIds = data.map(p => p.id);
-      let likeCounts = {}; let commentCounts = {};
-      if (postIds.length) {
-        const [likesRes, commentsRes] = await Promise.all([
-          supabase.from('post_likes').select('post_id').in('post_id', postIds),
-          supabase.from('comments').select('post_id').in('post_id', postIds),
-        ]);
-        (likesRes.data || []).forEach(l => { likeCounts[l.post_id] = (likeCounts[l.post_id] || 0) + 1; });
-        (commentsRes.data || []).forEach(c => { commentCounts[c.post_id] = (commentCounts[c.post_id] || 0) + 1; });
-      }
-
-      const mapped = data.map(p => ({ ...p, profiles: pmap[p.author_id] || null, user_has_liked: likedIds.has(p.id), like_count: likeCounts[p.id] || 0, comment_count: commentCounts[p.id] || 0 }));
+      const mapped = data.map(p => ({ ...p, profiles: pmap[p.author_id] || null, user_has_liked: likedIds.has(p.id) }));
       mapped.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
       setPosts(mapped);
     } catch (e) { console.error('fetchPosts error:', e); setPosts([]); }
@@ -976,7 +782,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (!supabase || !tenantId) return;
     const { data: actions } = await supabase.from('stamp_actions').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('points');
     if (actions) setStampActions(actions);
-    const { data: top } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).eq('role', 'fan').order('stamp_count', { ascending: false }).limit(10);
+    const { data: top } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10);
     if (top) setTopCollectors(top);
     if (user) {
       const { data: claims } = await supabase.from('reward_claims').select('*').eq('user_id', user.id).eq('tenant_id', tenantId);
@@ -991,112 +797,23 @@ export function FlockApp({ tenantId: propTenantId }) {
   }, [user, supabase, tenantId]);
 
   useEffect(() => { if (supabase && tenantId) fetchPosts(); }, [feedView, supabase, tenantId]);
-
-  const fetchMessages = async () => {
-    if (!supabase || !user || !tenantId) return;
-    if (isArtist) {
-      const { data: sent } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', user.id);
-      const { data: received } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('recipient_id', user.id);
-      const data = [...(sent || []), ...(received || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      if (data) {
-        const threadMap = {};
-        data.forEach(m => {
-          const otherId = m.sender_id === user.id ? m.recipient_id : m.sender_id;
-          if (!threadMap[otherId]) threadMap[otherId] = m;
-        });
-        const otherIds = Object.keys(threadMap);
-        let profileMap = {};
-        if (otherIds.length) {
-          const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', otherIds).eq('tenant_id', tenantId);
-          if (profiles) profiles.forEach(p => { profileMap[p.id] = p; });
-        }
-        const threads = Object.entries(threadMap).map(([otherId, lastMsg]) => ({
-          otherId, otherProfile: profileMap[otherId], lastMessage: lastMsg,
-          unread: !lastMsg.read_at && lastMsg.recipient_id === user.id,
-        })).sort((a, b) => new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at));
-        setMessageThreads(threads);
-        setUnreadMessages(threads.filter(t => t.unread).length);
-      }
-    } else {
-      const { data: artistProfile } = await supabase.from('profiles').select('id').eq('tenant_id', tenantId).in('role', ['admin', 'band']).limit(1).single();
-      if (artistProfile) {
-        const { data: sent } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', user.id).eq('recipient_id', artistProfile.id);
-        const { data: received } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', artistProfile.id).eq('recipient_id', user.id);
-        const all = [...(sent || []), ...(received || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        setMessages(all);
-        setActiveThread(artistProfile.id);
-        const unread = (received || []).filter(m => !m.read_at).length;
-        setUnreadMessages(unread);
-        if (unread > 0) await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('recipient_id', user.id).is('read_at', null);
-      }
-    }
-  };
-
-  const fetchThreadMessages = async (otherId) => {
-    if (!supabase || !user || !tenantId) return;
-    const { data: sent } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', user.id).eq('recipient_id', otherId);
-    const { data: received } = await supabase.from('messages').select('*').eq('tenant_id', tenantId).eq('sender_id', otherId).eq('recipient_id', user.id);
-    const all = [...(sent || []), ...(received || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    setMessages(all);
-    if ((received || []).some(m => !m.read_at)) {
-      await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('recipient_id', user.id).is('read_at', null);
-    }
-  };
-
-  const sendMessage = async (recipientId) => {
-    console.log('[sendMessage] called', { recipientId, activeThread, userId: user?.id, tenantId, content: newMessage });
-    if ((!newMessage.trim() && !messageImageFile) || sendingMessage || !user || !tenantId) {
-      console.log('[sendMessage] bailing on initial check', { hasText: !!newMessage.trim(), hasImage: !!messageImageFile, sendingMessage, hasUser: !!user, tenantId });
-      return;
-    }
-    if (!recipientId) {
-      console.error('[sendMessage] no recipientId!');
-      return;
-    }
-    setSendingMessage(true);
-    const tempMsg = { id: `temp-${Date.now()}`, sender_id: user.id, recipient_id: recipientId, tenant_id: tenantId, content: newMessage.trim() || null, image_url: null, read_at: null, created_at: new Date().toISOString() };
-    setMessages(prev => [...prev, tempMsg]);
-    const msgText = newMessage.trim();
-    setNewMessage('');
-    let imageUrl = null;
-    if (messageImageFile) {
-      const ext = messageImageFile.name.split('.').pop();
-      const path = `messages/${tenantId}/${user.id}/${Date.now()}.${ext}`;
-      const { data: up } = await supabase.storage.from('media').upload(path, messageImageFile, { upsert: true });
-      if (up) { const { data: url } = supabase.storage.from('media').getPublicUrl(path); imageUrl = url.publicUrl; }
-      setMessageImageFile(null); setMessageImagePreview(null);
-    }
-    const { error: insertErr } = await supabase.from('messages').insert({ sender_id: user.id, recipient_id: recipientId, tenant_id: tenantId, content: msgText || null, image_url: imageUrl, read_at: null });
-    if (insertErr) {
-      console.error('[sendMessage] insert error:', insertErr);
-      alert('Message failed: ' + insertErr.message + ' | code: ' + insertErr.code);
-      setSendingMessage(false);
-      return;
-    }
-    setSendingMessage(false);
-    fetchThreadMessages(recipientId);
-    fetch('/api/email/new-message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, senderId: user.id, recipientId, content: msgText }) }).catch(() => {});
-  };
-
   useEffect(() => {
     if (mainTab === 'shows') fetchShows();
     if (mainTab === 'points') fetchStampData();
-    if (mainTab === 'messages') fetchMessages();
     if (mainTab === 'you') refreshProfile();
     fetchNotifications();
   }, [mainTab]);
 
   // ── Post submission ───────────────────────────────────────────────────────
   const handlePost = async () => {
-    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !postVideo && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
+    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
     setPosting(true);
-    try {
 
     const canMember = profile?.role === 'band' && profile?.band_member === feedView;
     const canAdmin = profile?.role === 'admin';
     const feedType = (feedView === 'community' || feedView === 'highlights' || canMember || canAdmin) ? (feedView === 'highlights' ? 'community' : feedView) : 'community';
 
-    let imageUrl = null; let imageUrls = []; let audioUrl = null; let videoUrl = null;
+    let imageUrl = null; let imageUrls = []; let audioUrl = null;
     for (const img of postImages) {
       const ext = img.name.split('.').pop();
       const fn = `posts/${tenantId}/${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
@@ -1110,20 +827,10 @@ export function FlockApp({ tenantId: propTenantId }) {
       const { data: ud, error: ue } = await supabase.storage.from('media').upload(fn, postAudio, { cacheControl: '3600', upsert: false });
       if (!ue && ud) { const { data: u } = supabase.storage.from('media').getPublicUrl(fn); audioUrl = u?.publicUrl; }
     }
-    if (postVideo) {
-      setUploadingVideo(true);
-      const ext = postVideo.name.split('.').pop();
-      const fn = `videos/${tenantId}/${user.id}-${Date.now()}.${ext}`;
-      const { data: ud, error: ue } = await supabase.storage.from('media').upload(fn, postVideo, { cacheControl: '3600', upsert: false });
-      if (!ue && ud) { const { data: u } = supabase.storage.from('media').getPublicUrl(fn); videoUrl = u?.publicUrl; }
-      else if (ue) { alert(`video upload failed: ${ue.message}`); setPosting(false); setUploadingVideo(false); return; }
-      setUploadingVideo(false);
-    }
 
     const row = { author_id: user.id, content: newPost.trim() || '', feed_type: feedType, image_url: imageUrl, tenant_id: tenantId };
     if (imageUrls.length > 1) row.images = imageUrls;
     if (audioUrl) row.audio_url = audioUrl;
-    if (videoUrl) row.video_url = videoUrl;
     if (postLink.trim()) row.link_url = postLink.trim();
     if (postTag && postTag !== 'general') row.tag = postTag;
     if (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2) row.poll_options = pollOptions.filter(o => o.trim());
@@ -1132,10 +839,9 @@ export function FlockApp({ tenantId: propTenantId }) {
     const { error } = await supabase.from('posts').insert(row);
     if (!error) {
       setNewPost(''); setPostImages([]); setPostImagePreviews([]); setPostAudio(null); setPostAudioName(null);
-      setPostVideo(null); setPostVideoName(null);
       setPostTag('general'); setShowPollCreator(false); setPollOptions(['', '']); setPostLink(''); setShowLinkInput(false); setLinkPreviewData(null);
       setLiveUrl(''); setShowLiveInput(false);
-      if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).then(() => setTimeout(refreshProfile, 1000)).catch(() => {});
+      if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
       await fetchPosts();
       if (profile?.role === 'band' || profile?.role === 'admin') {
         // Only notify fans if artist hasn't disabled it
@@ -1143,9 +849,6 @@ export function FlockApp({ tenantId: propTenantId }) {
           fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType }) }).catch(() => {});
         }
       }
-    }
-    } catch (err) {
-      console.error('[handlePost error]', err);
     }
     setPosting(false);
   };
@@ -1172,35 +875,25 @@ export function FlockApp({ tenantId: propTenantId }) {
     { id: 'highlights', label: 'highlights', icon: '◉', color: RUBY },
   ];
 
-  const isArtist = profile?.role === 'admin' || profile?.role === 'band' || isGodMode;
+  const isArtist = profile?.role === 'admin' || profile?.role === 'band';
 
   const mainTabs = [
     { id: 'feed', label: 'feed', icon: '◎' },
     { id: 'shows', label: 'shows', icon: '♫' },
-    { id: 'messages', label: 'messages', icon: '✉' },
     { id: 'points', label: currencyName, icon: currencyIcon },
     { id: 'you', label: 'you', icon: '○' },
-    ...(isArtist ? [{ id: 'dashboard', label: 'dashboard', icon: '⚙', href: `/dashboard?superadmin=1` }] : []),
+    ...(isArtist ? [{ id: 'dashboard', label: 'dashboard', icon: '⚙', href: '/dashboard' }] : []),
   ];
 
   const visiblePosts = feedTagFilter ? posts.filter(p => p.tag === feedTagFilter) : posts;
-  const msgOtherName = isArtist
-    ? (messageThreads.find(t => t.otherId === activeThread)?.otherProfile?.display_name?.toLowerCase() || 'fan')
-    : (members[0]?.name?.toLowerCase() || 'the artist');
-  const msgOtherInitial = isArtist
-    ? (messageThreads.find(t => t.otherId === activeThread)?.otherProfile?.display_name?.charAt(0)?.toLowerCase() || '?')
-    : (members[0]?.name?.charAt(0)?.toLowerCase() || '✦');
 
   return (
-    <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif", color: INK, position: 'relative' }}>
-      {backgroundUrl && (
-        <div style={{ position: 'fixed', inset: 0, backgroundImage: `url(${backgroundUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', opacity: 0.08, pointerEvents: 'none', zIndex: 0 }} />
-      )}
+    <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif", color: INK }}>
       <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
       {/* ── MODALS ── */}
       {showEditProfile && <EditProfileModal profile={profile} supabase={supabase} tenantId={tenantId} onSave={updateProfile} onClose={() => setShowEditProfile(false)} />}
-      {claimingLevel && <ClaimRewardModal level={claimingLevel} supabase={supabase} userId={user?.id} fanEmail={user?.email} fanName={profile?.display_name} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
+      {claimingLevel && <ClaimRewardModal level={claimingLevel} supabase={supabase} userId={user?.id} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
       {viewingProfile && <UserProfileModal userId={viewingProfile} supabase={supabase} tenantId={tenantId} onClose={() => setViewingProfile(null)} levels={STAMP_LEVELS} currencyName={currencyName} currencyIcon={currencyIcon} />}
 
       {/* ── CHECK-IN MODAL ── */}
@@ -1263,7 +956,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       </div>
 
       {/* ── CONTENT ── */}
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', position: 'relative', zIndex: 1 }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px' }}>
 
         {/* Notifications */}
         {showNotifications && (
@@ -1310,8 +1003,10 @@ export function FlockApp({ tenantId: propTenantId }) {
                 const isActive = feedView === tab.id;
                 const color = tab.color || RUBY;
                 return (
-                  <button key={tab.id} onClick={() => { setFeedView(tab.id); setFeedTagFilter(null); }} style={{ flex: 1, padding: '12px 8px 10px', background: 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 56 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 7, background: isActive ? color : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s', flexShrink: 0 }}>{tab.icon}</div>
+                  <button key={tab.id} onClick={() => { setFeedView(tab.id); setFeedTagFilter(null); }} style={{ flex: tab.id === 'highlights' ? '0 0 auto' : 1, padding: '12px 8px 10px', background: 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: tab.id === 'highlights' ? 80 : 56 }}>
+                    {tab.id === 'community' ? <span style={{ fontSize: 16, color: isActive ? RUBY : SLATE + '66' }}>✦</span> :
+                     tab.id === 'highlights' ? <span style={{ fontSize: 14, color: isActive ? RUBY : SLATE + '66' }}>◉</span> :
+                     <div style={{ width: 30, height: 30, borderRadius: 7, background: isActive ? color : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s' }}>{tab.icon}</div>}
                     <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? color : SLATE, fontFamily: "'DM Mono', monospace" }}>{tab.label}</span>
                   </button>
                 );
@@ -1320,21 +1015,6 @@ export function FlockApp({ tenantId: propTenantId }) {
 
             {/* Member header */}
             {feedView !== 'community' && feedView !== 'highlights' && memberMap[feedView] && <MemberHeader member={feedView} memberMap={memberMap} />}
-
-            {/* Link tiles - only on community view, only if artist has added any */}
-            {feedView === 'community' && linkTiles.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
-                {linkTiles.map(tile => (
-                  <a key={tile.id} href={tile.url} target="_blank" rel="noopener noreferrer"
-                    style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, textDecoration: 'none', color: INK, overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = RUBY; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; }}>
-                    {tile.image_url && <img src={tile.image_url} alt="" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />}
-                    <div style={{ fontSize: 12, fontWeight: 600, padding: tile.image_url ? '10px 12px' : '14px 12px', textAlign: 'center' }}>{tile.label}</div>
-                  </a>
-                ))}
-              </div>
-            )}
 
             {/* Tag filter */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
@@ -1415,13 +1095,6 @@ export function FlockApp({ tenantId: propTenantId }) {
                   <button onClick={() => { setPostAudio(null); setPostAudioName(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE + '88' }}>×</button>
                 </div>
               )}
-              {postVideoName && (
-                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, background: CREAM, borderRadius: 8, padding: '8px 12px', border: `1px solid ${BORDER}` }}>
-                  <span style={{ fontSize: 14 }}>🎥</span>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{postVideoName}</span>
-                  <button onClick={() => { setPostVideo(null); setPostVideoName(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE + '88' }}>×</button>
-                </div>
-              )}
 
               {/* Live URL input */}
               {showLiveInput && (
@@ -1440,12 +1113,6 @@ export function FlockApp({ tenantId: propTenantId }) {
                   {postImages.length > 0 ? `📷 ${postImages.length}/6` : '📷'}
                 </label>
                 {(profile?.role === 'band' || profile?.role === 'admin') && (
-                  <label style={{ cursor: 'pointer', padding: '4px 6px', color: postVideo ? RUBY : SLATE + '88', fontSize: 13 }} title="upload video">
-                    <input type="file" accept="video/*,.mp4,.mov,.webm" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 200 * 1024 * 1024) { alert('video must be under 200MB'); return; } setPostVideo(f); setPostVideoName(f.name); }} />
-                    🎥
-                  </label>
-                )}
-                {(profile?.role === 'band' || profile?.role === 'admin') && (
                   <label style={{ cursor: 'pointer', padding: '4px 6px', color: SLATE + '88', fontSize: 13 }}>
                     <input type="file" accept="audio/*,.m4a,.mp3,.wav,.aac" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 20 * 1024 * 1024) { alert('audio must be under 20MB'); return; } setPostAudio(f); setPostAudioName(f.name); }} style={{ display: 'none' }} />
                     ♫
@@ -1458,9 +1125,9 @@ export function FlockApp({ tenantId: propTenantId }) {
                   </button>
                 )}
                 <button onClick={() => { setShowLinkInput(!showLinkInput); if (showLinkInput) { setPostLink(''); setLinkPreviewData(null); } }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', color: showLinkInput ? RUBY : SLATE + '88', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>↗</button>
-                <button onClick={handlePost} disabled={posting || uploadingVideo || (!newPost.trim() && postImages.length === 0 && !postAudio && !postVideo && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
-                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || postVideo || liveUrl.trim() || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio || postVideo || liveUrl.trim()) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
-                  {uploadingVideo ? 'uploading...' : posting ? '...' : liveUrl.trim() ? 'go live' : 'post'}
+                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
+                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim() || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim()) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
+                  {posting ? '...' : liveUrl.trim() ? 'go live' : 'post'}
                 </button>
               </div>
             </div>
@@ -1482,7 +1149,7 @@ export function FlockApp({ tenantId: propTenantId }) {
               </div>
             ) : visiblePosts.map((post, i) => (
               <div key={post.id} style={{ animation: `fadeIn 0.3s ease-out ${i * 0.03}s both` }}>
-                <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} currencyIcon={currencyIcon} onRefresh={fetchPosts} onViewProfile={setViewingProfile} onStampsAwarded={() => setTimeout(refreshProfile, 1000)} />
+                <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} currencyIcon={currencyIcon} onRefresh={fetchPosts} onViewProfile={setViewingProfile} />
               </div>
             ))}
           </div>
@@ -1551,66 +1218,6 @@ export function FlockApp({ tenantId: propTenantId }) {
           </div>
         )}
 
-        {/* ─── MESSAGES TAB ─── */}
-        {mainTab === 'messages' && (
-          <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 8 }}>
-            {isArtist ? (
-              activeThread ? (
-                <MessageThread
-                  messages={messages} user={user} supabase={supabase} tenantId={tenantId}
-                  recipientId={activeThread} otherName={msgOtherName} otherInitial={msgOtherInitial}
-                  newMessage={newMessage} setNewMessage={setNewMessage}
-                  sendingMessage={sendingMessage} sendMessage={sendMessage}
-                  messageImageFile={messageImageFile} setMessageImageFile={setMessageImageFile}
-                  messageImagePreview={messageImagePreview} setMessageImagePreview={setMessageImagePreview}
-                  onBack={() => { setActiveThread(null); setMessages([]); fetchMessages(); }}
-                  isArtist={isArtist} INK={INK} CREAM={CREAM} RUBY={RUBY} SLATE={SLATE} SURFACE={SURFACE} BORDER={BORDER}
-                />
-              ) : (
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: INK, marginBottom: 16 }}>messages</div>
-                  {messageThreads.length === 0 ? (
-                    <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, padding: 40, textAlign: 'center' }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>✉</div>
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 6 }}>no messages yet</div>
-                      <div style={{ fontSize: 12, color: SLATE }}>fans can message you from their messages tab</div>
-                    </div>
-                  ) : messageThreads.map(thread => (
-                    <div key={thread.otherId} onClick={() => { setActiveThread(thread.otherId); fetchThreadMessages(thread.otherId); }} style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${thread.unread ? RUBY + '44' : BORDER}`, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 42, height: 42, borderRadius: 21, background: INK, color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600, flexShrink: 0 }}>
-                        {thread.otherProfile?.display_name?.charAt(0)?.toLowerCase() || '?'}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: thread.unread ? 700 : 500, color: INK, marginBottom: 2 }}>{thread.otherProfile?.display_name?.toLowerCase() || 'fan'}</div>
-                        <div style={{ fontSize: 12, color: SLATE, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {thread.lastMessage?.image_url && !thread.lastMessage?.content ? '📷 photo' : thread.lastMessage?.content || ''}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77' }}>{new Date(thread.lastMessage?.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</div>
-                        {thread.unread && <div style={{ width: 8, height: 8, borderRadius: 4, background: RUBY }} />}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : activeThread ? (
-              <MessageThread
-                messages={messages} user={user} supabase={supabase} tenantId={tenantId}
-                recipientId={activeThread} otherName={msgOtherName} otherInitial={msgOtherInitial}
-                newMessage={newMessage} setNewMessage={setNewMessage}
-                sendingMessage={sendingMessage} sendMessage={sendMessage}
-                messageImageFile={messageImageFile} setMessageImageFile={setMessageImageFile}
-                messageImagePreview={messageImagePreview} setMessageImagePreview={setMessageImagePreview}
-                onBack={null} isArtist={isArtist}
-                INK={INK} CREAM={CREAM} RUBY={RUBY} SLATE={SLATE} SURFACE={SURFACE} BORDER={BORDER}
-              />
-            ) : (
-              <div style={{ padding: 40, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading...</div>
-            )}
-          </div>
-        )}
-
         {/* ─── POINTS TAB ─── */}
         {mainTab === 'points' && (
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
@@ -1650,19 +1257,8 @@ export function FlockApp({ tenantId: propTenantId }) {
                   </div>
                   {unlocked && level.reward && (
                     <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BORDER}` }}>
-                      {claimed ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span>
-                          {['postcard','merch','vinyl','cd','poster','package'].includes(level.reward) && !rewardClaims.find(c => c.level_key === level.key)?.shipping_address && (
-                            <button onClick={() => setClaimingLevel({ ...level, updateShipping: true, claimId: rewardClaims.find(c => c.level_key === level.key)?.id })}
-                              style={{ padding: '5px 12px', background: 'transparent', color: RUBY, border: `1px solid ${RUBY}44`, borderRadius: 8, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>
-                              add shipping address
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>
-                      )}
+                      {claimed ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span> :
+                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>}
                     </div>
                   )}
                 </div>
@@ -1700,21 +1296,6 @@ export function FlockApp({ tenantId: propTenantId }) {
         )}
 
         {/* ─── YOU TAB ─── */}
-        {mainTab === 'you' && isGodMode && !profile && (
-          <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
-            <div style={{ background: `linear-gradient(145deg, ${WARM_GOLD}22, ${WARM_GOLD}08)`, borderRadius: 12, padding: '32px 22px 28px', textAlign: 'center', border: `2px solid ${WARM_GOLD}55`, marginBottom: 14 }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>⚡</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: WARM_GOLD, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 8 }}>god mode</div>
-              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 6 }}>super admin</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>no profile in this community</div>
-            </div>
-            <div onClick={() => window.location.href = `/dashboard?superadmin=1`} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 10, border: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08', marginBottom: 8 }}>
-              <span style={{ fontSize: 18 }}>⚙</span>
-              <span style={{ fontSize: 13, color: INK, flex: 1, fontWeight: 600 }}>artist dashboard</span>
-              <span style={{ color: SLATE, fontSize: 12 }}>→</span>
-            </div>
-          </div>
-        )}
         {mainTab === 'you' && profile && (
           <div style={{ animation: 'fadeIn 0.3s ease-out', paddingTop: 14 }}>
             {/* Profile card */}
@@ -1740,7 +1321,7 @@ export function FlockApp({ tenantId: propTenantId }) {
             {/* Actions */}
             <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
               {(profile.role === 'admin' || profile.role === 'band') && (
-                <div onClick={() => window.location.href = isGodMode ? '/dashboard?superadmin=1' : '/dashboard'} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08' }}>
+                <div onClick={() => window.location.href = '/dashboard'} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: 'pointer', background: WARM_GOLD + '08' }}>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 15, color: WARM_GOLD, width: 24, textAlign: 'center' }}>◈</span>
                   <span style={{ fontSize: 13, color: INK, flex: 1, fontWeight: 600 }}>dashboard</span>
                   <span style={{ fontFamily: "'DM Mono', monospace", color: WARM_GOLD, fontSize: 14 }}>→</span>
@@ -1791,9 +1372,8 @@ export function FlockApp({ tenantId: propTenantId }) {
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE + '66' }}>{tab.icon}</span>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66' }}>{tab.label}</span>
                 </a>
-              : <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56, position: 'relative' }}>
+              : <button key={tab.id} onClick={() => { setMainTab(tab.id); if (tab.id === 'feed') setFeedView('community'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '10px 16px', minWidth: 56 }}>
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: mainTab === tab.id ? RUBY : SLATE + '66' }}>{tab.icon}</span>
-                  {tab.id === 'messages' && unreadMessages > 0 && <div style={{ position: 'absolute', top: 6, right: 10, width: 8, height: 8, borderRadius: 4, background: RUBY }} />}
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: mainTab === tab.id ? 500 : 400, color: mainTab === tab.id ? INK : SLATE + '66' }}>{tab.label}</span>
                 </button>
           ))}

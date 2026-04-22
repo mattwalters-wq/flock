@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 
@@ -138,82 +138,10 @@ function SetupChecklist({ supabase, tenantId }) {
   );
 }
 
-// ============ FAN MAP ============
-function FanMap({ fanLocations }) {
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-
-  useEffect(() => {
-    if (!mapRef.current || fanLocations.length === 0) return;
-    if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
-
-    const loadLeaflet = () => {
-      if (!window.L) {
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        script.onload = () => initMap();
-        document.head.appendChild(script);
-      } else {
-        initMap();
-      }
-    };
-
-    const initMap = () => {
-      if (!window.L || !mapRef.current) return;
-      const map = window.L.map(mapRef.current, {
-        zoomControl: true, attributionControl: false,
-        scrollWheelZoom: true, dragging: true,
-      }).setView([10, 60], 2);
-
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-        maxZoom: 12,
-      }).addTo(map);
-
-      fanLocations.forEach((fan) => {
-        if (fan.signup_lat && fan.signup_lng) {
-          const size = Math.min(12, 5 + (fan.stamp_count || 0) / 30);
-          window.L.circleMarker([fan.signup_lat, fan.signup_lng], {
-            radius: size, fillColor: RUBY, color: RUBY,
-            weight: 1, opacity: 0.7, fillOpacity: 0.5,
-          }).bindPopup(
-            `<div style="font-family:sans-serif;font-size:12px;"><b>${fan.display_name || 'fan'}</b><br/>${fan.signup_city || ''} ${fan.signup_country || ''}</div>`
-          ).addTo(map);
-        }
-      });
-
-      mapInstanceRef.current = map;
-      setTimeout(() => map.invalidateSize(), 100);
-    };
-
-    loadLeaflet();
-    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
-  }, [fanLocations]);
-
-  return <div ref={mapRef} style={{ width: '100%', height: 320 }} />;
-}
-
-// ============ QR CODE LOADER ============
-function QRLoader({ url }) {
-  useEffect(() => {
-    if (!url) return;
-    const container = document.getElementById('qr-container');
-    if (!container) return;
-    const img = document.createElement('img');
-    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}&bgcolor=F5EFE6&color=1A1018&qzone=1`;
-    img.width = 120;
-    img.height = 120;
-    img.style.borderRadius = '8px';
-    img.alt = 'community QR code';
-    img.onload = () => { container.innerHTML = ''; container.appendChild(img); };
-  }, [url]);
-  return null;
-}
-
 // ============ OVERVIEW ============
 function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
   const [stats, setStats] = useState({ members: 0, posts: 0, shows: 0, totalPoints: 0, pendingClaims: 0 });
   const [recentMembers, setRecentMembers] = useState([]);
-  const [fanLocations, setFanLocations] = useState([]);
   const [digestSending, setDigestSending] = useState(false);
   const [copiedHighlights, setCopiedHighlights] = useState(false);
   const [copiedCommunity, setCopiedCommunity] = useState(false);
@@ -233,9 +161,6 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
       setStats({ members: members.count || 0, posts: posts.count || 0, shows: shows.count || 0, totalPoints: (pd || []).reduce((s, p) => s + (p.stamp_count || 0), 0), pendingClaims: pending.count || 0 });
       const { data: recent } = await supabase.from('profiles').select('display_name, stamp_count, created_at, role').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(6);
       setRecentMembers(recent || []);
-
-      const { data: geoData } = await supabase.from('profiles').select('display_name, signup_city, signup_country, signup_lat, signup_lng, stamp_count').eq('tenant_id', tenantId).eq('role', 'fan').not('signup_lat', 'is', null);
-      setFanLocations(geoData || []);
     })();
   }, [supabase, tenantId]);
 
@@ -289,30 +214,6 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
         ))}
       </div>
 
-
-      {fanLocations.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>fan map</Mono>
-          <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-            <FanMap fanLocations={fanLocations} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', padding: '12px 16px', justifyContent: 'center' }}>
-              {Object.entries(
-                fanLocations.reduce((acc, f) => {
-                  const loc = f.signup_city || f.signup_country || 'unknown';
-                  acc[loc] = (acc[loc] || 0) + 1;
-                  return acc;
-                }, {})
-              ).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([loc, count]) => (
-                <span key={loc} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>
-                  {loc} <strong style={{ color: RUBY }}>{count}</strong>
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>grow your community</Mono>
       <div style={{ background: INK, borderRadius: 12, padding: '20px 18px', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
@@ -344,36 +245,16 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
         </div>
       </div>
 
-      <div style={{ background: SURFACE, borderRadius: 12, padding: '20px 18px', border: `1px solid ${BORDER}`, marginBottom: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: INK, marginBottom: 4, textTransform: 'lowercase' }}>share your community</div>
-        <Mono style={{ marginBottom: 16, lineHeight: 1.5 }}>copy your link or download a QR code for merch tables, show flyers, and bio links</Mono>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div id="qr-container" style={{ width: 120, height: 120, background: CREAM, borderRadius: 10, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-            <Mono size={9} color={SLATE + '66'}>loading...</Mono>
-          </div>
-          <div style={{ flex: 1, minWidth: 180 }}>
-            <div style={{ background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: INK, marginBottom: 10, wordBreak: 'break-all' }}>
-              {typeof window !== 'undefined' ? window.location.origin : ''}
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Btn onClick={() => {
-                const url = typeof window !== 'undefined' ? window.location.origin : '';
-                navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
-              }} style={{ fontSize: 11, flex: 1 }}>{copiedCommunity ? 'copied ✓' : 'copy link'}</Btn>
-              <Btn variant="ghost" style={{ fontSize: 11 }} onClick={() => {
-                const url = typeof window !== 'undefined' ? window.location.origin : '';
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}&bgcolor=F5EFE6&color=1A1018&qzone=1`;
-                const a = document.createElement('a');
-                a.download = 'flock-community-qr.png';
-                a.href = qrUrl;
-                a.target = '_blank';
-                a.click();
-              }}>download QR</Btn>
-            </div>
-            <Mono size={9} style={{ marginTop: 8, lineHeight: 1.5 }}>tip: print the QR code on flyers or show it on stage — fans scan and join instantly</Mono>
-          </div>
+      <div style={{ background: SURFACE, borderRadius: 12, padding: '16px 18px', border: `1px solid ${BORDER}`, marginBottom: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>community link</div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10 }}>direct signup link - goes straight to join page</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input readOnly value={typeof window !== 'undefined' ? window.location.origin : ''} style={{ flex: 1, padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace", outline: 'none' }} />
+          <Btn onClick={() => {
+            const url = typeof window !== 'undefined' ? window.location.origin : '';
+            navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
+          }} variant="ghost" style={{ fontSize: 11 }}>{copiedCommunity ? 'copied ✓' : 'copy'}</Btn>
         </div>
-        <QRLoader url={typeof window !== 'undefined' ? window.location.origin : ''} />
       </div>
 
       <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>community digest email</Mono>
@@ -516,7 +397,7 @@ function Shows({ supabase, tenantId }) {
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  useEffect(() => { if (tenantId) load(); }, [tenantId]);
+  useEffect(() => { load(); }, []);
   const load = () => supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date').then(({ data }) => setShows(data || []));
 
   const add = async () => {
@@ -579,7 +460,6 @@ function Members({ supabase, tenantId }) {
   const [members, setMembers] = useState([]);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => { supabase.from('tenant_members').select('*').eq('tenant_id', tenantId).order('display_order').then(({ data }) => setMembers(data || [])); }, []);
 
@@ -609,21 +489,19 @@ function Members({ supabase, tenantId }) {
                       ? <img src={editing.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <span style={{ color: '#fff', fontSize: 20, fontFamily: "'DM Mono', monospace" }}>{editing.name?.charAt(0)?.toLowerCase() || '?'}</span>}
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: uploading ? BORDER : CREAM, border: `1px dashed ${BORDER}`, borderRadius: 8, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
-                    <input type="file" accept="image/*" disabled={uploading} style={{ display: 'none' }} onChange={async e => {
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: CREAM, border: `1px dashed ${BORDER}`, borderRadius: 8, cursor: 'pointer' }}>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
                       const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
-                      setUploading(true);
-                      const ext = file.name.split('.').pop().toLowerCase();
-                      const path = `members/${tenantId}/${editing.id}-${Date.now()}.${ext}`;
+                      if (!file || file.size > 2 * 1024 * 1024) return;
+                      const ext = file.name.split('.').pop();
+                      const path = `members/${tenantId}/${editing.id}.${ext}`;
                       const { error } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
-                      if (error) { alert(`upload failed: ${error.message}`); setUploading(false); return; }
-                      const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-                      setEditing(p => ({ ...p, avatar_url: urlData?.publicUrl }));
-                      setUploading(false);
+                      if (!error) {
+                        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+                        setEditing(p => ({ ...p, avatar_url: urlData?.publicUrl }));
+                      }
                     }} />
-                    <Mono size={10}>{uploading ? 'uploading...' : 'upload photo'}</Mono>
+                    <Mono size={10}>upload photo</Mono>
                   </label>
                   {editing.avatar_url && <button onClick={() => setEditing(p => ({ ...p, avatar_url: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: RUBY, fontFamily: "'DM Mono', monospace", fontSize: 10 }}>remove</button>}
                 </div>
@@ -640,7 +518,7 @@ function Members({ supabase, tenantId }) {
                 <input type="color" value={editing.accent_color || '#8B1A2B'} onChange={e => setEditing(p => ({ ...p, accent_color: e.target.value }))} style={{ width: 48, height: 36, padding: 2, border: `1px solid ${BORDER}`, borderRadius: 6, cursor: 'pointer' }} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn onClick={() => save(editing)} disabled={saving || uploading}>{saving ? 'saving...' : uploading ? 'uploading...' : 'save'}</Btn>
+                <Btn onClick={() => save(editing)} disabled={saving}>{saving ? 'saving...' : 'save'}</Btn>
                 <Btn onClick={() => setEditing(null)} variant="ghost">cancel</Btn>
               </div>
             </div>
@@ -828,7 +706,7 @@ function Rewards({ supabase, tenantId, currencyIcon }) {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { if (tenantId) load(); }, [tenantId]);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     setLoading(true);
@@ -848,43 +726,6 @@ function Rewards({ supabase, tenantId, currencyIcon }) {
   const update = async (id, status) => {
     await supabase.from('reward_claims').update({ status }).eq('id', id);
     setClaims(p => p.map(x => x.id === id ? { ...x, status } : x));
-
-    // Send confirmation email to fan when approved
-    if (status === 'approved') {
-      const claim = claims.find(c => c.id === id);
-      if (claim) {
-        // Get fan email via API
-        const { data: { session } } = await supabase.auth.getSession();
-        const emailRes = await fetch('/api/admin/user-emails', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userIds: [claim.user_id], requestingUserId: session?.user?.id }),
-        });
-        const { emails = {} } = await emailRes.json();
-        const fanEmail = emails[claim.user_id];
-        if (fanEmail) {
-          fetch('/api/email/reward-confirmed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tenantId,
-              fanEmail,
-              fanName: claim.profile?.display_name,
-              rewardType: claim.reward_type,
-              rewardDesc: claim.reward_type,
-              levelName: claim.level_key?.replace(/_/g, ' '),
-              shipping: claim.shipping_name ? {
-                name: claim.shipping_name,
-                address: claim.shipping_address,
-                city: claim.shipping_city,
-                postcode: claim.shipping_postcode,
-                country: claim.shipping_country,
-              } : null,
-            }),
-          }).catch(() => {});
-        }
-      }
-    }
   };
 
   const statusColor = s => s === 'pending' ? WARM_GOLD : s === 'approved' ? SAGE : s === 'shipped' ? '#6B5B8D' : SLATE;
@@ -987,121 +828,6 @@ const PALETTE_PRESETS = [
   { key: 'custom', label: 'Custom', ruby: null, cream: null, ink: null },
 ];
 
-function LinkTilesEditor({ supabase, tenantId }) {
-  const [tiles, setTiles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [newTile, setNewTile] = useState({ label: '', url: '', image_url: '' });
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const INK = '#1A1018'; const CREAM = '#F5EFE6'; const RUBY = '#8B1A2B'; const SURFACE = '#FAF5F0'; const BORDER = '#E8DDD4'; const SLATE = '#6A5A62';
-  const Mono = ({ children, size = 10, color = SLATE, style = {} }) => <div style={{ fontFamily: "'DM Mono', monospace", fontSize: size, color, letterSpacing: '0.5px', textTransform: 'uppercase', ...style }}>{children}</div>;
-
-  useEffect(() => {
-    if (!supabase || !tenantId) return;
-    supabase.from('external_links').select('*').eq('tenant_id', tenantId).order('sort_order').then(({ data }) => {
-      setTiles(data || []); setLoading(false);
-    });
-  }, [supabase, tenantId]);
-
-  const uploadImage = async (file) => {
-    setUploadingImage(true);
-    const ext = file.name.split('.').pop();
-    const path = `link-tiles/${tenantId}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('media').upload(path, file, { upsert: true });
-    if (!upErr) {
-      const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-      setUploadingImage(false);
-      return urlData?.publicUrl;
-    }
-    setUploadingImage(false);
-    return null;
-  };
-
-  const addTile = async () => {
-    if (!newTile.label.trim() || !newTile.url.trim()) return;
-    const { data } = await supabase.from('external_links').insert({ tenant_id: tenantId, label: newTile.label.trim(), url: newTile.url.trim(), image_url: newTile.image_url || null, sort_order: tiles.length }).select().single();
-    if (data) setTiles(p => [...p, data]);
-    setNewTile({ label: '', url: '', image_url: '' });
-    setAdding(false);
-  };
-
-  const updateTile = async (id, field, value) => {
-    setTiles(p => p.map(t => t.id === id ? { ...t, [field]: value } : t));
-    await supabase.from('external_links').update({ [field]: value }).eq('id', id);
-  };
-
-  const deleteTile = async (id) => {
-    if (!confirm('delete this tile?')) return;
-    setTiles(p => p.filter(t => t.id !== id));
-    await supabase.from('external_links').delete().eq('id', id);
-  };
-
-  if (loading) return <Mono>loading...</Mono>;
-
-  return (
-    <div>
-      <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
-        Add links to your webstore, Spotify, Apple Music, YouTube, Patreon, etc. These appear on your public landing page and inside your community. Leave empty to hide the section.
-      </div>
-      {tiles.map(tile => (
-        <div key={tile.id} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: 14, marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <label style={{ width: 60, height: 60, borderRadius: 8, background: CREAM, border: `1px solid ${BORDER}`, overflow: 'hidden', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            {tile.image_url ? (
-              <img src={tile.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <div style={{ fontSize: 22, color: SLATE + '88' }}>⊕</div>
-            )}
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
-              const f = e.target.files?.[0]; if (!f) return;
-              if (f.size > 3 * 1024 * 1024) { alert('image must be under 3MB'); return; }
-              const url = await uploadImage(f);
-              if (url) updateTile(tile.id, 'image_url', url);
-            }} />
-          </label>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <input value={tile.label} onChange={e => updateTile(tile.id, 'label', e.target.value)} placeholder="label (e.g. webstore)"
-              style={{ width: '100%', padding: '8px 10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: 6 }} />
-            <input value={tile.url} onChange={e => updateTile(tile.id, 'url', e.target.value)} placeholder="https://..."
-              style={{ width: '100%', padding: '8px 10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace" }} />
-          </div>
-          <button onClick={() => deleteTile(tile.id)}
-            style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: RUBY, flexShrink: 0 }}>remove</button>
-        </div>
-      ))}
-      {adding ? (
-        <div style={{ background: CREAM, border: `1px dashed ${BORDER}`, borderRadius: 10, padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <label style={{ width: 60, height: 60, borderRadius: 8, background: SURFACE, border: `1px solid ${BORDER}`, overflow: 'hidden', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {newTile.image_url ? <img src={newTile.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ fontSize: 22, color: SLATE + '88' }}>⊕</div>}
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
-              const f = e.target.files?.[0]; if (!f) return;
-              if (f.size > 3 * 1024 * 1024) { alert('image must be under 3MB'); return; }
-              const url = await uploadImage(f);
-              if (url) setNewTile(p => ({ ...p, image_url: url }));
-            }} />
-          </label>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <input value={newTile.label} onChange={e => setNewTile(p => ({ ...p, label: e.target.value }))} placeholder="label (e.g. webstore)"
-              style={{ width: '100%', padding: '8px 10px', background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: 6 }} />
-            <input value={newTile.url} onChange={e => setNewTile(p => ({ ...p, url: e.target.value }))} placeholder="https://..."
-              style={{ width: '100%', padding: '8px 10px', background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace" }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-            <button onClick={addTile} disabled={!newTile.label.trim() || !newTile.url.trim()}
-              style={{ background: RUBY, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, opacity: (!newTile.label.trim() || !newTile.url.trim()) ? 0.5 : 1 }}>add</button>
-            <button onClick={() => { setAdding(false); setNewTile({ label: '', url: '', image_url: '' }); }}
-              style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: SLATE }}>cancel</button>
-          </div>
-        </div>
-      ) : (
-        <button onClick={() => setAdding(true)}
-          style={{ width: '100%', padding: '12px', background: 'transparent', border: `1px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginTop: tiles.length ? 0 : 0 }}>
-          + add link tile
-        </button>
-      )}
-    </div>
-  );
-}
-
 function SettingsSection({ id, label, children, activeSection, setActiveSection }) {
   const isOpen = Array.isArray(activeSection) ? activeSection.includes(id) : activeSection === id;
   return (
@@ -1140,12 +866,9 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     color_ruby: '#8B1A2B',
     color_cream: '#F5EFE6',
     color_ink: '#1A1018',
-    color_accent: '#C9922A',
     font_key: 'dm_sans',
     banner_url: '',
     logo_url: '',
-    background_url: '',
-    landing_banner_url: '',
     tagline: '',
     social_instagram: '',
     social_spotify: '',
@@ -1164,10 +887,6 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
-  const [bgFile, setBgFile] = useState(null);
-  const [bgPreview, setBgPreview] = useState(null);
-  const [landingBannerFile, setLandingBannerFile] = useState(null);
-  const [landingBannerPreview, setLandingBannerPreview] = useState(null);
   const [openSections, setOpenSections] = useState(['branding', 'socials', 'profile']);
   const activeSection = openSections[0]; // backwards compat
   const setActiveSection = (id) => setOpenSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -1182,8 +901,6 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         setCfg(prev => ({ ...prev, ...loaded }));
         if (loaded.banner_url) setBannerPreview(loaded.banner_url);
         if (loaded.logo_url) setLogoPreview(loaded.logo_url);
-        if (loaded.background_url) setBgPreview(loaded.background_url);
-        if (loaded.landing_banner_url) setLandingBannerPreview(loaded.landing_banner_url);
       }
     });
   }, [supabase, tenantId]);
@@ -1192,8 +909,6 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     setSaving(true);
     let bannerUrl = cfg.banner_url;
     let logoUrl = cfg.logo_url;
-    let bgUrl = cfg.background_url;
-    let landingBannerUrl = cfg.landing_banner_url;
 
     if (logoFile) {
       const ext = logoFile.name.split('.').pop();
@@ -1217,33 +932,11 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       setUploadingBanner(false);
     }
 
-    if (bgFile) {
-      const ext = bgFile.name.split('.').pop();
-      const path = `backgrounds/${tenantId}/bg.${ext}`;
-      const { error: upErr } = await supabase.storage.from('media').upload(path, bgFile, { cacheControl: '3600', upsert: true });
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-        bgUrl = urlData?.publicUrl || bgUrl;
-      }
-    }
-
-    if (landingBannerFile) {
-      const ext = landingBannerFile.name.split('.').pop();
-      const path = `landing-banners/${tenantId}/banner.${ext}`;
-      const { error: upErr } = await supabase.storage.from('media').upload(path, landingBannerFile, { cacheControl: '3600', upsert: true });
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-        landingBannerUrl = urlData?.publicUrl || landingBannerUrl;
-      }
-    }
-
-    const toSave = { ...cfg, banner_url: bannerUrl, logo_url: logoUrl, background_url: bgUrl, landing_banner_url: landingBannerUrl };
+    const toSave = { ...cfg, banner_url: bannerUrl, logo_url: logoUrl };
     // Update local state so URLs persist after save
-    setCfg(prev => ({ ...prev, banner_url: bannerUrl, logo_url: logoUrl, background_url: bgUrl, landing_banner_url: landingBannerUrl }));
+    setCfg(prev => ({ ...prev, banner_url: bannerUrl, logo_url: logoUrl }));
     if (bannerUrl) setBannerPreview(bannerUrl);
     if (logoUrl) setLogoPreview(logoUrl);
-    if (bgUrl) setBgPreview(bgUrl);
-    if (landingBannerUrl) setLandingBannerPreview(landingBannerUrl);
     setLogoFile(null);
     setBannerFile(null);
     for (const [key, value] of Object.entries(toSave)) {
@@ -1257,7 +950,6 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       document.documentElement.style.setProperty('--ruby', toSave.color_ruby || '#8B1A2B');
       document.documentElement.style.setProperty('--cream', toSave.color_cream || '#F5EFE6');
       document.documentElement.style.setProperty('--ink', toSave.color_ink || '#1A1018');
-      document.documentElement.style.setProperty('--accent', toSave.color_accent || '#C9922A');
     }
 
     setSaved(true); setSaving(false);
@@ -1313,12 +1005,11 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
 
         {/* Custom colour pickers */}
         <Mono style={{ marginBottom: 10 }}>custom colours</Mono>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
           {[
-            { label: 'primary', field: 'color_ruby', desc: 'buttons, highlights' },
+            { label: 'accent', field: 'color_ruby', desc: 'buttons, highlights' },
             { label: 'background', field: 'color_cream', desc: 'page background' },
             { label: 'text', field: 'color_ink', desc: 'headings & body' },
-            { label: 'accent', field: 'color_accent', desc: 'gold · extras' },
           ].map(({ label, field, desc }) => (
             <div key={field} style={{ textAlign: 'center' }}>
               <div style={{ position: 'relative', display: 'inline-block', marginBottom: 6 }}>
@@ -1407,71 +1098,11 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
           </label>
         )}
-
-        <Mono style={{ marginBottom: 10, marginTop: 24 }}>landing page banner</Mono>
-        <div style={{ fontSize: 13, color: SLATE, marginBottom: 12, lineHeight: 1.5 }}>
-          Hero image on your public landing page (what visitors see before joining). Best size: 1600×600px.
-        </div>
-        {landingBannerPreview ? (
-          <div style={{ position: 'relative', marginBottom: 16 }}>
-            <img src={landingBannerPreview} alt="landing banner" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 8, border: `1px solid ${BORDER}`, display: 'block' }} />
-            <button onClick={() => { setLandingBannerPreview(null); setLandingBannerFile(null); setCfg(p => ({ ...p, landing_banner_url: '' })); }}
-              style={{ position: 'absolute', top: 8, right: 8, background: INK + 'CC', color: CREAM, border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>remove</button>
-          </div>
-        ) : (
-          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px', background: CREAM, border: `2px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', marginBottom: 16 }}>
-            <input type="file" accept="image/*" onChange={e => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
-              setLandingBannerFile(file);
-              const r = new FileReader();
-              r.onload = ev => setLandingBannerPreview(ev.target.result);
-              r.readAsDataURL(file);
-            }} style={{ display: 'none' }} />
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE }}>⊕</div>
-            <Mono>upload landing banner</Mono>
-            <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
-          </label>
-        )}
-
-        <Mono style={{ marginBottom: 10, marginTop: 24 }}>background image</Mono>
-        <div style={{ fontSize: 13, color: SLATE, marginBottom: 12, lineHeight: 1.5 }}>
-          Subtle background image that sits behind your community. Keep it low-contrast so text stays readable. Best size: 2000×2000px.
-        </div>
-        {bgPreview ? (
-          <div style={{ position: 'relative', marginBottom: 16 }}>
-            <img src={bgPreview} alt="background" style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 8, border: `1px solid ${BORDER}`, display: 'block' }} />
-            <button onClick={() => { setBgPreview(null); setBgFile(null); setCfg(p => ({ ...p, background_url: '' })); }}
-              style={{ position: 'absolute', top: 8, right: 8, background: INK + 'CC', color: CREAM, border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>remove</button>
-          </div>
-        ) : (
-          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px', background: CREAM, border: `2px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', marginBottom: 16 }}>
-            <input type="file" accept="image/*" onChange={e => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
-              setBgFile(file);
-              const r = new FileReader();
-              r.onload = ev => setBgPreview(ev.target.result);
-              r.readAsDataURL(file);
-            }} style={{ display: 'none' }} />
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE }}>⊕</div>
-            <Mono>upload background image</Mono>
-            <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
-          </label>
-        )}
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="profile" label="artist profile">
         <SettingsField cfg={cfg} setCfg={setCfg} label="tagline" field="tagline" placeholder="a short line about you or your music" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="bio" field="bio" placeholder="a longer description for your community page" />
-        <div style={{ marginTop: 4 }}>
-          <Mono style={{ marginBottom: 6 }}>welcome message</Mono>
-          <Mono size={9} style={{ marginBottom: 8, lineHeight: 1.5 }}>sent to fans in their welcome email when they join. keep it personal.</Mono>
-          <textarea value={cfg.welcome_message || ''} onChange={e => setCfg(p => ({ ...p, welcome_message: e.target.value }))} placeholder={`so glad you're here. can't wait to share what's coming next with you.`}
-            style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', resize: 'vertical', minHeight: 80, lineHeight: 1.6 }} />
-        </div>
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="socials" label="social & streaming links">
@@ -1484,10 +1115,6 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         <SettingsField cfg={cfg} setCfg={setCfg} label="apple music" field="social_apple_music" placeholder="artist URL" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="youtube" field="social_youtube" placeholder="channel URL" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="website" field="social_website" placeholder="https://yoursite.com" />
-      </SettingsSection>
-
-      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="link_tiles" label="link tiles">
-        <LinkTilesEditor supabase={supabase} tenantId={tenantId} />
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="currency" label="fan currency">
@@ -1537,31 +1164,13 @@ export default function Dashboard() {
   const tenantId = clientTenantId || authTenantId;
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !supabase) return;
+    if (typeof window === 'undefined') return;
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     const host = window.location.hostname;
-    const params = new URLSearchParams(window.location.search);
-    const slugParam = params.get('slug');
-    const isSuperAdminParam = params.get('superadmin') === '1';
-
-    // God mode: always use slug param if present
-    if (slugParam && isSuperAdminParam) {
-      supabase.from('tenants').select('id').eq('slug', slugParam).single().then(({ data }) => {
-        if (data?.id) setClientTenantId(data.id);
-      });
-    }
-    // Resolve from subdomain
-    else if (host.endsWith(`.${APP_DOMAIN}`)) {
+    if (host.endsWith(`.${APP_DOMAIN}`)) {
       const slug = host.replace(`.${APP_DOMAIN}`, '');
-      supabase.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => {
-        if (data?.id) setClientTenantId(data.id);
-      });
-    }
-    // Fallback slug param without superadmin flag
-    else if (slugParam) {
-      supabase.from('tenants').select('id').eq('slug', slugParam).single().then(({ data }) => {
-        if (data?.id) setClientTenantId(data.id);
-      });
+      const sb = supabase;
+      if (sb) sb.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => { if (data?.id) setClientTenantId(data.id); });
     }
   }, [supabase]);
   const router = useRouter();
@@ -1604,14 +1213,6 @@ export default function Dashboard() {
     { id: 'settings', label: 'settings', icon: '⚙' },
   ];
 
-  // Swap favicon to blue on dashboard
-  useEffect(() => {
-    const link = document.querySelector("link[rel~='icon']");
-    const prev = link?.href;
-    if (link) link.href = '/favicon-dashboard.svg';
-    return () => { if (link && prev) link.href = prev; };
-  }, []);
-
   // Listen for tab switch events from the setup checklist
   useEffect(() => {
     const handler = (e) => setActiveTab(e.detail);
@@ -1623,21 +1224,20 @@ export default function Dashboard() {
   const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
   const isGodMode = isSuperAdmin && superAdminParam;
 
-  if (loading || (!profile && !isGodMode)) return (
+  if (loading || !profile) return (
     <div style={{ minHeight: '100vh', background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: SLATE }}>✦</div>
     </div>
   );
 
   return (
-    <>
     <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif" }}>
       {isGodMode && (
         <div style={{ background: '#C9922A', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: '#1A1018', fontWeight: 600 }}>
             ⚡ god mode — managing {tenant?.name || 'this community'} on behalf of artist
           </div>
-          <a href="https://fans-flock.com/admin" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#1A1018', textDecoration: 'none', border: '1px solid #1A101844', borderRadius: 6, padding: '4px 10px' }}>← back to admin</a>
+          <a href="/admin" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#1A1018', textDecoration: 'none', border: '1px solid #1A101844', borderRadius: 6, padding: '4px 10px' }}>← back to admin</a>
         </div>
       )}
       {/* Top bar */}
@@ -1678,6 +1278,5 @@ export default function Dashboard() {
         {activeTab === 'settings' && <Settings supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} />}
       </div>
     </div>
-    </>
   );
 }
