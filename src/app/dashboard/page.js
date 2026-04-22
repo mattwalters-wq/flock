@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 
@@ -769,6 +769,68 @@ function Rewards({ supabase, tenantId, currencyIcon, rewardsLabel = 'rewards' })
 }
 
 // ============ FANS ============
+function FanMap({ fans, currencyName, currencyIcon }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const fanLocations = fans.filter(f => f.signup_lat && f.signup_lng);
+
+  useEffect(() => {
+    if (!mapRef.current || fanLocations.length === 0) return;
+    if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
+
+    const loadLeaflet = () => {
+      if (!window.L) {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => initMap();
+        document.head.appendChild(script);
+      } else {
+        initMap();
+      }
+    };
+
+    const initMap = () => {
+      if (!window.L || !mapRef.current) return;
+      const map = window.L.map(mapRef.current, {
+        zoomControl: true, attributionControl: false,
+        scrollWheelZoom: true, dragging: true,
+      }).setView([10, 60], 2);
+
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        maxZoom: 12,
+      }).addTo(map);
+
+      fanLocations.forEach(fan => {
+        const size = Math.min(12, 5 + (fan.stamp_count || 0) / 30);
+        window.L.circleMarker([fan.signup_lat, fan.signup_lng], {
+          radius: size, fillColor: RUBY, color: RUBY,
+          weight: 1, opacity: 0.7, fillOpacity: 0.5,
+        }).bindPopup(
+          `<div style="font-family:sans-serif;font-size:12px;"><b>${fan.display_name || 'fan'}</b><br/>${fan.signup_city || ''} ${fan.signup_country || ''}<br/><span style="color:#C9922A;">${fan.stamp_count || 0} ${currencyName}</span></div>`
+        ).addTo(map);
+      });
+
+      mapInstanceRef.current = map;
+      setTimeout(() => map.invalidateSize(), 100);
+    };
+
+    loadLeaflet();
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+  }, [fanLocations]);
+
+  if (fanLocations.length === 0) return null;
+
+  return (
+    <div style={{ borderRadius: 10, border: `1px solid ${BORDER}`, overflow: 'hidden', marginBottom: 16 }}>
+      <div ref={mapRef} style={{ width: '100%', height: 320 }} />
+      <div style={{ padding: '8px 12px', background: CREAM, borderTop: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between' }}>
+        <Mono size={9} color={SLATE}>{fanLocations.length} {fanLocations.length === 1 ? 'fan' : 'fans'} on the map</Mono>
+        <Mono size={9} color={SLATE}>dot size = {currencyName} earned</Mono>
+      </div>
+    </div>
+  );
+}
+
 function Fans({ supabase, tenantId, currencyName, currencyIcon }) {
   const [fans, setFans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -859,6 +921,9 @@ function Fans({ supabase, tenantId, currencyName, currencyIcon }) {
           </div>
         ))}
       </div>
+
+      {/* Fan Map */}
+      <FanMap fans={fans} currencyName={currencyName} currencyIcon={currencyIcon} />
 
       {/* Search + filters + export */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>

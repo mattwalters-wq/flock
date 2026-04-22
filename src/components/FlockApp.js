@@ -470,14 +470,21 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
     if (file) {
       const ext = file.name.split('.').pop();
       const path = `avatars/${tenantId}/${profile.id}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
+      console.log('[EditProfile] uploading avatar', { path, size: file.size, type: file.type });
+      const { data: upData, error: upErr } = await supabase.storage.from('media').upload(path, file, { cacheControl: '3600', upsert: true });
+      console.log('[EditProfile] upload result', { upData, upErr });
       if (!upErr) {
         const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
-        // Add cache-buster so new image shows immediately instead of stale CDN copy
         avatarUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${Date.now()}` : null;
+        console.log('[EditProfile] avatar URL', avatarUrl);
+      } else {
+        console.error('[EditProfile] upload FAILED', upErr);
+        alert('Photo upload failed: ' + upErr.message);
+        setSaving(false); return;
       }
     }
-    await onSave({ display_name: displayName, bio, city, avatar_url: avatarUrl, email_notifications: emailNotifs });
+    const result = await onSave({ display_name: displayName, bio, city, avatar_url: avatarUrl, email_notifications: emailNotifs });
+    console.log('[EditProfile] save result', result);
     setSaving(false); onClose();
   };
 

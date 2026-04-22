@@ -20,7 +20,7 @@ export async function POST(request) {
 
     // Get all fan profiles
     const { data: profiles } = await db.from('profiles')
-      .select('id, display_name, role, city, stamp_count, stamp_level, referral_count, created_at, email_notifications')
+      .select('id, display_name, role, city, stamp_count, stamp_level, referral_count, created_at, email_notifications, signup_city, signup_country, signup_lat, signup_lng')
       .eq('tenant_id', tenantId)
       .order('stamp_count', { ascending: false });
 
