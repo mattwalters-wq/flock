@@ -1174,10 +1174,19 @@ export default function Dashboard() {
     if (typeof window === 'undefined') return;
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     const host = window.location.hostname;
-    if (host.endsWith(`.${APP_DOMAIN}`)) {
-      const slug = host.replace(`.${APP_DOMAIN}`, '');
-      const sb = supabase;
-      if (sb) sb.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => { if (data?.id) setClientTenantId(data.id); });
+    const urlParams = new URLSearchParams(window.location.search);
+    const slugParam = urlParams.get('slug');
+    let slug = null;
+    if (slugParam) {
+      // God mode - slug passed via URL param
+      slug = slugParam;
+    } else if (host.endsWith(`.${APP_DOMAIN}`)) {
+      // Normal - slug from subdomain
+      const sub = host.replace(`.${APP_DOMAIN}`, '');
+      if (sub && sub !== 'www') slug = sub;
+    }
+    if (slug && supabase) {
+      supabase.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => { if (data?.id) setClientTenantId(data.id); });
     }
   }, [supabase]);
   const router = useRouter();
