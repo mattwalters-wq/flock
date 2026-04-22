@@ -139,7 +139,7 @@ function SetupChecklist({ supabase, tenantId }) {
 }
 
 // ============ OVERVIEW ============
-function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
+function Overview({ supabase, tenantId, currencyName, currencyIcon, rewardsLabel = 'rewards' }) {
   const [stats, setStats] = useState({ members: 0, posts: 0, shows: 0, totalPoints: 0, pendingClaims: 0 });
   const [recentMembers, setRecentMembers] = useState([]);
   const [digestSending, setDigestSending] = useState(false);
@@ -184,7 +184,7 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon }) {
           { label: 'posts', value: stats.posts, color: RUBY },
           { label: 'shows', value: stats.shows, color: WARM_GOLD },
           { label: `${currencyName} out`, value: stats.totalPoints, color: '#6B5B8D' },
-          { label: 'pending rewards', value: stats.pendingClaims, color: stats.pendingClaims > 0 ? RUBY : SLATE },
+          { label: `pending ${rewardsLabel}`, value: stats.pendingClaims, color: stats.pendingClaims > 0 ? RUBY : SLATE },
         ].map(s => (
           <div key={s.label} style={{ background: SURFACE, borderRadius: 10, padding: '16px 14px', border: `1px solid ${BORDER}` }}>
             <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 26, fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -702,7 +702,7 @@ function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
 }
 
 // ============ REWARDS ============
-function Rewards({ supabase, tenantId, currencyIcon }) {
+function Rewards({ supabase, tenantId, currencyIcon, rewardsLabel = 'rewards' }) {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -732,7 +732,7 @@ function Rewards({ supabase, tenantId, currencyIcon }) {
 
   return (
     <div>
-      <H style={{ marginBottom: 20 }}>rewards</H>
+      <H style={{ marginBottom: 20 }}>{rewardsLabel}</H>
       {loading ? <Mono style={{ padding: 20, textAlign: 'center' }}>loading...</Mono> : claims.length === 0 ? (
         <div style={{ padding: 24, textAlign: 'center' }}>
           <Mono>no reward claims yet</Mono>
@@ -863,6 +863,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
   const [cfg, setCfg] = useState({
     currency_name: currencyName,
     currency_icon: currencyIcon,
+    rewards_label: 'rewards',
     color_ruby: '#8B1A2B',
     color_cream: '#F5EFE6',
     color_ink: '#1A1018',
@@ -1118,7 +1119,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="currency" label="fan currency">
-        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 10, marginBottom: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: 10, marginBottom: 14 }}>
           <div>
             <Mono style={{ marginBottom: 6 }}>currency name</Mono>
             <input type="text" value={cfg.currency_name || ''} onChange={e => setCfg(p => ({ ...p, currency_name: e.target.value }))} placeholder="points, stamps, echoes..."
@@ -1129,6 +1130,12 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             <input type="text" value={cfg.currency_icon || ''} onChange={e => setCfg(p => ({ ...p, currency_icon: e.target.value.slice(0, 2) }))} placeholder="✦"
               style={{ width: '100%', padding: '10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 20, color: INK, outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
           </div>
+        </div>
+        <div>
+          <Mono style={{ marginBottom: 6 }}>rewards label</Mono>
+          <input type="text" value={cfg.rewards_label || ''} onChange={e => setCfg(p => ({ ...p, rewards_label: e.target.value }))} placeholder="rewards, gifts, thank yous, love letters..."
+            style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+          <Mono size={9} color={SLATE + '99'} style={{ marginTop: 6, lineHeight: 1.5, textTransform: 'none', letterSpacing: '0' }}>what you call the tier system fans unlock. appears on their points tab, in emails, and in your dashboard.</Mono>
         </div>
       </SettingsSection>
 
@@ -1178,6 +1185,7 @@ export default function Dashboard() {
   const [tenant, setTenant] = useState(null);
   const [currencyName, setCurrencyName] = useState('points');
   const [currencyIcon, setCurrencyIcon] = useState('✦');
+  const [rewardsLabel, setRewardsLabel] = useState('rewards');
 
   useEffect(() => {
     if (loading) return; // still loading auth
@@ -1196,6 +1204,7 @@ export default function Dashboard() {
       if (data) data.forEach(({ key, value }) => {
         if (key === 'currency_name') setCurrencyName(value);
         if (key === 'currency_icon') setCurrencyIcon(value);
+        if (key === 'rewards_label') setRewardsLabel(value);
       });
     });
   }, [supabase, tenantId]);
@@ -1208,7 +1217,7 @@ export default function Dashboard() {
     { id: 'shows', label: 'shows', icon: '♫' },
     { id: 'members', label: 'members', icon: '○' },
     { id: 'points', label: currencyName, icon: currencyIcon },
-    { id: 'rewards', label: 'rewards', icon: '♛' },
+    { id: 'rewards', label: rewardsLabel, icon: '♛' },
     { id: 'fans', label: 'fans', icon: '◉' },
     { id: 'settings', label: 'settings', icon: '⚙' },
   ];
@@ -1268,12 +1277,12 @@ export default function Dashboard() {
 
       {/* Content */}
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 60px' }}>
-        {activeTab === 'overview' && <Overview supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} />}
+        {activeTab === 'overview' && <Overview supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} rewardsLabel={rewardsLabel} />}
         {activeTab === 'posts' && <Posts supabase={supabase} tenantId={tenantId} profile={profile} />}
         {activeTab === 'shows' && <Shows supabase={supabase} tenantId={tenantId} />}
         {activeTab === 'members' && <Members supabase={supabase} tenantId={tenantId} />}
         {activeTab === 'points' && <PointsManager supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} />}
-        {activeTab === 'rewards' && <Rewards supabase={supabase} tenantId={tenantId} currencyIcon={currencyIcon} />}
+        {activeTab === 'rewards' && <Rewards supabase={supabase} tenantId={tenantId} currencyIcon={currencyIcon} rewardsLabel={rewardsLabel} />}
         {activeTab === 'fans' && <Fans supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} />}
         {activeTab === 'settings' && <Settings supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} />}
       </div>

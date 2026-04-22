@@ -616,6 +616,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [memberMap, setMemberMap] = useState({});
   const [currencyName, setCurrencyName] = useState('points');
   const [currencyIcon, setCurrencyIcon] = useState('✦');
+  const [rewardsLabel, setRewardsLabel] = useState('rewards');
   const [logoUrl, setLogoUrl] = useState(null);
   const [STAMP_LEVELS, setStampLevels] = useState(DEFAULT_LEVELS);
 
@@ -685,6 +686,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       const cfg = {};
       (cfgRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
       if (cfg.currency_name) setCurrencyName(cfg.currency_name);
+      if (cfg.rewards_label) setRewardsLabel(cfg.rewards_label);
       if (cfg.currency_icon) setCurrencyIcon(cfg.currency_icon);
       if (cfg.logo_url) setLogoUrl(cfg.logo_url);
       // Apply colours + font client-side
@@ -992,7 +994,7 @@ export function FlockApp({ tenantId: propTenantId }) {
               <div style={{ background: RUBY, borderRadius: 10, padding: '24px 22px', margin: '14px 0', position: 'relative', animation: 'fadeIn 0.5s ease-out' }}>
                 <button onClick={() => { setShowWelcome(false); if (typeof window !== 'undefined') localStorage.setItem(`flock_welcomed_${tenantId}`, '1'); }} style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', color: CREAM + '66', cursor: 'pointer', fontSize: 16 }}>×</button>
                 <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 24, fontWeight: 700, color: CREAM, marginBottom: 10, textTransform: 'lowercase', lineHeight: 1.2 }}>welcome to {tenantName}</div>
-                <p style={{ fontSize: 13, color: CREAM + 'BB', lineHeight: 1.6, marginBottom: 16 }}>you're in. earn {currencyName} by posting, commenting, and attending shows. unlock rewards as you go.</p>
+                <p style={{ fontSize: 13, color: CREAM + 'BB', lineHeight: 1.6, marginBottom: 16 }}>you're in. earn {currencyName} by posting, commenting, and attending shows. unlock {rewardsLabel} as you go.</p>
                 <button onClick={() => { setShowWelcome(false); if (typeof window !== 'undefined') localStorage.setItem(`flock_welcomed_${tenantId}`, '1'); }} style={{ background: CREAM, color: INK, border: 'none', borderRadius: 6, padding: '10px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>start exploring</button>
               </div>
             )}
@@ -1238,7 +1240,7 @@ export function FlockApp({ tenantId: propTenantId }) {
             </div>
 
             {/* Reward tiers */}
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>your rewards</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>your {rewardsLabel}</div>
             {STAMP_LEVELS.map(level => {
               const unlocked = userStamps >= level.stamps;
               const claimed = rewardClaims.some(c => c.level_key === level.key);
