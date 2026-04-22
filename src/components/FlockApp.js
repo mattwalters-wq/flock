@@ -745,6 +745,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [currencyName, setCurrencyName] = useState('points');
   const [currencyIcon, setCurrencyIcon] = useState('✦');
   const [logoUrl, setLogoUrl] = useState(null);
+  const [backgroundUrl, setBackgroundUrl] = useState(null);
   const [STAMP_LEVELS, setStampLevels] = useState(DEFAULT_LEVELS);
 
   // UI state
@@ -763,6 +764,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   // Data
   const [posts, setPosts] = useState([]);
   const [shows, setShows] = useState({});
+  const [linkTiles, setLinkTiles] = useState([]);
   const [stampActions, setStampActions] = useState([]);
   const [topCollectors, setTopCollectors] = useState([]);
   const [rewardClaims, setRewardClaims] = useState([]);
@@ -826,17 +828,20 @@ export function FlockApp({ tenantId: propTenantId }) {
         } catch (e) {}
       }
 
-      const [cfgRes, memRes, tiersRes] = await Promise.all([
+      const [cfgRes, memRes, tiersRes, tilesRes] = await Promise.all([
         supabase.from('tenant_config').select('key, value').eq('tenant_id', tenantId),
         supabase.from('tenant_members').select('*').eq('tenant_id', tenantId).order('display_order'),
         supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('sort_order'),
+        supabase.from('external_links').select('*').eq('tenant_id', tenantId).order('sort_order'),
       ]);
+      setLinkTiles(tilesRes.data || []);
 
       const cfg = {};
       (cfgRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
       if (cfg.currency_name) setCurrencyName(cfg.currency_name);
       if (cfg.currency_icon) setCurrencyIcon(cfg.currency_icon);
       if (cfg.logo_url) setLogoUrl(cfg.logo_url);
+      if (cfg.background_url) setBackgroundUrl(cfg.background_url);
       // Apply colours + font client-side
       if (typeof document !== 'undefined') {
         if (cfg.color_ruby) {
@@ -850,13 +855,16 @@ export function FlockApp({ tenantId: propTenantId }) {
           document.documentElement.style.setProperty('--slate', cfg.color_ink + '99');
           document.documentElement.style.setProperty('--border', cfg.color_ink + '26');
         }
-        // Cache all three for flash-free loading next visit
+        if (cfg.color_accent) {
+          document.documentElement.style.setProperty('--accent', cfg.color_accent);
+        }
+        // Cache all for flash-free loading next visit
         const host = window.location.hostname;
         const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
         if (host.endsWith(`.${APP_DOMAIN}`)) {
           const slug = host.replace(`.${APP_DOMAIN}`, '');
           try {
-            const palette = { ruby: cfg.color_ruby, cream: cfg.color_cream, ink: cfg.color_ink };
+            const palette = { ruby: cfg.color_ruby, cream: cfg.color_cream, ink: cfg.color_ink, accent: cfg.color_accent };
             localStorage.setItem(`flock_palette_${slug}`, JSON.stringify(palette));
             if (cfg.color_cream) localStorage.setItem(`flock_cream_${slug}`, cfg.color_cream);
           } catch (e) {}
@@ -1184,7 +1192,10 @@ export function FlockApp({ tenantId: propTenantId }) {
     : (members[0]?.name?.charAt(0)?.toLowerCase() || '✦');
 
   return (
-    <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif", color: INK }}>
+    <div style={{ minHeight: '100vh', background: CREAM, fontFamily: "'DM Sans', sans-serif", color: INK, position: 'relative' }}>
+      {backgroundUrl && (
+        <div style={{ position: 'fixed', inset: 0, backgroundImage: `url(${backgroundUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed', opacity: 0.08, pointerEvents: 'none', zIndex: 0 }} />
+      )}
       <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
 
       {/* ── MODALS ── */}
@@ -1252,7 +1263,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       </div>
 
       {/* ── CONTENT ── */}
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px', position: 'relative', zIndex: 1 }}>
 
         {/* Notifications */}
         {showNotifications && (
@@ -1309,6 +1320,21 @@ export function FlockApp({ tenantId: propTenantId }) {
 
             {/* Member header */}
             {feedView !== 'community' && feedView !== 'highlights' && memberMap[feedView] && <MemberHeader member={feedView} memberMap={memberMap} />}
+
+            {/* Link tiles - only on community view, only if artist has added any */}
+            {feedView === 'community' && linkTiles.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
+                {linkTiles.map(tile => (
+                  <a key={tile.id} href={tile.url} target="_blank" rel="noopener noreferrer"
+                    style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, textDecoration: 'none', color: INK, overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = RUBY; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; }}>
+                    {tile.image_url && <img src={tile.image_url} alt="" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />}
+                    <div style={{ fontSize: 12, fontWeight: 600, padding: tile.image_url ? '10px 12px' : '14px 12px', textAlign: 'center' }}>{tile.label}</div>
+                  </a>
+                ))}
+              </div>
+            )}
 
             {/* Tag filter */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>

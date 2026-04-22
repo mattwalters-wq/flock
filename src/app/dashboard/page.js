@@ -987,6 +987,121 @@ const PALETTE_PRESETS = [
   { key: 'custom', label: 'Custom', ruby: null, cream: null, ink: null },
 ];
 
+function LinkTilesEditor({ supabase, tenantId }) {
+  const [tiles, setTiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [newTile, setNewTile] = useState({ label: '', url: '', image_url: '' });
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const INK = '#1A1018'; const CREAM = '#F5EFE6'; const RUBY = '#8B1A2B'; const SURFACE = '#FAF5F0'; const BORDER = '#E8DDD4'; const SLATE = '#6A5A62';
+  const Mono = ({ children, size = 10, color = SLATE, style = {} }) => <div style={{ fontFamily: "'DM Mono', monospace", fontSize: size, color, letterSpacing: '0.5px', textTransform: 'uppercase', ...style }}>{children}</div>;
+
+  useEffect(() => {
+    if (!supabase || !tenantId) return;
+    supabase.from('external_links').select('*').eq('tenant_id', tenantId).order('sort_order').then(({ data }) => {
+      setTiles(data || []); setLoading(false);
+    });
+  }, [supabase, tenantId]);
+
+  const uploadImage = async (file) => {
+    setUploadingImage(true);
+    const ext = file.name.split('.').pop();
+    const path = `link-tiles/${tenantId}/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('media').upload(path, file, { upsert: true });
+    if (!upErr) {
+      const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+      setUploadingImage(false);
+      return urlData?.publicUrl;
+    }
+    setUploadingImage(false);
+    return null;
+  };
+
+  const addTile = async () => {
+    if (!newTile.label.trim() || !newTile.url.trim()) return;
+    const { data } = await supabase.from('external_links').insert({ tenant_id: tenantId, label: newTile.label.trim(), url: newTile.url.trim(), image_url: newTile.image_url || null, sort_order: tiles.length }).select().single();
+    if (data) setTiles(p => [...p, data]);
+    setNewTile({ label: '', url: '', image_url: '' });
+    setAdding(false);
+  };
+
+  const updateTile = async (id, field, value) => {
+    setTiles(p => p.map(t => t.id === id ? { ...t, [field]: value } : t));
+    await supabase.from('external_links').update({ [field]: value }).eq('id', id);
+  };
+
+  const deleteTile = async (id) => {
+    if (!confirm('delete this tile?')) return;
+    setTiles(p => p.filter(t => t.id !== id));
+    await supabase.from('external_links').delete().eq('id', id);
+  };
+
+  if (loading) return <Mono>loading...</Mono>;
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
+        Add links to your webstore, Spotify, Apple Music, YouTube, Patreon, etc. These appear on your public landing page and inside your community. Leave empty to hide the section.
+      </div>
+      {tiles.map(tile => (
+        <div key={tile.id} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: 14, marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <label style={{ width: 60, height: 60, borderRadius: 8, background: CREAM, border: `1px solid ${BORDER}`, overflow: 'hidden', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            {tile.image_url ? (
+              <img src={tile.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ fontSize: 22, color: SLATE + '88' }}>⊕</div>
+            )}
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+              const f = e.target.files?.[0]; if (!f) return;
+              if (f.size > 3 * 1024 * 1024) { alert('image must be under 3MB'); return; }
+              const url = await uploadImage(f);
+              if (url) updateTile(tile.id, 'image_url', url);
+            }} />
+          </label>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <input value={tile.label} onChange={e => updateTile(tile.id, 'label', e.target.value)} placeholder="label (e.g. webstore)"
+              style={{ width: '100%', padding: '8px 10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: 6 }} />
+            <input value={tile.url} onChange={e => updateTile(tile.id, 'url', e.target.value)} placeholder="https://..."
+              style={{ width: '100%', padding: '8px 10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace" }} />
+          </div>
+          <button onClick={() => deleteTile(tile.id)}
+            style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: RUBY, flexShrink: 0 }}>remove</button>
+        </div>
+      ))}
+      {adding ? (
+        <div style={{ background: CREAM, border: `1px dashed ${BORDER}`, borderRadius: 10, padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <label style={{ width: 60, height: 60, borderRadius: 8, background: SURFACE, border: `1px solid ${BORDER}`, overflow: 'hidden', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {newTile.image_url ? <img src={newTile.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ fontSize: 22, color: SLATE + '88' }}>⊕</div>}
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+              const f = e.target.files?.[0]; if (!f) return;
+              if (f.size > 3 * 1024 * 1024) { alert('image must be under 3MB'); return; }
+              const url = await uploadImage(f);
+              if (url) setNewTile(p => ({ ...p, image_url: url }));
+            }} />
+          </label>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <input value={newTile.label} onChange={e => setNewTile(p => ({ ...p, label: e.target.value }))} placeholder="label (e.g. webstore)"
+              style={{ width: '100%', padding: '8px 10px', background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: 6 }} />
+            <input value={newTile.url} onChange={e => setNewTile(p => ({ ...p, url: e.target.value }))} placeholder="https://..."
+              style={{ width: '100%', padding: '8px 10px', background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace" }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+            <button onClick={addTile} disabled={!newTile.label.trim() || !newTile.url.trim()}
+              style={{ background: RUBY, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, opacity: (!newTile.label.trim() || !newTile.url.trim()) ? 0.5 : 1 }}>add</button>
+            <button onClick={() => { setAdding(false); setNewTile({ label: '', url: '', image_url: '' }); }}
+              style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: SLATE }}>cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)}
+          style={{ width: '100%', padding: '12px', background: 'transparent', border: `1px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginTop: tiles.length ? 0 : 0 }}>
+          + add link tile
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SettingsSection({ id, label, children, activeSection, setActiveSection }) {
   const isOpen = Array.isArray(activeSection) ? activeSection.includes(id) : activeSection === id;
   return (
@@ -1025,9 +1140,12 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     color_ruby: '#8B1A2B',
     color_cream: '#F5EFE6',
     color_ink: '#1A1018',
+    color_accent: '#C9922A',
     font_key: 'dm_sans',
     banner_url: '',
     logo_url: '',
+    background_url: '',
+    landing_banner_url: '',
     tagline: '',
     social_instagram: '',
     social_spotify: '',
@@ -1046,6 +1164,10 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [bgFile, setBgFile] = useState(null);
+  const [bgPreview, setBgPreview] = useState(null);
+  const [landingBannerFile, setLandingBannerFile] = useState(null);
+  const [landingBannerPreview, setLandingBannerPreview] = useState(null);
   const [openSections, setOpenSections] = useState(['branding', 'socials', 'profile']);
   const activeSection = openSections[0]; // backwards compat
   const setActiveSection = (id) => setOpenSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
@@ -1060,6 +1182,8 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         setCfg(prev => ({ ...prev, ...loaded }));
         if (loaded.banner_url) setBannerPreview(loaded.banner_url);
         if (loaded.logo_url) setLogoPreview(loaded.logo_url);
+        if (loaded.background_url) setBgPreview(loaded.background_url);
+        if (loaded.landing_banner_url) setLandingBannerPreview(loaded.landing_banner_url);
       }
     });
   }, [supabase, tenantId]);
@@ -1068,6 +1192,8 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     setSaving(true);
     let bannerUrl = cfg.banner_url;
     let logoUrl = cfg.logo_url;
+    let bgUrl = cfg.background_url;
+    let landingBannerUrl = cfg.landing_banner_url;
 
     if (logoFile) {
       const ext = logoFile.name.split('.').pop();
@@ -1091,11 +1217,33 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       setUploadingBanner(false);
     }
 
-    const toSave = { ...cfg, banner_url: bannerUrl, logo_url: logoUrl };
+    if (bgFile) {
+      const ext = bgFile.name.split('.').pop();
+      const path = `backgrounds/${tenantId}/bg.${ext}`;
+      const { error: upErr } = await supabase.storage.from('media').upload(path, bgFile, { cacheControl: '3600', upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+        bgUrl = urlData?.publicUrl || bgUrl;
+      }
+    }
+
+    if (landingBannerFile) {
+      const ext = landingBannerFile.name.split('.').pop();
+      const path = `landing-banners/${tenantId}/banner.${ext}`;
+      const { error: upErr } = await supabase.storage.from('media').upload(path, landingBannerFile, { cacheControl: '3600', upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+        landingBannerUrl = urlData?.publicUrl || landingBannerUrl;
+      }
+    }
+
+    const toSave = { ...cfg, banner_url: bannerUrl, logo_url: logoUrl, background_url: bgUrl, landing_banner_url: landingBannerUrl };
     // Update local state so URLs persist after save
-    setCfg(prev => ({ ...prev, banner_url: bannerUrl, logo_url: logoUrl }));
+    setCfg(prev => ({ ...prev, banner_url: bannerUrl, logo_url: logoUrl, background_url: bgUrl, landing_banner_url: landingBannerUrl }));
     if (bannerUrl) setBannerPreview(bannerUrl);
     if (logoUrl) setLogoPreview(logoUrl);
+    if (bgUrl) setBgPreview(bgUrl);
+    if (landingBannerUrl) setLandingBannerPreview(landingBannerUrl);
     setLogoFile(null);
     setBannerFile(null);
     for (const [key, value] of Object.entries(toSave)) {
@@ -1109,6 +1257,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       document.documentElement.style.setProperty('--ruby', toSave.color_ruby || '#8B1A2B');
       document.documentElement.style.setProperty('--cream', toSave.color_cream || '#F5EFE6');
       document.documentElement.style.setProperty('--ink', toSave.color_ink || '#1A1018');
+      document.documentElement.style.setProperty('--accent', toSave.color_accent || '#C9922A');
     }
 
     setSaved(true); setSaving(false);
@@ -1164,11 +1313,12 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
 
         {/* Custom colour pickers */}
         <Mono style={{ marginBottom: 10 }}>custom colours</Mono>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
           {[
-            { label: 'accent', field: 'color_ruby', desc: 'buttons, highlights' },
+            { label: 'primary', field: 'color_ruby', desc: 'buttons, highlights' },
             { label: 'background', field: 'color_cream', desc: 'page background' },
             { label: 'text', field: 'color_ink', desc: 'headings & body' },
+            { label: 'accent', field: 'color_accent', desc: 'gold · extras' },
           ].map(({ label, field, desc }) => (
             <div key={field} style={{ textAlign: 'center' }}>
               <div style={{ position: 'relative', display: 'inline-block', marginBottom: 6 }}>
@@ -1257,6 +1407,60 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
           </label>
         )}
+
+        <Mono style={{ marginBottom: 10, marginTop: 24 }}>landing page banner</Mono>
+        <div style={{ fontSize: 13, color: SLATE, marginBottom: 12, lineHeight: 1.5 }}>
+          Hero image on your public landing page (what visitors see before joining). Best size: 1600×600px.
+        </div>
+        {landingBannerPreview ? (
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <img src={landingBannerPreview} alt="landing banner" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 8, border: `1px solid ${BORDER}`, display: 'block' }} />
+            <button onClick={() => { setLandingBannerPreview(null); setLandingBannerFile(null); setCfg(p => ({ ...p, landing_banner_url: '' })); }}
+              style={{ position: 'absolute', top: 8, right: 8, background: INK + 'CC', color: CREAM, border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>remove</button>
+          </div>
+        ) : (
+          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px', background: CREAM, border: `2px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', marginBottom: 16 }}>
+            <input type="file" accept="image/*" onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
+              setLandingBannerFile(file);
+              const r = new FileReader();
+              r.onload = ev => setLandingBannerPreview(ev.target.result);
+              r.readAsDataURL(file);
+            }} style={{ display: 'none' }} />
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE }}>⊕</div>
+            <Mono>upload landing banner</Mono>
+            <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
+          </label>
+        )}
+
+        <Mono style={{ marginBottom: 10, marginTop: 24 }}>background image</Mono>
+        <div style={{ fontSize: 13, color: SLATE, marginBottom: 12, lineHeight: 1.5 }}>
+          Subtle background image that sits behind your community. Keep it low-contrast so text stays readable. Best size: 2000×2000px.
+        </div>
+        {bgPreview ? (
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <img src={bgPreview} alt="background" style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 8, border: `1px solid ${BORDER}`, display: 'block' }} />
+            <button onClick={() => { setBgPreview(null); setBgFile(null); setCfg(p => ({ ...p, background_url: '' })); }}
+              style={{ position: 'absolute', top: 8, right: 8, background: INK + 'CC', color: CREAM, border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>remove</button>
+          </div>
+        ) : (
+          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px', background: CREAM, border: `2px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', marginBottom: 16 }}>
+            <input type="file" accept="image/*" onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 5 * 1024 * 1024) { alert('image must be under 5MB'); return; }
+              setBgFile(file);
+              const r = new FileReader();
+              r.onload = ev => setBgPreview(ev.target.result);
+              r.readAsDataURL(file);
+            }} style={{ display: 'none' }} />
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: SLATE }}>⊕</div>
+            <Mono>upload background image</Mono>
+            <Mono size={9} color={SLATE + '66'}>jpg, png, webp · max 5MB</Mono>
+          </label>
+        )}
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="profile" label="artist profile">
@@ -1280,6 +1484,10 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         <SettingsField cfg={cfg} setCfg={setCfg} label="apple music" field="social_apple_music" placeholder="artist URL" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="youtube" field="social_youtube" placeholder="channel URL" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="website" field="social_website" placeholder="https://yoursite.com" />
+      </SettingsSection>
+
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="link_tiles" label="link tiles">
+        <LinkTilesEditor supabase={supabase} tenantId={tenantId} />
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="currency" label="fan currency">
