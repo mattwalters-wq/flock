@@ -773,39 +773,159 @@ function Fans({ supabase, tenantId, currencyName, currencyIcon }) {
   const [fans, setFans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sortCol, setSortCol] = useState('stamp_count');
+  const [sortAsc, setSortAsc] = useState(false);
+  const [filterRole, setFilterRole] = useState('all');
+  const { user } = useAuth();
 
   useEffect(() => {
-    supabase.from('profiles').select('*').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).then(({ data }) => { setFans(data || []); setLoading(false); });
-  }, []);
+    if (!tenantId || !user) return;
+    fetch('/api/fans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, requestingUserId: user.id }) })
+      .then(r => r.json())
+      .then(d => { setFans(d.fans || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [tenantId, user]);
 
-  const filtered = fans.filter(f => !search || f.display_name?.toLowerCase().includes(search.toLowerCase()));
+  const sort = (col) => {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(col === 'display_name' || col === 'email'); }
+  };
+
+  const filtered = fans
+    .filter(f => filterRole === 'all' || f.role === filterRole)
+    .filter(f => !search || (f.display_name || '').toLowerCase().includes(search.toLowerCase()) || (f.email || '').toLowerCase().includes(search.toLowerCase()) || (f.city || '').toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      let av = a[sortCol], bv = b[sortCol];
+      if (typeof av === 'string') av = av?.toLowerCase() || '';
+      if (typeof bv === 'string') bv = bv?.toLowerCase() || '';
+      if (av == null) av = '';
+      if (bv == null) bv = '';
+      if (av < bv) return sortAsc ? -1 : 1;
+      if (av > bv) return sortAsc ? 1 : -1;
+      return 0;
+    });
+
+  const exportCSV = () => {
+    const headers = ['name', 'email', 'city', 'role', currencyName, 'level', 'posts', 'comments', 'referrals', 'rewards claimed', 'email notifications', 'joined', 'last active'];
+    const rows = filtered.map(f => [
+      f.display_name || '',
+      f.email || '',
+      f.city || '',
+      f.role || '',
+      f.stamp_count || 0,
+      f.stamp_level || '',
+      f.posts || 0,
+      f.comments || 0,
+      f.referral_count || 0,
+      f.rewards_claimed || 0,
+      f.email_notifications ? 'yes' : 'no',
+      f.created_at ? new Date(f.created_at).toLocaleDateString('en-AU') : '',
+      f.last_sign_in ? new Date(f.last_sign_in).toLocaleDateString('en-AU') : '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `fans-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const fansOnly = fans.filter(f => f.role === 'fan');
+  const totalPoints = fansOnly.reduce((s, f) => s + (f.stamp_count || 0), 0);
+  const activeThisMonth = fansOnly.filter(f => f.last_sign_in && new Date(f.last_sign_in) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length;
+  const withEmail = fansOnly.filter(f => f.email_notifications).length;
+
+  const ColHeader = ({ col, label, style = {} }) => (
+    <th onClick={() => sort(col)} style={{ padding: '8px 10px', fontFamily: "'DM Mono', monospace", fontSize: 9, color: sortCol === col ? RUBY : SLATE, letterSpacing: '1px', textTransform: 'uppercase', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: `1px solid ${BORDER}`, background: CREAM, position: 'sticky', top: 0, ...style }}>
+      {label} {sortCol === col ? (sortAsc ? '↑' : '↓') : ''}
+    </th>
+  );
 
   return (
     <div>
-      <H style={{ marginBottom: 20 }}>fans</H>
-      <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="search fans..." style={{ width: '100%', padding: '10px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', marginBottom: 14 }} />
+      <H style={{ marginBottom: 6 }}>fans</H>
+      <div style={{ fontSize: 13, color: SLATE, marginBottom: 20, lineHeight: 1.5 }}>your fan database. search, sort, and export your entire community.</div>
 
-      {loading ? <Mono style={{ padding: 20, textAlign: 'center' }}>loading...</Mono> : filtered.length === 0 ? (
-        <Mono style={{ padding: 20, textAlign: 'center' }}>{search ? 'no fans found' : 'no fans yet'}</Mono>
-      ) : filtered.map(fan => (
-        <div key={fan.id} style={{ background: SURFACE, borderRadius: 10, padding: '12px 16px', marginBottom: 8, border: `1px solid ${BORDER}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 6, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>{fan.display_name?.charAt(0)?.toLowerCase() || '?'}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{fan.display_name?.toLowerCase()}</div>
-              <Mono size={9} color={SLATE + '88'}>{[fan.city, fan.role].filter(Boolean).join(' · ')}</Mono>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Mono size={12} color={WARM_GOLD}>{fan.stamp_count || 0} {currencyIcon}</Mono>
-              <button onClick={async () => {
-                const newCount = (fan.stamp_count || 0) + 10;
-                await supabase.from('profiles').update({ stamp_count: newCount }).eq('id', fan.id);
-                setFans(p => p.map(x => x.id === fan.id ? { ...x, stamp_count: newCount } : x));
-              }} title={`award 10 ${currencyName}`} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>+10</button>
-            </div>
+      {/* Stats strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+        {[
+          { label: 'total fans', value: fansOnly.length },
+          { label: `total ${currencyName}`, value: totalPoints },
+          { label: 'active (30d)', value: activeThisMonth },
+          { label: 'email opted in', value: withEmail },
+        ].map(s => (
+          <div key={s.label} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '12px', textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: INK }}>{s.value}</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: '1px', textTransform: 'uppercase', marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Search + filters + export */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="search name, email, city..."
+          style={{ flex: 1, minWidth: 180, padding: '9px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+        <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
+          style={{ padding: '9px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, color: INK, fontFamily: "'DM Mono', monospace", cursor: 'pointer' }}>
+          <option value="all">all roles</option>
+          <option value="fan">fans</option>
+          <option value="admin">admin</option>
+          <option value="band">band</option>
+        </select>
+        <button onClick={exportCSV} style={{ padding: '9px 16px', background: INK, color: CREAM, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap' }}>
+          export CSV ↓
+        </button>
+      </div>
+
+      {loading ? <Mono style={{ padding: 40, textAlign: 'center' }}>loading fans...</Mono> : filtered.length === 0 ? (
+        <Mono style={{ padding: 40, textAlign: 'center' }}>{search ? 'no fans found' : 'no fans yet'}</Mono>
+      ) : (
+        <div style={{ borderRadius: 10, border: `1px solid ${BORDER}`, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto', maxHeight: 520 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <ColHeader col="display_name" label="name" />
+                  <ColHeader col="email" label="email" />
+                  <ColHeader col="city" label="city" />
+                  <ColHeader col="stamp_count" label={currencyName} />
+                  <ColHeader col="stamp_level" label="level" />
+                  <ColHeader col="posts" label="posts" />
+                  <ColHeader col="comments" label="comments" />
+                  <ColHeader col="referral_count" label="referrals" />
+                  <ColHeader col="created_at" label="joined" />
+                  <ColHeader col="last_sign_in" label="last active" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((fan, i) => (
+                  <tr key={fan.id} style={{ background: i % 2 === 0 ? SURFACE : CREAM, borderBottom: `1px solid ${BORDER}` }}>
+                    <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 26, height: 26, borderRadius: 6, background: BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, flexShrink: 0 }}>{fan.display_name?.charAt(0)?.toLowerCase() || '?'}</div>
+                        <span style={{ fontWeight: 600, color: INK }}>{fan.display_name?.toLowerCase() || '-'}</span>
+                        {fan.role !== 'fan' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: RUBY, background: RUBY + '11', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{fan.role}</span>}
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>{fan.email || '-'}</td>
+                    <td style={{ padding: '10px', color: SLATE, fontSize: 12 }}>{fan.city || '-'}</td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 12, color: WARM_GOLD, fontWeight: 600 }}>{fan.stamp_count || 0}</td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE }}>{fan.stamp_level || '-'}</td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE }}>{fan.posts || 0}</td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE }}>{fan.comments || 0}</td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE }}>{fan.referral_count || 0}</td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, whiteSpace: 'nowrap' }}>{fan.created_at ? new Date(fan.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '-'}</td>
+                    <td style={{ padding: '10px', fontFamily: "'DM Mono', monospace", fontSize: 10, color: fan.last_sign_in && new Date(fan.last_sign_in) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) ? '#1A6B33' : SLATE, whiteSpace: 'nowrap' }}>{fan.last_sign_in ? new Date(fan.last_sign_in).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: '10px 14px', background: CREAM, borderTop: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Mono size={9} color={SLATE}>{filtered.length} {filtered.length === 1 ? 'fan' : 'fans'}</Mono>
+            <button onClick={exportCSV} style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>download csv</button>
           </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
