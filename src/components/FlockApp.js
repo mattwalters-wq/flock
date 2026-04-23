@@ -251,6 +251,8 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
   const isBand = prof.role === 'band'; const isAdmin = prof.role === 'admin';
   const memberKey = prof.band_member;
   const memberInfo = memberKey ? memberMap[memberKey] : null;
+  // For solo artists (admin, no band_member), find first member's avatar
+  const artistAvatar = memberInfo?.avatar_url || (isAdmin ? Object.values(memberMap)[0]?.avatar_url : null);
   const memberColor = memberInfo?.accentColor;
   const displayName = prof.display_name || 'fan';
   const canModerate = currentProfile?.role === 'admin' || currentProfile?.role === 'band';
@@ -285,10 +287,10 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
 
         {/* Author */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          {(isBand || isAdmin) && memberInfo?.avatar_url ? (
-            <img src={memberInfo.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover' }} />
+          {artistAvatar ? (
+            <img src={artistAvatar} alt="" onClick={() => setLightboxUrl(artistAvatar)} style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover', cursor: 'pointer' }} />
           ) : prof.avatar_url && !isBand && !isAdmin ? (
-            <img src={prof.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover' }} />
+            <img src={prof.avatar_url} alt="" onClick={() => onViewProfile?.(post.author_id)} style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover', cursor: 'pointer' }} />
           ) : (
             <div style={{ width: 34, height: 34, borderRadius: 6, background: isBand && memberColor ? memberColor : (isBand || isAdmin) ? INK : BLUSH + '33', color: (isBand || isAdmin) ? CREAM : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isBand ? 14 : 13, fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>
               {(isBand || isAdmin) ? '✦' : displayName.charAt(0).toLowerCase()}
@@ -743,7 +745,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
       const mems = memRes.data || [];
       const map = {};
-      mems.forEach(m => { map[m.slug] = { name: m.name, slug: m.slug, accentColor: m.accent_color || 'var(--ruby)', bio: m.bio || '' }; });
+      mems.forEach(m => { map[m.slug] = { name: m.name, slug: m.slug, accentColor: m.accent_color || 'var(--ruby)', bio: m.bio || '', avatar_url: m.avatar_url || null }; });
       setMembers(mems);
       setMemberMap(map);
 
