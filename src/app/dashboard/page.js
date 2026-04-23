@@ -1015,6 +1015,7 @@ const PALETTE_PRESETS = [
   { key: 'default', label: 'Flock Default', ruby: '#8B1A2B', cream: '#F5EFE6', ink: '#1A1018' },
   { key: 'midnight', label: 'Midnight', ruby: '#6B5ECD', cream: '#F0EEF8', ink: '#1A1830' },
   { key: 'forest', label: 'Forest', ruby: '#2D6A4F', cream: '#F0F5F0', ink: '#1A2B1F' },
+  { key: 'cloudmakers', label: 'Cloudmakers', ruby: '#749A7F', cream: '#E3ECEA', ink: '#3D2020', accent: '#A42325' },
   { key: 'terracotta', label: 'Terracotta', ruby: '#C1440E', cream: '#FBF0EB', ink: '#2B1810' },
   { key: 'slate', label: 'Slate', ruby: '#4A6FA5', cream: '#EEF2F8', ink: '#1A2030' },
   { key: 'custom', label: 'Custom', ruby: null, cream: null, ink: null },
@@ -1151,7 +1152,9 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
 
   const applyPreset = (preset) => {
     if (preset.key === 'custom') return;
-    setCfg(p => ({ ...p, color_ruby: preset.ruby, color_cream: preset.cream, color_ink: preset.ink }));
+    const updates = { color_ruby: preset.ruby, color_cream: preset.cream, color_ink: preset.ink };
+    if (preset.accent) updates.color_accent = preset.accent;
+    setCfg(p => ({ ...p, ...updates }));
   };
 
   const selectedFont = FONT_OPTIONS.find(f => f.key === cfg.font_key) || FONT_OPTIONS[0];

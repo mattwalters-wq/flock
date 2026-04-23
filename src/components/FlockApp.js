@@ -239,6 +239,9 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
   const [commentCount, setCommentCount] = useState(post.comment_count || 0);
   const [showMenu, setShowMenu] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(post.content || '');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const INK = 'var(--ink)'; const RUBY = 'var(--ruby)'; const SLATE = 'var(--slate)';
   const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)'; const CREAM = 'var(--cream)';
@@ -307,6 +310,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
                     <button onClick={async () => { await supabase.from('posts').update({ is_pinned: !post.is_pinned }).eq('id', post.id); onRefresh?.(); setShowMenu(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: WARM_GOLD, textAlign: 'left' }}>{post.is_pinned ? 'unpin' : 'pin post'}</button>
                     <button onClick={async () => { await supabase.from('posts').update({ is_highlight: !post.is_highlight }).eq('id', post.id); onRefresh?.(); setShowMenu(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: WARM_GOLD, textAlign: 'left' }}>{post.is_highlight ? 'remove highlight' : '✦ highlight'}</button>
                   </>}
+                  {canDelete && <button onClick={() => { setEditing(true); setEditContent(post.content || ''); setShowMenu(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: INK, textAlign: 'left' }}>edit post</button>}
                   <button onClick={async () => { await supabase.from('posts').delete().eq('id', post.id); setShowMenu(false); onRefresh?.(); }} style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: RUBY, textAlign: 'left' }}>delete</button>
                 </div>
               )}
@@ -315,7 +319,22 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
         </div>
 
         {/* Content */}
-        {post.content && <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13.5, lineHeight: 1.65, color: INK + 'CC', margin: '0 0 14px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.content}</p>}
+        {editing ? (
+          <div style={{ marginBottom: 14 }}>
+            <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13.5, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', resize: 'vertical', minHeight: 80, lineHeight: 1.65 }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditing(false)} style={{ padding: '7px 14px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>cancel</button>
+              <button onClick={async () => {
+                setSavingEdit(true);
+                await supabase.from('posts').update({ content: editContent.trim() }).eq('id', post.id);
+                setSavingEdit(false); setEditing(false); onRefresh?.();
+              }} disabled={savingEdit} style={{ padding: '7px 14px', background: INK, color: CREAM, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: savingEdit ? 0.5 : 1 }}>
+                {savingEdit ? 'saving...' : 'save'}
+              </button>
+            </div>
+          </div>
+        ) : post.content && <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13.5, lineHeight: 1.65, color: INK + 'CC', margin: '0 0 14px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.content}</p>}
 
         {/* Poll */}
         {post.poll_options?.length > 0 && <PollWidget postId={post.id} options={post.poll_options} supabase={supabase} currentUserId={currentUserId} tenantId={tenantId} />}
