@@ -1021,6 +1021,119 @@ const PALETTE_PRESETS = [
   { key: 'custom', label: 'Custom', ruby: null, cream: null, ink: null },
 ];
 
+function LinkTilesEditor({ supabase, tenantId }) {
+  const [tiles, setTiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [newTile, setNewTile] = useState({ label: '', url: '', image_url: '' });
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  useEffect(() => {
+    if (!supabase || !tenantId) return;
+    supabase.from('external_links').select('*').eq('tenant_id', tenantId).order('sort_order').then(({ data }) => {
+      setTiles(data || []); setLoading(false);
+    });
+  }, [supabase, tenantId]);
+
+  const uploadImage = async (file) => {
+    setUploadingImage(true);
+    const ext = file.name.split('.').pop();
+    const path = `link-tiles/${tenantId}/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('media').upload(path, file, { upsert: true });
+    if (!upErr) {
+      const { data: urlData } = supabase.storage.from('media').getPublicUrl(path);
+      setUploadingImage(false);
+      return urlData?.publicUrl;
+    }
+    setUploadingImage(false);
+    return null;
+  };
+
+  const addTile = async () => {
+    if (!newTile.label.trim() || !newTile.url.trim()) return;
+    const { data } = await supabase.from('external_links').insert({ tenant_id: tenantId, label: newTile.label.trim(), url: newTile.url.trim(), image_url: newTile.image_url || null, sort_order: tiles.length }).select().single();
+    if (data) setTiles(p => [...p, data]);
+    setNewTile({ label: '', url: '', image_url: '' });
+    setAdding(false);
+  };
+
+  const updateTile = async (id, field, value) => {
+    setTiles(p => p.map(t => t.id === id ? { ...t, [field]: value } : t));
+    await supabase.from('external_links').update({ [field]: value }).eq('id', id);
+  };
+
+  const deleteTile = async (id) => {
+    if (!confirm('delete this tile?')) return;
+    setTiles(p => p.filter(t => t.id !== id));
+    await supabase.from('external_links').delete().eq('id', id);
+  };
+
+  if (loading) return <Mono>loading...</Mono>;
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
+        Add links to your webstore, Spotify, Apple Music, YouTube, Patreon, etc. These appear on your public landing page and inside your community. Leave empty to hide the section.
+      </div>
+      {tiles.map(tile => (
+        <div key={tile.id} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: 14, marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <label style={{ width: 60, height: 60, borderRadius: 8, background: CREAM, border: `1px solid ${BORDER}`, overflow: 'hidden', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            {tile.image_url ? (
+              <img src={tile.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ fontSize: 22, color: SLATE + '88' }}>+</div>
+            )}
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+              const f = e.target.files?.[0]; if (!f) return;
+              if (f.size > 3 * 1024 * 1024) { alert('image must be under 3MB'); return; }
+              const url = await uploadImage(f);
+              if (url) updateTile(tile.id, 'image_url', url);
+            }} />
+          </label>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <input value={tile.label} onChange={e => updateTile(tile.id, 'label', e.target.value)} placeholder="label (e.g. webstore)"
+              style={{ width: '100%', padding: '8px 10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: 6, boxSizing: 'border-box' }} />
+            <input value={tile.url} onChange={e => updateTile(tile.id, 'url', e.target.value)} placeholder="https://..."
+              style={{ width: '100%', padding: '8px 10px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace", boxSizing: 'border-box' }} />
+          </div>
+          <button onClick={() => deleteTile(tile.id)}
+            style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 12, color: RUBY, flexShrink: 0 }}>remove</button>
+        </div>
+      ))}
+      {adding ? (
+        <div style={{ background: CREAM, border: `1px dashed ${BORDER}`, borderRadius: 10, padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <label style={{ width: 60, height: 60, borderRadius: 8, background: SURFACE, border: `1px solid ${BORDER}`, overflow: 'hidden', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {newTile.image_url ? <img src={newTile.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ fontSize: 22, color: SLATE + '88' }}>+</div>}
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+              const f = e.target.files?.[0]; if (!f) return;
+              if (f.size > 3 * 1024 * 1024) { alert('image must be under 3MB'); return; }
+              const url = await uploadImage(f);
+              if (url) setNewTile(p => ({ ...p, image_url: url }));
+            }} />
+          </label>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <input value={newTile.label} onChange={e => setNewTile(p => ({ ...p, label: e.target.value }))} placeholder="label (e.g. webstore)"
+              style={{ width: '100%', padding: '8px 10px', background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: 6, boxSizing: 'border-box' }} />
+            <input value={newTile.url} onChange={e => setNewTile(p => ({ ...p, url: e.target.value }))} placeholder="https://..."
+              style={{ width: '100%', padding: '8px 10px', background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace", boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+            <button onClick={addTile} disabled={!newTile.label.trim() || !newTile.url.trim()}
+              style={{ background: RUBY, color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, opacity: (!newTile.label.trim() || !newTile.url.trim()) ? 0.5 : 1 }}>add</button>
+            <button onClick={() => { setAdding(false); setNewTile({ label: '', url: '', image_url: '' }); }}
+              style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: SLATE }}>cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)}
+          style={{ width: '100%', padding: '12px', background: 'transparent', border: `1px dashed ${BORDER}`, borderRadius: 10, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>
+          + add link tile
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SettingsSection({ id, label, children, activeSection, setActiveSection }) {
   const isOpen = Array.isArray(activeSection) ? activeSection.includes(id) : activeSection === id;
   return (
@@ -1311,6 +1424,10 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         <SettingsField cfg={cfg} setCfg={setCfg} label="apple music" field="social_apple_music" placeholder="artist URL" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="youtube" field="social_youtube" placeholder="channel URL" />
         <SettingsField cfg={cfg} setCfg={setCfg} label="website" field="social_website" placeholder="https://yoursite.com" />
+      </SettingsSection>
+
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="link_tiles" label="link tiles">
+        <LinkTilesEditor supabase={supabase} tenantId={tenantId} />
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="currency" label="fan currency">
