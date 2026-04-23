@@ -285,7 +285,9 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
 
         {/* Author */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          {prof.avatar_url && !isBand && !isAdmin ? (
+          {(isBand || isAdmin) && memberInfo?.avatar_url ? (
+            <img src={memberInfo.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover' }} />
+          ) : prof.avatar_url && !isBand && !isAdmin ? (
             <img src={prof.avatar_url} alt="" style={{ width: 34, height: 34, borderRadius: 6, objectFit: 'cover' }} />
           ) : (
             <div style={{ width: 34, height: 34, borderRadius: 6, background: isBand && memberColor ? memberColor : (isBand || isAdmin) ? INK : BLUSH + '33', color: (isBand || isAdmin) ? CREAM : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isBand ? 14 : 13, fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>
@@ -901,7 +903,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   const feedTabs = [
     { id: 'community', label: 'everyone', icon: '✦', color: RUBY },
-    ...members.map(m => ({ id: m.slug, label: m.name?.toLowerCase(), icon: m.name?.charAt(0)?.toLowerCase(), color: m.accent_color })),
+    ...members.map(m => ({ id: m.slug, label: m.name?.toLowerCase(), icon: m.name?.charAt(0)?.toLowerCase(), color: m.accent_color, avatar_url: m.avatar_url })),
     { id: 'highlights', label: 'highlights', icon: '◉', color: RUBY },
   ];
 
@@ -1036,6 +1038,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                   <button key={tab.id} onClick={() => { setFeedView(tab.id); setFeedTagFilter(null); }} style={{ flex: tab.id === 'highlights' ? '0 0 auto' : 1, padding: '12px 8px 10px', background: 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: tab.id === 'highlights' ? 80 : 56 }}>
                     {tab.id === 'community' ? <span style={{ fontSize: 16, color: isActive ? RUBY : SLATE + '66' }}>✦</span> :
                      tab.id === 'highlights' ? <span style={{ fontSize: 14, color: isActive ? RUBY : SLATE + '66' }}>◉</span> :
+                     tab.avatar_url ? <img src={tab.avatar_url} alt="" style={{ width: 30, height: 30, borderRadius: 7, objectFit: 'cover', border: isActive ? `2px solid ${color}` : '2px solid transparent', transition: 'all 0.15s' }} /> :
                      <div style={{ width: 30, height: 30, borderRadius: 7, background: isActive ? color : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s' }}>{tab.icon}</div>}
                     <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? color : SLATE, fontFamily: "'DM Mono', monospace" }}>{tab.label}</span>
                   </button>
