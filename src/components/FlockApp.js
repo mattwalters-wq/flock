@@ -674,6 +674,8 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [postImagePreviews, setPostImagePreviews] = useState([]);
   const [postAudio, setPostAudio] = useState(null);
   const [postAudioName, setPostAudioName] = useState(null);
+  const [postVideo, setPostVideo] = useState(null);
+  const [postVideoPreview, setPostVideoPreview] = useState(null);
   const [postTag, setPostTag] = useState('general');
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [pollOptions, setPollOptions] = useState(['', '']);
@@ -840,14 +842,14 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   // ── Post submission ───────────────────────────────────────────────────────
   const handlePost = async () => {
-    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
+    if ((!newPost.trim() && postImages.length === 0 && !postAudio && !postVideo && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) || posting) return;
     setPosting(true);
 
     const canMember = profile?.role === 'band' && profile?.band_member === feedView;
     const canAdmin = profile?.role === 'admin';
     const feedType = (feedView === 'community' || feedView === 'highlights' || canMember || canAdmin) ? (feedView === 'highlights' ? 'community' : feedView) : 'community';
 
-    let imageUrl = null; let imageUrls = []; let audioUrl = null;
+    let imageUrl = null; let imageUrls = []; let audioUrl = null; let videoUrl = null;
     for (const img of postImages) {
       const ext = img.name.split('.').pop();
       const fn = `posts/${tenantId}/${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
@@ -861,10 +863,17 @@ export function FlockApp({ tenantId: propTenantId }) {
       const { data: ud, error: ue } = await supabase.storage.from('media').upload(fn, postAudio, { cacheControl: '3600', upsert: false });
       if (!ue && ud) { const { data: u } = supabase.storage.from('media').getPublicUrl(fn); audioUrl = u?.publicUrl; }
     }
+    if (postVideo) {
+      const ext = postVideo.name.split('.').pop();
+      const fn = `video/${tenantId}/${user.id}-${Date.now()}.${ext}`;
+      const { data: ud, error: ue } = await supabase.storage.from('media').upload(fn, postVideo, { cacheControl: '3600', upsert: false });
+      if (!ue && ud) { const { data: u } = supabase.storage.from('media').getPublicUrl(fn); videoUrl = u?.publicUrl; }
+    }
 
     const row = { author_id: user.id, content: newPost.trim() || '', feed_type: feedType, image_url: imageUrl, tenant_id: tenantId };
     if (imageUrls.length > 1) row.images = imageUrls;
     if (audioUrl) row.audio_url = audioUrl;
+    if (videoUrl) row.video_url = videoUrl;
     if (postLink.trim()) row.link_url = postLink.trim();
     if (postTag && postTag !== 'general') row.tag = postTag;
     if (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2) row.poll_options = pollOptions.filter(o => o.trim());
@@ -873,6 +882,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     const { error } = await supabase.from('posts').insert(row);
     if (!error) {
       setNewPost(''); setPostImages([]); setPostImagePreviews([]); setPostAudio(null); setPostAudioName(null);
+      setPostVideo(null); setPostVideoPreview(null);
       setPostTag('general'); setShowPollCreator(false); setPollOptions(['', '']); setPostLink(''); setShowLinkInput(false); setLinkPreviewData(null);
       setLiveUrl(''); setShowLiveInput(false);
       if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
@@ -1040,7 +1050,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                   <button key={tab.id} onClick={() => { setFeedView(tab.id); setFeedTagFilter(null); }} style={{ flex: tab.id === 'highlights' ? '0 0 auto' : 1, padding: '12px 8px 10px', background: 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: tab.id === 'highlights' ? 80 : 56 }}>
                     {tab.id === 'community' ? <span style={{ fontSize: 16, color: isActive ? RUBY : SLATE + '66' }}>✦</span> :
                      tab.id === 'highlights' ? <span style={{ fontSize: 14, color: isActive ? RUBY : SLATE + '66' }}>◉</span> :
-                     tab.avatar_url ? <img src={tab.avatar_url} alt="" style={{ width: 30, height: 30, borderRadius: 7, objectFit: 'cover', border: isActive ? `2px solid ${color}` : '2px solid transparent', transition: 'all 0.15s' }} /> :
+                     tab.avatar_url ? <div style={{ width: 30, height: 30, borderRadius: 15, overflow: 'hidden', border: isActive ? `2px solid ${color}` : '2px solid transparent', transition: 'all 0.15s', flexShrink: 0, boxSizing: 'content-box' }}><img src={tab.avatar_url} alt="" style={{ width: 30, height: 30, objectFit: 'cover', display: 'block' }} /></div> :
                      <div style={{ width: 30, height: 30, borderRadius: 7, background: isActive ? color : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s' }}>{tab.icon}</div>}
                     <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? color : SLATE, fontFamily: "'DM Mono', monospace" }}>{tab.label}</span>
                   </button>
@@ -1142,6 +1152,13 @@ export function FlockApp({ tenantId: propTenantId }) {
               )}
 
               {/* Composer actions */}
+              {postVideoPreview && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: CREAM, borderRadius: 6, margin: '6px 0', border: `1px solid ${BORDER}` }}>
+                  <video src={postVideoPreview} style={{ width: 48, height: 36, objectFit: 'cover', borderRadius: 4 }} />
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, flex: 1 }}>{postVideo?.name}</div>
+                  <button onClick={() => { setPostVideo(null); setPostVideoPreview(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE + '88' }}>x</button>
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
                 <label style={{ cursor: postImages.length >= 6 ? 'default' : 'pointer', padding: '4px 8px', color: postImages.length >= 6 ? SLATE + '33' : SLATE + '88', fontSize: 11, fontFamily: "'DM Mono', monospace" }}>
                   <input type="file" accept="image/*" multiple onChange={e => { const files = Array.from(e.target.files || []); const toAdd = files.slice(0, 6 - postImages.length); setPostImages(p => [...p, ...toAdd]); toAdd.forEach(f => { const r = new FileReader(); r.onload = ev => setPostImagePreviews(p => [...p, ev.target.result]); r.readAsDataURL(f); }); e.target.value = ''; }} style={{ display: 'none' }} disabled={postImages.length >= 6} />
@@ -1153,6 +1170,10 @@ export function FlockApp({ tenantId: propTenantId }) {
                     ♫
                   </label>
                 )}
+                <label style={{ cursor: 'pointer', padding: '4px 6px', color: postVideo ? RUBY : SLATE + '88', fontSize: 11, fontFamily: "'DM Mono', monospace" }}>
+                  <input type="file" accept="video/*,.mp4,.mov,.webm" onChange={e => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 400 * 1024 * 1024) { alert('video must be under 400MB'); return; } setPostVideo(f); setPostVideoPreview(URL.createObjectURL(f)); }} style={{ display: 'none' }} />
+                  {postVideo ? '▶ video' : '▶'}
+                </label>
                 {(profile?.role === 'band' || profile?.role === 'admin') && (
                   <button onClick={() => { setShowLiveInput(!showLiveInput); if (showLiveInput) setLiveUrl(''); }}
                     style={{ padding: '4px 8px', background: showLiveInput ? RUBY + '15' : 'none', border: 'none', cursor: 'pointer', color: showLiveInput ? RUBY : SLATE + '88', fontFamily: "'DM Mono', monospace", fontSize: 11, borderRadius: 4 }} title="go live">
@@ -1160,8 +1181,8 @@ export function FlockApp({ tenantId: propTenantId }) {
                   </button>
                 )}
                 <button onClick={() => { setShowLinkInput(!showLinkInput); if (showLinkInput) { setPostLink(''); setLinkPreviewData(null); } }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', color: showLinkInput ? RUBY : SLATE + '88', fontFamily: "'DM Mono', monospace", fontSize: 11 }}>↗</button>
-                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
-                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim() || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio || liveUrl.trim()) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
+                <button onClick={handlePost} disabled={posting || (!newPost.trim() && postImages.length === 0 && !postAudio && !postVideo && !liveUrl.trim() && !(showPollCreator && pollOptions.filter(o => o.trim()).length >= 2))}
+                  style={{ background: (newPost.trim() || postImages.length > 0 || postAudio || postVideo || liveUrl.trim() || (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2)) ? RUBY : BORDER, border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 11, fontWeight: 600, color: (newPost.trim() || postImages.length > 0 || postAudio || postVideo || liveUrl.trim()) ? CREAM : SLATE + '66', cursor: 'pointer' }}>
                   {posting ? '...' : liveUrl.trim() ? 'go live' : 'post'}
                 </button>
               </div>
