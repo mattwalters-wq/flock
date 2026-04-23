@@ -33,7 +33,7 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
       .select('*')
       .eq('id', userId)
       .eq('tenant_id', id)
-      .single();
+      .maybeSingle();
     return data;
   };
 
@@ -92,7 +92,7 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
       .eq('id', user.id)
       .eq('tenant_id', tenantId)
       .select()
-      .single();
+      .maybeSingle();
     if (data) setProfile(data);
     return { data, error };
   };
