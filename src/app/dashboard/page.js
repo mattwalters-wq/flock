@@ -527,7 +527,11 @@ function Members({ supabase, tenantId }) {
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: m.accent_color || RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 700 }}>{m.name?.charAt(0)}</div>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: m.accent_color || RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                {m.avatar_url
+                  ? <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ color: '#fff', fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 700 }}>{m.name?.charAt(0)}</span>}
+              </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: INK }}>{m.name}</div>
                 {m.bio && <div style={{ fontSize: 12, color: SLATE, marginTop: 2 }}>{m.bio}</div>}
