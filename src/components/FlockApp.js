@@ -660,6 +660,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   // Data
   const [posts, setPosts] = useState([]);
   const [shows, setShows] = useState({});
+  const [bandsintownEvents, setBandsintownEvents] = useState([]);
   const [stampActions, setStampActions] = useState([]);
   const [topCollectors, setTopCollectors] = useState([]);
   const [rewardClaims, setRewardClaims] = useState([]);
@@ -803,11 +804,38 @@ export function FlockApp({ tenantId: propTenantId }) {
   const fetchShows = useCallback(async () => {
     if (!supabase || !tenantId) return;
     const { data } = await supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date');
-    if (data) {
-      const grouped = {};
-      data.forEach(s => { const r = s.region || 'other'; if (!grouped[r]) grouped[r] = []; grouped[r].push(s); });
-      setShows(grouped);
-    }
+    
+    // Also fetch Bandsintown events if configured
+    let bitEvents = [];
+    try {
+      const bitRes = await fetch(`/api/bandsintown?tenantId=${tenantId}`);
+      const bitData = await bitRes.json();
+      if (bitData.events?.length) {
+        bitEvents = bitData.events.map(e => ({
+          id: `bit-${e.id}`,
+          venue: e.venue,
+          city: `${e.city}${e.region ? `, ${e.region}` : ''}`,
+          country: e.country,
+          date: e.date?.split('T')[0],
+          time: e.date ? new Date(e.date).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : null,
+          ticket_url: e.ticket_url,
+          ticket_status: e.ticket_status,
+          region: ['australia', 'new zealand'].includes(e.country?.toLowerCase()) ? 'australia' :
+                  ['united kingdom', 'uk', 'ireland'].includes(e.country?.toLowerCase()) ? 'uk' :
+                  ['united states', 'canada', 'usa', 'us'].includes(e.country?.toLowerCase()) ? 'north_america' :
+                  ['germany', 'france', 'netherlands', 'belgium', 'austria', 'switzerland', 'italy', 'spain', 'portugal', 'sweden', 'norway', 'denmark', 'finland', 'czech republic', 'poland', 'hungary', 'slovenia', 'croatia'].includes(e.country?.toLowerCase()) ? 'europe' : 'other',
+          source: 'bandsintown',
+        }));
+        setBandsintownEvents(bitEvents);
+      }
+    } catch (e) {}
+
+    // Merge manual shows + bandsintown events
+    const allShows = [...(data || []), ...bitEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const grouped = {};
+    allShows.forEach(s => { const r = s.region || 'other'; if (!grouped[r]) grouped[r] = []; grouped[r].push(s); });
+    setShows(grouped);
+
     if (user) {
       const { data: att } = await supabase.from('show_attendance').select('show_id').eq('user_id', user.id).eq('tenant_id', tenantId);
       if (att) setMyAttendance(new Set(att.map(a => a.show_id)));
@@ -1254,7 +1282,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{show.city}</div>
-                              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + 'AA' }}>{show.venue}</div>
+                              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + 'AA' }}>{show.venue}{show.source === 'bandsintown' ? <span style={{ marginLeft: 6, fontSize: 8, color: SLATE + '55', letterSpacing: '0.5px' }}>via bandsintown</span> : ''}</div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               {attended ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD }}>{currencyIcon} attended</span> :

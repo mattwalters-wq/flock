@@ -396,6 +396,36 @@ function Shows({ supabase, tenantId }) {
   const [editingShow, setEditingShow] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState('');
+
+  const syncBandsintown = async () => {
+    setSyncing(true); setSyncResult('');
+    try {
+      const res = await fetch(`/api/bandsintown?tenantId=${tenantId}`);
+      const data = await res.json();
+      if (data.error && data.error !== 'bandsintown not configured') { setSyncResult(`error: ${data.error}`); setSyncing(false); return; }
+      if (!data.events?.length) { setSyncResult('no upcoming events found on bandsintown'); setSyncing(false); return; }
+      let imported = 0;
+      for (const e of data.events) {
+        const date = e.date?.split('T')[0];
+        if (!date) continue;
+        // Check if show already exists (by venue + date)
+        const { data: existing } = await supabase.from('shows').select('id').eq('tenant_id', tenantId).eq('date', date).eq('venue', e.venue).limit(1);
+        if (existing?.length) continue;
+        const region = ['australia', 'new zealand'].includes(e.country?.toLowerCase()) ? 'australia' :
+          ['united kingdom', 'uk', 'ireland'].includes(e.country?.toLowerCase()) ? 'uk' :
+          ['united states', 'canada', 'usa', 'us'].includes(e.country?.toLowerCase()) ? 'north_america' :
+          ['germany', 'france', 'netherlands', 'belgium', 'austria', 'switzerland', 'italy', 'spain', 'portugal', 'sweden', 'norway', 'denmark', 'finland', 'czech republic', 'poland', 'hungary', 'slovenia', 'croatia'].includes(e.country?.toLowerCase()) ? 'europe' : 'other';
+        await supabase.from('shows').insert({ tenant_id: tenantId, venue: e.venue, city: `${e.city}${e.region ? `, ${e.region}` : ''}, ${e.country}`, region, date, ticket_url: e.ticket_url || '' });
+        imported++;
+      }
+      setSyncResult(imported > 0 ? `imported ${imported} show${imported > 1 ? 's' : ''}` : 'all events already imported');
+      load();
+    } catch (err) { setSyncResult('sync failed'); }
+    setSyncing(false);
+    setTimeout(() => setSyncResult(''), 4000);
+  };
 
   useEffect(() => { load(); }, []);
   const load = () => supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date').then(({ data }) => setShows(data || []));
@@ -423,10 +453,14 @@ function Shows({ supabase, tenantId }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <H>shows</H>
-        <Btn onClick={() => { setShowForm(!showForm); setEditingShow(null); }} variant="ghost">{showForm ? 'cancel' : '+ add show'}</Btn>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn onClick={syncBandsintown} variant="ghost" disabled={syncing}>{syncing ? 'syncing...' : '↻ bandsintown'}</Btn>
+          <Btn onClick={() => { setShowForm(!showForm); setEditingShow(null); }} variant="ghost">{showForm ? 'cancel' : '+ add show'}</Btn>
+        </div>
       </div>
+      {syncResult && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: syncResult.startsWith('error') ? RUBY : WARM_GOLD, marginBottom: 12, padding: '8px 12px', background: SURFACE, borderRadius: 6 }}>{syncResult}</div>}
 
       {showForm && <ShowForm form={form} setForm={setForm} onSave={add} onCancel={() => setShowForm(false)} saving={adding} saveLabel="add show" />}
 
@@ -1428,6 +1462,23 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="link_tiles" label="link tiles">
         <LinkTilesEditor supabase={supabase} tenantId={tenantId} />
+      </SettingsSection>
+
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="bandsintown" label="bandsintown integration">
+        <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
+          Connect your Bandsintown account to automatically pull upcoming shows into your community. Find your API key in your Bandsintown for Artists dashboard under Settings &gt; General &gt; API Key.
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <Mono style={{ marginBottom: 6 }}>artist name</Mono>
+          <input type="text" value={cfg.bandsintown_artist || ''} onChange={e => setCfg(p => ({ ...p, bandsintown_artist: e.target.value }))} placeholder="Dustin Tebbutt"
+            style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+          <Mono size={9} color={SLATE + '99'} style={{ marginTop: 4, textTransform: 'none', letterSpacing: '0' }}>exactly as it appears on bandsintown</Mono>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <Mono style={{ marginBottom: 6 }}>API key</Mono>
+          <input type="text" value={cfg.bandsintown_app_id || ''} onChange={e => setCfg(p => ({ ...p, bandsintown_app_id: e.target.value }))} placeholder="5c2251609607af8a34ec..."
+            style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace", boxSizing: 'border-box' }} />
+        </div>
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="currency" label="fan currency">
