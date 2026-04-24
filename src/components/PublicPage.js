@@ -54,7 +54,7 @@ export function PublicPage({ tenantId }) {
     }
     const sb = getSupabase();
     (async () => {
-      const [tRes, cfgRes, memRes, postsRes, showsRes, fansRes] = await Promise.all([
+      const [tRes, cfgRes, memRes, postsRes, showsRes, fansRes, tilesRes] = await Promise.all([
         sb.from('tenants').select('*').eq('id', tenantId).single(),
         sb.from('tenant_config').select('key, value').eq('tenant_id', tenantId),
         sb.from('tenant_members').select('*').eq('tenant_id', tenantId).order('display_order'),
