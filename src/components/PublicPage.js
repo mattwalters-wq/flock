@@ -29,6 +29,7 @@ export function PublicPage({ tenantId }) {
   const [posts, setPosts] = useState([]);
   const [shows, setShows] = useState([]);
   const [fanCount, setFanCount] = useState(0);
+  const [linkTiles, setLinkTiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAllShows, setShowAllShows] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -60,6 +61,7 @@ export function PublicPage({ tenantId }) {
         sb.from('posts').select('*, profiles!posts_author_id_fkey(display_name, role, band_member)').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(4),
         sb.from('shows').select('*').eq('tenant_id', tenantId).gte('date', new Date().toISOString().split('T')[0]).order('date'),
         sb.from('profiles').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+        sb.from('external_links').select('*').eq('tenant_id', tenantId).order('sort_order'),
       ]);
 
       if (tRes.data) setTenant(tRes.data);
@@ -70,11 +72,13 @@ export function PublicPage({ tenantId }) {
       if (cfg.color_ruby) document.documentElement.style.setProperty('--ruby', cfg.color_ruby);
       if (cfg.color_cream) { document.documentElement.style.setProperty('--cream', cfg.color_cream); }
       if (cfg.color_ink) { document.documentElement.style.setProperty('--ink', cfg.color_ink); document.documentElement.style.setProperty('--slate', cfg.color_ink + '99'); document.documentElement.style.setProperty('--border', cfg.color_ink + '26'); }
+      if (cfg.color_accent) document.documentElement.style.setProperty('--accent', cfg.color_accent);
 
       setMembers(memRes.data || []);
       setPosts(postsRes.data || []);
       setShows(showsRes.data || []);
       setFanCount(fansRes.count || 0);
+      setLinkTiles(tilesRes.data || []);
 
       // Check for today's show
       const todayStr = new Date().toISOString().split('T')[0];
@@ -83,8 +87,10 @@ export function PublicPage({ tenantId }) {
 
       setLoading(false);
 
-      // Show welcome modal after 800ms - same as stamps-land
-      setTimeout(() => setShowModal(true), 800);
+      // Show welcome modal after 800ms unless disabled
+      if (cfg.disable_signup_popup !== 'true') {
+        setTimeout(() => setShowModal(true), 800);
+      }
     })();
   }, [tenantId]);
 
@@ -303,6 +309,21 @@ export function PublicPage({ tenantId }) {
                 onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}>
                 {STREAMING_ICONS[link.key] || null}
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Link tiles */}
+        {linkTiles.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10, marginTop: 28, animation: 'fadeIn 0.6s ease-out 0.5s both', position: 'relative', zIndex: 1 }}>
+            {linkTiles.map(tile => (
+              <a key={tile.id} href={tile.url} target="_blank" rel="noopener noreferrer"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: tile.image_url ? 0 : '16px', textDecoration: 'none', color: cream, transition: 'all 0.2s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; e.currentTarget.style.borderColor = `${ruby}55`; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}>
+                {tile.image_url && <img src={tile.image_url} alt="" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />}
+                <div style={{ fontSize: 13, fontWeight: 600, padding: tile.image_url ? '12px 14px' : 0, textAlign: 'center' }}>{tile.label}</div>
               </a>
             ))}
           </div>

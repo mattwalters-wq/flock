@@ -1464,6 +1464,19 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         <LinkTilesEditor supabase={supabase} tenantId={tenantId} />
       </SettingsSection>
 
+      <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="landing" label="landing page">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>signup popup</div>
+            <div style={{ fontSize: 12, color: SLATE, lineHeight: 1.5 }}>show the join/sign in popup when visitors land on your page</div>
+          </div>
+          <button onClick={() => setCfg(p => ({ ...p, disable_signup_popup: p.disable_signup_popup === 'true' ? 'false' : 'true' }))}
+            style={{ width: 44, height: 24, borderRadius: 12, background: cfg.disable_signup_popup === 'true' ? BORDER : RUBY, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
+            <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 3, left: cfg.disable_signup_popup === 'true' ? 3 : 23, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }} />
+          </button>
+        </div>
+      </SettingsSection>
+
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="bandsintown" label="bandsintown integration">
         <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
           Connect your Bandsintown account to automatically pull upcoming shows into your community. Find your API key in your Bandsintown for Artists dashboard under Settings &gt; General &gt; API Key.
