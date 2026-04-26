@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         <div style={{ lineHeight: 1.8, color: '#1A1018' }}>
 
           <Section title="1. who we are">
-            Flock is operated by Matt Walters, an independent project based in Victoria, Australia. We provide a fan community platform for independent artists. For privacy enquiries, contact <a href="mailto:hello@fans-flock.com" style={{ color: '#8B1A2B' }}>hello@fans-flock.com</a>.
+            Flock is operated by Matt Walters, an independent project based in Victoria, Australia. We provide a fan community platform for independent artists. For privacy enquiries, use our <a href="/contact" style={{ color: '#8B1A2B' }}>contact form</a>.
           </Section>
 
           <Section title="2. information we collect">
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section title="8. your rights">
-            You have the right to: access the personal data we hold about you; correct inaccurate data; request deletion of your account and data; opt out of marketing emails. To exercise these rights, email <a href="mailto:hello@fans-flock.com" style={{ color: '#8B1A2B' }}>hello@fans-flock.com</a> or use the account settings in the platform.
+            You have the right to: access the personal data we hold about you; correct inaccurate data; request deletion of your account and data; opt out of marketing emails. To exercise these rights, use our <a href="/contact" style={{ color: '#8B1A2B' }}>contact form</a> or the account settings in the platform.
           </Section>
 
           <Section title="9. children">
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section title="13. contact">
-            For any privacy-related questions or requests, contact us at <a href="mailto:hello@fans-flock.com" style={{ color: '#8B1A2B' }}>hello@fans-flock.com</a>.
+            For any privacy-related questions or requests, reach out via our <a href="/contact" style={{ color: '#8B1A2B' }}>contact form</a>.
           </Section>
 
         </div>

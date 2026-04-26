@@ -65,7 +65,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="12. contact">
-            For questions about these terms, contact us at <a href="mailto:hello@fans-flock.com" style={{ color: '#8B1A2B' }}>hello@fans-flock.com</a>.
+            For questions about these terms, contact us via our <a href="/contact" style={{ color: '#8B1A2B' }}>contact form</a>.
           </Section>
 
         </div>
