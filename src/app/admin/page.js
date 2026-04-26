@@ -422,7 +422,7 @@ export default function SuperAdmin() {
         ) : (
           <>
             <H size={28} style={{ marginBottom: 6 }}>platform overview</H>
-            <Mono style={{ marginBottom: 28 }}>monda management · flock super admin</Mono>
+            <Mono style={{ marginBottom: 28 }}>flock · super admin</Mono>
 
             {/* Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>

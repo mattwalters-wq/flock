@@ -53,7 +53,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="9. limitation of liability">
-            Flock is provided "as is" without warranties of any kind. To the maximum extent permitted by law, Monda Management and Flock are not liable for any indirect, incidental, or consequential damages arising from your use of the platform.
+            Flock is provided "as is" without warranties of any kind. To the maximum extent permitted by law, Flock is not liable for any indirect, incidental, or consequential damages arising from your use of the platform.
           </Section>
 
           <Section title="10. changes to terms">
@@ -65,7 +65,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="12. contact">
-            For questions about these terms, contact us at <a href="mailto:info@mondamgmt.com" style={{ color: '#8B1A2B' }}>info@mondamgmt.com</a>.
+            For questions about these terms, contact us at <a href="mailto:hello@fans-flock.com" style={{ color: '#8B1A2B' }}>hello@fans-flock.com</a>.
           </Section>
 
         </div>
@@ -89,7 +89,7 @@ function Footer() {
   return (
     <div style={{ marginTop: 60, paddingTop: 24, borderTop: '1px solid #E8DDD4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
       <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#6A5A62', margin: 0 }}>
-        © 2026 Flock by Monda Management. All rights reserved.
+        © 2026 Flock by Matt Walters. All rights reserved.
       </p>
       <div style={{ display: 'flex', gap: 20 }}>
         <a href="/terms" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#6A5A62', textDecoration: 'none' }}>terms</a>
