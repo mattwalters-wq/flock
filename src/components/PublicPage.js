@@ -318,7 +318,7 @@ export function PublicPage({ tenantId }) {
         {linkTiles.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10, marginTop: 28, animation: 'fadeIn 0.6s ease-out 0.5s both', position: 'relative', zIndex: 1 }}>
             {linkTiles.map(tile => (
-              <a key={tile.id} href={tile.url} target="_blank" rel="noopener noreferrer"
+              <a key={tile.id} href={tile.url?.startsWith('http') ? tile.url : `https://${tile.url}`} target="_blank" rel="noopener noreferrer"
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, textDecoration: 'none', color: cream, transition: 'all 0.2s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
                 onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; e.currentTarget.style.borderColor = `${ruby}55`; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}>
