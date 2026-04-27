@@ -1497,15 +1497,20 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
         {/* Section order */}
         <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 16, paddingTop: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>section order</div>
-          <div style={{ fontSize: 12, color: SLATE, lineHeight: 1.5, marginBottom: 14 }}>drag sections to reorder how they appear on your landing page. toggle sections on or off.</div>
+          <div style={{ fontSize: 12, color: SLATE, lineHeight: 1.5, marginBottom: 14 }}>reorder how sections appear below your logo. the logo stays at the top and footer at the bottom. gradients auto-adjust between dark and light sections.</div>
           {(() => {
             const ALL_SECTIONS = [
+              { key: 'tagline', label: 'member names / tagline', icon: '···' },
+              { key: 'spotify', label: 'spotify embed', icon: '♫' },
+              { key: 'streaming', label: 'streaming links', icon: '▶' },
+              { key: 'socials', label: 'social icons', icon: '◉' },
+              { key: 'tiles', label: 'link tiles', icon: '↗' },
               { key: 'shows', label: 'upcoming shows', icon: '◎' },
               { key: 'posts', label: 'community posts', icon: '✦' },
               { key: 'cta', label: 'join card', icon: '♛' },
-              { key: 'tiles', label: 'link tiles', icon: '↗' },
             ];
-            const currentOrder = (cfg.landing_section_order || 'shows,posts,cta').split(',').map(s => s.trim()).filter(Boolean);
+            const DEFAULT_ORDER = 'tagline,spotify,streaming,socials,tiles,shows,posts,cta';
+            const currentOrder = (cfg.landing_section_order || DEFAULT_ORDER).split(',').map(s => s.trim()).filter(Boolean);
             const activeSections = currentOrder.filter(k => ALL_SECTIONS.some(s => s.key === k));
             const inactiveSections = ALL_SECTIONS.filter(s => !activeSections.includes(s.key)).map(s => s.key);
 
@@ -1526,7 +1531,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             const toggleSection = (key) => {
               if (activeSections.includes(key)) {
                 const next = activeSections.filter(k => k !== key);
-                setCfg(p => ({ ...p, landing_section_order: next.join(',') || 'shows,posts,cta' }));
+                setCfg(p => ({ ...p, landing_section_order: next.join(',') || 'tagline,spotify,streaming,socials,tiles,shows,posts,cta' }));
               } else {
                 const next = [...activeSections, key];
                 setCfg(p => ({ ...p, landing_section_order: next.join(',') }));
@@ -1538,10 +1543,13 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
                 {activeSections.map((key, idx) => {
                   const sec = ALL_SECTIONS.find(s => s.key === key);
                   if (!sec) return null;
+                  const SECTION_BG = { tagline: 'dark', spotify: 'dark', streaming: 'dark', socials: 'dark', tiles: 'dark', shows: 'light', posts: 'light', cta: 'dark' };
+                  const isDark = SECTION_BG[key] === 'dark';
                   return (
                     <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, marginBottom: 6 }}>
                       <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: RUBY, width: 20, textAlign: 'center' }}>{sec.icon}</span>
                       <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: INK }}>{sec.label}</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, padding: '2px 6px', borderRadius: 3, background: isDark ? INK : CREAM, color: isDark ? CREAM + '88' : SLATE, border: `1px solid ${BORDER}`, letterSpacing: '0.5px' }}>{isDark ? 'dark' : 'light'}</span>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button onClick={() => moveUp(key)} disabled={idx === 0}
                           style={{ width: 28, height: 28, borderRadius: 6, background: idx === 0 ? BORDER + '44' : BORDER, border: 'none', cursor: idx === 0 ? 'default' : 'pointer', fontSize: 12, color: idx === 0 ? SLATE + '44' : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

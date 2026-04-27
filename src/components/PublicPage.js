@@ -200,6 +200,227 @@ export function PublicPage({ tenantId }) {
 
   const visibleShows = showAllShows ? shows : shows.slice(0, 4);
 
+  // Default section order - preserves current look
+  const DEFAULT_ORDER = 'tagline,spotify,streaming,socials,tiles,shows,posts,cta';
+  const sectionOrder = (config.landing_section_order || DEFAULT_ORDER).split(',').map(s => s.trim()).filter(Boolean);
+
+  // Section background map: dark = ink, light = cream
+  const SECTION_BG = {
+    tagline: 'dark', spotify: 'dark', streaming: 'dark', socials: 'dark', tiles: 'dark',
+    shows: 'light', posts: 'light', cta: 'dark',
+  };
+
+  // Build rendered sections with their bg type
+  const renderedSections = sectionOrder.map(key => {
+    const bg = SECTION_BG[key] || 'dark';
+    let content = null;
+
+    if (key === 'tagline') {
+      if (memberNames.length > 0) {
+        content = (
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: bg === 'dark' ? cream + '66' : SLATE, letterSpacing: '3px', textTransform: 'uppercase', textAlign: 'center', animation: 'fadeIn 0.6s ease-out 0.1s both' }}>
+            {memberNames.join(' · ')}
+          </div>
+        );
+      } else if (tagline) {
+        content = (
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: bg === 'dark' ? cream + '77' : SLATE, textAlign: 'center', lineHeight: 1.6, animation: 'fadeIn 0.6s ease-out 0.1s both' }}>{tagline}</div>
+        );
+      }
+    }
+
+    if (key === 'spotify' && spotifyEmbed) {
+      content = (
+        <div style={{ animation: 'fadeIn 0.6s ease-out 0.2s both' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: bg === 'dark' ? cream + '44' : SLATE + '88', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 10, textAlign: 'center' }}>now playing</div>
+          <div style={{ borderRadius: 10, overflow: 'hidden' }}>
+            <iframe style={{ border: 'none', display: 'block' }} src={spotifyEmbed} width="100%" height="152"
+              allowFullScreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" />
+          </div>
+        </div>
+      );
+    }
+
+    if (key === 'streaming' && streamingLinks.length > 0) {
+      content = (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: 'fadeIn 0.6s ease-out 0.3s both' }}>
+          {streamingLinks.map(link => (
+            <a key={link.key} href={link.url} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '14px 20px', background: bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08', border: `1px solid ${bg === 'dark' ? 'rgba(255,255,255,0.08)' : BORDER}`, borderRadius: 4, color: bg === 'dark' ? cream : ink, textDecoration: 'none', fontSize: 13, fontWeight: 600, transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; e.currentTarget.style.borderColor = `${ruby}44`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08'; e.currentTarget.style.borderColor = bg === 'dark' ? 'rgba(255,255,255,0.08)' : BORDER; }}>
+              {STREAMING_ICONS[link.key] || null}
+              {link.label}
+            </a>
+          ))}
+        </div>
+      );
+    }
+
+    if (key === 'socials' && socialLinks.length > 0) {
+      content = (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, animation: 'fadeIn 0.6s ease-out 0.4s both' }}>
+          {socialLinks.map(link => (
+            <a key={link.key} href={link.url} target="_blank" rel="noopener noreferrer"
+              style={{ width: 44, height: 44, borderRadius: '50%', background: bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08', border: `1px solid ${bg === 'dark' ? 'rgba(255,255,255,0.08)' : BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: bg === 'dark' ? cream : ink, textDecoration: 'none', transition: 'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08'; }}>
+              {STREAMING_ICONS[link.key] || null}
+            </a>
+          ))}
+        </div>
+      );
+    }
+
+    if (key === 'tiles' && linkTiles.length > 0) {
+      content = (
+        <div style={{ animation: 'fadeIn 0.6s ease-out 0.5s both' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
+            {linkTiles.map(tile => (
+              <a key={tile.id} href={tile.url?.startsWith('http') ? tile.url : `https://${tile.url}`} target="_blank" rel="noopener noreferrer"
+                style={{ background: bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08', border: `1px solid ${bg === 'dark' ? 'rgba(255,255,255,0.1)' : BORDER}`, borderRadius: 12, textDecoration: 'none', color: bg === 'dark' ? cream : ink, transition: 'all 0.2s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; e.currentTarget.style.borderColor = `${ruby}55`; }}
+                onMouseLeave={e => { e.currentTarget.style.background = bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08'; e.currentTarget.style.borderColor = bg === 'dark' ? 'rgba(255,255,255,0.1)' : BORDER; }}>
+                {tile.image_url ? (
+                  <img src={tile.image_url} alt={tile.label} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <div style={{ fontSize: 13, fontWeight: 600, padding: '16px', textAlign: 'center' }}>{tile.label}</div>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (key === 'shows' && shows.length > 0) {
+      content = (
+        <div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
+            upcoming shows · {shows.length} {shows.length === 1 ? 'date' : 'dates'}
+          </div>
+          {visibleShows.map(show => (
+            <div key={show.id} onClick={() => show.ticket_url && window.open(show.ticket_url, '_blank')}
+              style={{ background: bg === 'light' ? OFF_WHITE : 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '13px 16px', marginBottom: 6, border: `1px solid ${bg === 'light' ? BORDER : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', gap: 14, cursor: show.ticket_url ? 'pointer' : 'default' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, minWidth: 52 }}>{formatDate(show.date)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: bg === 'light' ? ink : cream }}>
+                  {show.city}
+                  {show.country && show.country !== 'AU' && <span style={{ color: SLATE, fontWeight: 400 }}> {show.country}</span>}
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + 'AA', marginTop: 2 }}>{show.venue}</div>
+              </div>
+              {show.status === 'sold_out'
+                ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: ruby, letterSpacing: '0.8px', textTransform: 'uppercase' }}>sold out</span>
+                : show.status === 'door_sales'
+                ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#C9922A', letterSpacing: '0.8px', textTransform: 'uppercase' }}>on the door</span>
+                : show.ticket_url
+                ? <span style={{ background: ink, color: cream, borderRadius: 3, padding: '6px 12px', fontSize: 10, fontWeight: 600 }}>tickets</span>
+                : null}
+            </div>
+          ))}
+          {shows.length > 4 && (
+            <button onClick={() => setShowAllShows(s => !s)}
+              style={{ display: 'block', width: '100%', textAlign: 'center', marginTop: 8, padding: '10px', background: 'transparent', border: `1px solid ${SLATE}44`, borderRadius: 4, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby }}>
+              {showAllShows ? 'show less' : `see all ${shows.length} dates`}
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (key === 'posts' && posts.length > 0) {
+      content = (
+        <div style={{ position: 'relative' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
+            inside {tenantName.toLowerCase()}
+          </div>
+          <div style={{ position: 'relative' }}>
+            {posts.slice(0, 3).map((post, i) => {
+              const prof = post.profiles || {};
+              const isBand = prof.role === 'band' || prof.role === 'admin';
+              const name = isBand
+                ? (members.find(m => m.slug === prof.band_member)?.name?.toLowerCase() || prof.display_name?.toLowerCase() || 'band')
+                : prof.display_name?.toLowerCase() || 'fan';
+              const borderLeft = isBand ? `3px solid ${ruby}` : undefined;
+              return (
+                <div key={post.id} style={{ background: bg === 'light' ? OFF_WHITE : 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '14px 16px', marginBottom: 6, border: `1px solid ${bg === 'light' ? BORDER : 'rgba(255,255,255,0.08)'}`, borderLeft, filter: i === 0 ? 'none' : `blur(${i * 2}px)`, opacity: 1 - (i * 0.2), pointerEvents: 'none', userSelect: 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 4, background: isBand ? ruby : BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: "'DM Mono', monospace", color: isBand ? cream : SLATE, fontWeight: 600 }}>
+                      {isBand ? currencyIcon : name.charAt(0)}
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: bg === 'light' ? ink : cream }}>{name}</span>
+                    {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: ruby, border: `1px solid ${ruby}44`, padding: '1px 5px', borderRadius: 2 }}>band</span>}
+                  </div>
+                  <p style={{ fontSize: 12, color: (bg === 'light' ? ink : cream) + 'BB', lineHeight: 1.55, margin: 0 }}>
+                    {post.content?.length > 100 ? post.content.slice(0, 100) + '...' : post.content}
+                  </p>
+                </div>
+              );
+            })}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: `linear-gradient(180deg, transparent 0%, ${bg === 'light' ? cream : ink} 55%)`, padding: '60px 0 0', display: 'flex', justifyContent: 'center' }}>
+              <button id="bottom-sheet-trigger" onClick={() => { setModalMode('join'); setShowModal(false); document.getElementById('auth-sheet').style.display = 'flex'; }}
+                style={{ background: ruby, color: cream, borderRadius: 4, padding: '14px 28px', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, boxShadow: `0 2px 12px ${ruby}44` }}>
+                join {tenantName.toLowerCase()} {currencyIcon}
+              </button>
+            </div>
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '88' }}>
+            post, comment, earn {currencyName}, unlock exclusive content
+          </div>
+        </div>
+      );
+    }
+
+    if (key === 'cta') {
+      content = (
+        <div style={{ background: ink, borderRadius: 4, padding: '32px 22px', textAlign: 'center', border: `1px solid ${ruby}22` }}>
+          <div style={{ fontSize: 28, marginBottom: 12, color: ruby }}>{currencyIcon}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: cream, textTransform: 'lowercase', marginBottom: 14 }}>{tenantName.toLowerCase()}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300, margin: '0 auto 22px', textAlign: 'left' }}>
+            {[
+              memberNames.length > 0 ? `personal feeds from ${memberNames.join(', ')}` : `direct posts from ${tenantName.toLowerCase()}`,
+              `earn ${currencyName} for posting, commenting, and showing up`,
+              `unlock rewards as your ${currencyName} grow`,
+              `connect with fans around the world`,
+            ].map((text, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: ruby, flexShrink: 0, marginTop: 1 }}>
+                  {['◎', currencyIcon, '♛', '↩'][i]}
+                </span>
+                <span style={{ fontSize: 12, color: cream + 'AA', lineHeight: 1.5 }}>{text}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button onClick={() => { setModalMode('join'); document.getElementById('auth-sheet').style.display = 'flex'; }}
+              style={{ padding: '13px 28px', background: ruby, color: cream, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+              join free
+            </button>
+            <button onClick={() => { setModalMode('password'); document.getElementById('auth-sheet').style.display = 'flex'; }}
+              style={{ padding: '13px 28px', background: 'transparent', color: cream + '77', border: `1px solid ${cream}22`, borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
+              sign in
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (!content) return null;
+    return { key, bg, content };
+  }).filter(Boolean);
+
+  // Group consecutive sections by background and render with auto-transitions
+  const renderGroups = [];
+  let currentGroup = null;
+  renderedSections.forEach(section => {
+    if (!currentGroup || currentGroup.bg !== section.bg) {
+      currentGroup = { bg: section.bg, sections: [] };
+      renderGroups.push(currentGroup);
+    }
+    currentGroup.sections.push(section);
+  });
+
   return (
     <div style={{ minHeight: '100vh', background: ink, fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
@@ -252,232 +473,50 @@ export function PublicPage({ tenantId }) {
         </div>
       )}
 
-      {/* DARK HERO */}
-      <div style={{ maxWidth: 480, margin: '0 auto', padding: '52px 24px 36px', textAlign: 'center', position: 'relative' }}>
+      {/* LOCKED: Logo / Artist name at top */}
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '52px 24px 12px', textAlign: 'center', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 320, height: 320, background: `radial-gradient(ellipse, ${ruby}11, transparent 70%)`, pointerEvents: 'none' }} />
-
-        {/* Artist name / logo */}
         <div style={{ animation: 'fadeIn 0.6s ease-out', marginBottom: 6 }}>
           {logoUrl
             ? <img src={logoUrl} alt={tenantName} style={{ height: 56, maxWidth: 240, objectFit: 'contain', display: 'block', margin: '0 auto 8px', filter: 'brightness(0) invert(1)' }} />
             : <div style={{ fontSize: 44, fontWeight: 700, color: cream, textTransform: 'lowercase', lineHeight: 1, letterSpacing: '-1px' }}>{tenantName}</div>
           }
         </div>
-
-        {/* Member names */}
-        {memberNames.length > 0 && (
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: cream + '66', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 32, animation: 'fadeIn 0.6s ease-out 0.1s both' }}>
-            {memberNames.join(' · ')}
-          </div>
-        )}
-        {memberNames.length === 0 && tagline && (
-          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: cream + '77', marginBottom: 32, lineHeight: 1.6, animation: 'fadeIn 0.6s ease-out 0.1s both' }}>{tagline}</div>
-        )}
-
-        {/* Spotify embed */}
-        {spotifyEmbed && (
-          <div style={{ marginBottom: 28, animation: 'fadeIn 0.6s ease-out 0.2s both' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: cream + '44', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 10 }}>now playing</div>
-            <div style={{ borderRadius: 10, overflow: 'hidden' }}>
-              <iframe style={{ border: 'none', display: 'block' }} src={spotifyEmbed} width="100%" height="152"
-                allowFullScreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" />
-            </div>
-          </div>
-        )}
-
-        {/* Streaming links */}
-        {streamingLinks.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, animation: 'fadeIn 0.6s ease-out 0.3s both' }}>
-            {streamingLinks.map(link => (
-              <a key={link.key} href={link.url} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '14px 20px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: cream, textDecoration: 'none', fontSize: 13, fontWeight: 600, transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; e.currentTarget.style.borderColor = `${ruby}44`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}>
-                {STREAMING_ICONS[link.key] || null}
-                {link.label}
-              </a>
-            ))}
-          </div>
-        )}
-
-        {/* Social icon circles */}
-        {socialLinks.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, animation: 'fadeIn 0.6s ease-out 0.4s both' }}>
-            {socialLinks.map(link => (
-              <a key={link.key} href={link.url} target="_blank" rel="noopener noreferrer"
-                style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cream, textDecoration: 'none', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}>
-                {STREAMING_ICONS[link.key] || null}
-              </a>
-            ))}
-          </div>
-        )}
-
-        {/* Link tiles - only show in hero if NOT in landing section order */}
-        {linkTiles.length > 0 && !(config.landing_section_order || '').includes('tiles') && (
-          <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10, marginTop: 28, animation: 'fadeIn 0.6s ease-out 0.5s both', position: 'relative', zIndex: 1 }}>
-            {linkTiles.map(tile => (
-              <a key={tile.id} href={tile.url?.startsWith('http') ? tile.url : `https://${tile.url}`} target="_blank" rel="noopener noreferrer"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, textDecoration: 'none', color: cream, transition: 'all 0.2s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; e.currentTarget.style.borderColor = `${ruby}55`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}>
-                {tile.image_url ? (
-                  <img src={tile.image_url} alt={tile.label} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
-                ) : (
-                  <div style={{ fontSize: 13, fontWeight: 600, padding: '16px', textAlign: 'center' }}>{tile.label}</div>
-                )}
-              </a>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* GRADIENT TRANSITION dark -> light */}
-      <div style={{ background: `linear-gradient(180deg, ${ink} 0%, ${ink}CC 30%, ${cream} 100%)`, height: 80 }} />
+      {/* REORDERABLE SECTIONS - grouped by background with auto-transitions */}
+      {renderGroups.map((group, gi) => {
+        const bgColor = group.bg === 'dark' ? ink : cream;
+        const prevGroup = gi > 0 ? renderGroups[gi - 1] : null;
+        const prevBg = prevGroup ? (prevGroup.bg === 'dark' ? ink : cream) : ink;
+        const needsTransition = gi > 0 && prevGroup && prevGroup.bg !== group.bg;
+        // First group: if it's dark, no transition needed (logo area is dark). If light, need transition from dark.
+        const needsFirstTransition = gi === 0 && group.bg === 'light';
 
-      {/* LIGHT SECTION - order driven by landing_section_order config */}
+        return (
+          <div key={gi}>
+            {(needsTransition || needsFirstTransition) && (
+              <div style={{ background: `linear-gradient(180deg, ${needsFirstTransition ? ink : prevBg} 0%, ${needsFirstTransition ? ink : prevBg}CC 30%, ${bgColor} 100%)`, height: 80 }} />
+            )}
+            <div style={{ background: bgColor }}>
+              <div style={{ maxWidth: 480, margin: '0 auto', padding: gi === 0 && group.bg === 'dark' ? '8px 24px 24px' : '24px 24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {group.sections.map(section => (
+                  <div key={section.key}>{section.content}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Auto-transition to cream for footer if last group is dark */}
+      {renderGroups.length > 0 && renderGroups[renderGroups.length - 1].bg === 'dark' && (
+        <div style={{ background: `linear-gradient(180deg, ${ink} 0%, ${ink}CC 30%, ${cream} 100%)`, height: 80 }} />
+      )}
+
+      {/* LOCKED: Footer */}
       <div style={{ background: cream }}>
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 20px 60px' }}>
-
-          {(config.landing_section_order || 'shows,posts,cta').split(',').map(key => key.trim()).filter(Boolean).map(section => {
-            if (section === 'shows' && shows.length > 0) return (
-              <div key="shows" style={{ marginBottom: 32 }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
-                  upcoming shows · {shows.length} {shows.length === 1 ? 'date' : 'dates'}
-                </div>
-                {visibleShows.map(show => (
-                  <div key={show.id} onClick={() => show.ticket_url && window.open(show.ticket_url, '_blank')}
-                    style={{ background: OFF_WHITE, borderRadius: 4, padding: '13px 16px', marginBottom: 6, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 14, cursor: show.ticket_url ? 'pointer' : 'default' }}>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, minWidth: 52 }}>{formatDate(show.date)}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>
-                        {show.city}
-                        {show.country && show.country !== 'AU' && <span style={{ color: SLATE, fontWeight: 400 }}> {show.country}</span>}
-                      </div>
-                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + 'AA', marginTop: 2 }}>{show.venue}</div>
-                    </div>
-                    {show.status === 'sold_out'
-                      ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: ruby, letterSpacing: '0.8px', textTransform: 'uppercase' }}>sold out</span>
-                      : show.status === 'door_sales'
-                      ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#C9922A', letterSpacing: '0.8px', textTransform: 'uppercase' }}>on the door</span>
-                      : show.ticket_url
-                      ? <span style={{ background: ink, color: cream, borderRadius: 3, padding: '6px 12px', fontSize: 10, fontWeight: 600 }}>tickets</span>
-                      : null}
-                  </div>
-                ))}
-                {shows.length > 4 && (
-                  <button onClick={() => setShowAllShows(s => !s)}
-                    style={{ display: 'block', width: '100%', textAlign: 'center', marginTop: 8, padding: '10px', background: 'transparent', border: `1px solid ${SLATE}44`, borderRadius: 4, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby }}>
-                    {showAllShows ? 'show less' : `see all ${shows.length} dates`}
-                  </button>
-                )}
-              </div>
-            );
-
-            if (section === 'posts' && posts.length > 0) return (
-              <div key="posts" style={{ marginBottom: 24, position: 'relative' }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
-                  inside {tenantName.toLowerCase()}
-                </div>
-                <div style={{ position: 'relative' }}>
-                  {posts.slice(0, 3).map((post, i) => {
-                    const prof = post.profiles || {};
-                    const isBand = prof.role === 'band' || prof.role === 'admin';
-                    const name = isBand
-                      ? (members.find(m => m.slug === prof.band_member)?.name?.toLowerCase() || prof.display_name?.toLowerCase() || 'band')
-                      : prof.display_name?.toLowerCase() || 'fan';
-                    const memberColor = isBand ? ruby : null;
-                    const borderLeft = isBand ? `3px solid ${memberColor}` : undefined;
-
-                    return (
-                      <div key={post.id} style={{ background: OFF_WHITE, borderRadius: 4, padding: '14px 16px', marginBottom: 6, border: `1px solid ${BORDER}`, borderLeft, filter: i === 0 ? 'none' : `blur(${i * 2}px)`, opacity: 1 - (i * 0.2), pointerEvents: 'none', userSelect: 'none' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <div style={{ width: 26, height: 26, borderRadius: 4, background: isBand ? ruby : BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: "'DM Mono', monospace", color: isBand ? cream : SLATE, fontWeight: 600 }}>
-                            {isBand ? currencyIcon : name.charAt(0)}
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: ink }}>{name}</span>
-                          {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: ruby, border: `1px solid ${ruby}44`, padding: '1px 5px', borderRadius: 2 }}>band</span>}
-                        </div>
-                        <p style={{ fontSize: 12, color: ink + 'BB', lineHeight: 1.55, margin: 0 }}>
-                          {post.content?.length > 100 ? post.content.slice(0, 100) + '...' : post.content}
-                        </p>
-                      </div>
-                    );
-                  })}
-
-                  {/* Fade + CTA overlay */}
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: `linear-gradient(180deg, transparent 0%, ${cream} 55%)`, padding: '60px 0 0', display: 'flex', justifyContent: 'center' }}>
-                    <button id="bottom-sheet-trigger" onClick={() => { setModalMode('join'); setShowModal(false); document.getElementById('auth-sheet').style.display = 'flex'; }}
-                      style={{ background: ruby, color: cream, borderRadius: 4, padding: '14px 28px', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, boxShadow: `0 2px 12px ${ruby}44` }}>
-                      join {tenantName.toLowerCase()} {currencyIcon}
-                    </button>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center', marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '88' }}>
-                  post, comment, earn {currencyName}, unlock exclusive content
-                </div>
-              </div>
-            );
-
-            if (section === 'tiles' && linkTiles.length > 0) return (
-              <div key="tiles" style={{ marginBottom: 32 }}>
-                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
-                  links
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
-                  {linkTiles.map(tile => (
-                    <a key={tile.id} href={tile.url?.startsWith('http') ? tile.url : `https://${tile.url}`} target="_blank" rel="noopener noreferrer"
-                      style={{ background: ink + '08', border: `1px solid ${BORDER}`, borderRadius: 12, textDecoration: 'none', color: ink, transition: 'all 0.2s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = `${ruby}11`; e.currentTarget.style.borderColor = `${ruby}44`; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = ink + '08'; e.currentTarget.style.borderColor = BORDER; }}>
-                      {tile.image_url ? (
-                        <img src={tile.image_url} alt={tile.label} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
-                      ) : (
-                        <div style={{ fontSize: 13, fontWeight: 600, padding: '16px', textAlign: 'center' }}>{tile.label}</div>
-                      )}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            );
-
-            if (section === 'cta') return (
-              <div key="cta" style={{ background: ink, borderRadius: 4, padding: '32px 22px', textAlign: 'center', border: `1px solid ${ruby}22`, marginBottom: 32 }}>
-                <div style={{ fontSize: 28, marginBottom: 12, color: ruby }}>{currencyIcon}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: cream, textTransform: 'lowercase', marginBottom: 14 }}>{tenantName.toLowerCase()}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300, margin: '0 auto 22px', textAlign: 'left' }}>
-                  {[
-                    memberNames.length > 0 ? `personal feeds from ${memberNames.join(', ')}` : `direct posts from ${tenantName.toLowerCase()}`,
-                    `earn ${currencyName} for posting, commenting, and showing up`,
-                    `unlock rewards as your ${currencyName} grow`,
-                    `connect with fans around the world`,
-                  ].map((text, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: ruby, flexShrink: 0, marginTop: 1 }}>
-                        {['◎', currencyIcon, '♛', '↩'][i]}
-                      </span>
-                      <span style={{ fontSize: 12, color: cream + 'AA', lineHeight: 1.5 }}>{text}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                  <button onClick={() => { setModalMode('join'); document.getElementById('auth-sheet').style.display = 'flex'; }}
-                    style={{ padding: '13px 28px', background: ruby, color: cream, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
-                    join free
-                  </button>
-                  <button onClick={() => { setModalMode('password'); document.getElementById('auth-sheet').style.display = 'flex'; }}
-                    style={{ padding: '13px 28px', background: 'transparent', color: cream + '77', border: `1px solid ${cream}22`, borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
-                    sign in
-                  </button>
-                </div>
-              </div>
-            );
-
-            return null;
-          })}
-
-          {/* Footer */}
           <div style={{ textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', letterSpacing: '0.5px' }}>
             © 2026 {tenantName.toLowerCase()} · powered by <a href="https://fans-flock.com" style={{ color: SLATE + '55', textDecoration: 'none' }}>flock</a>
           </div>
