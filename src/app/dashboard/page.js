@@ -1236,6 +1236,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     social_youtube: '',
     social_website: '',
     notify_fans_on_post: 'true',
+    landing_section_order: 'tagline,spotify,streaming,socials,tiles,shows,posts,cta',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
