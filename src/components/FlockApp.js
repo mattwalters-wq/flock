@@ -327,6 +327,31 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
           <div style={{ marginBottom: 14 }}>
             <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
               style={{ width: '100%', padding: '10px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13.5, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', resize: 'vertical', minHeight: 80, lineHeight: 1.65 }} />
+            {/* Existing media controls */}
+            {post.image_url && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '8px 10px', background: SURFACE, borderRadius: 6, border: `1px solid ${BORDER}` }}>
+                <img src={post.image_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, flex: 1 }}>image attached</span>
+                <button onClick={async () => { setSavingEdit(true); await supabase.from('posts').update({ image_url: null, images: null }).eq('id', post.id); setSavingEdit(false); onRefresh?.(); }}
+                  style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, background: 'none', border: 'none', cursor: 'pointer' }}>remove</button>
+              </div>
+            )}
+            {post.audio_url && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '8px 10px', background: SURFACE, borderRadius: 6, border: `1px solid ${BORDER}` }}>
+                <span style={{ fontSize: 16 }}>♫</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, flex: 1 }}>audio attached</span>
+                <button onClick={async () => { setSavingEdit(true); await supabase.from('posts').update({ audio_url: null }).eq('id', post.id); setSavingEdit(false); onRefresh?.(); }}
+                  style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, background: 'none', border: 'none', cursor: 'pointer' }}>remove</button>
+              </div>
+            )}
+            {post.video_url && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '8px 10px', background: SURFACE, borderRadius: 6, border: `1px solid ${BORDER}` }}>
+                <span style={{ fontSize: 16 }}>▶</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, flex: 1 }}>video attached</span>
+                <button onClick={async () => { setSavingEdit(true); await supabase.from('posts').update({ video_url: null }).eq('id', post.id); setSavingEdit(false); onRefresh?.(); }}
+                  style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, background: 'none', border: 'none', cursor: 'pointer' }}>remove</button>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setEditing(false)} style={{ padding: '7px 14px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>cancel</button>
               <button onClick={async () => {

@@ -1102,6 +1102,18 @@ function LinkTilesEditor({ supabase, tenantId }) {
     await supabase.from('external_links').delete().eq('id', id);
   };
 
+  const moveTile = async (index, direction) => {
+    const newTiles = [...tiles];
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= newTiles.length) return;
+    [newTiles[index], newTiles[swapIndex]] = [newTiles[swapIndex], newTiles[index]];
+    setTiles(newTiles);
+    // Update sort_order in DB
+    for (let i = 0; i < newTiles.length; i++) {
+      await supabase.from('external_links').update({ sort_order: i }).eq('id', newTiles[i].id);
+    }
+  };
+
   if (loading) return <Mono>loading...</Mono>;
 
   return (
@@ -1109,8 +1121,14 @@ function LinkTilesEditor({ supabase, tenantId }) {
       <div style={{ fontSize: 13, color: SLATE, marginBottom: 16, lineHeight: 1.5 }}>
         Add links to your webstore, Spotify, Apple Music, YouTube, Patreon, etc. These appear on your public landing page and inside your community. Leave empty to hide the section.
       </div>
-      {tiles.map(tile => (
+      {tiles.map((tile, index) => (
         <div key={tile.id} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: 14, marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0, paddingTop: 4 }}>
+            <button onClick={() => moveTile(index, -1)} disabled={index === 0}
+              style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 4, width: 22, height: 22, cursor: index === 0 ? 'default' : 'pointer', fontSize: 10, color: index === 0 ? SLATE + '33' : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↑</button>
+            <button onClick={() => moveTile(index, 1)} disabled={index === tiles.length - 1}
+              style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 4, width: 22, height: 22, cursor: index === tiles.length - 1 ? 'default' : 'pointer', fontSize: 10, color: index === tiles.length - 1 ? SLATE + '33' : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↓</button>
+          </div>
           <label style={{ width: 60, height: 60, borderRadius: 8, background: CREAM, border: `1px solid ${BORDER}`, overflow: 'hidden', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             {tile.image_url ? (
               <img src={tile.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
