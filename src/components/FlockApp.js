@@ -1076,10 +1076,12 @@ export function FlockApp({ tenantId: propTenantId }) {
                 const color = tab.color || RUBY;
                 return (
                   <button key={tab.id} onClick={() => { setFeedView(tab.id); setFeedTagFilter(null); }} style={{ flex: tab.id === 'highlights' ? '0 0 auto' : 1, padding: '12px 8px 10px', background: 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: tab.id === 'highlights' ? 80 : 56 }}>
-                    {tab.id === 'community' ? <span style={{ fontSize: 16, color: isActive ? RUBY : SLATE + '66' }}>✦</span> :
-                     tab.id === 'highlights' ? <span style={{ fontSize: 14, color: isActive ? RUBY : SLATE + '66' }}>◉</span> :
-                     tab.avatar_url ? <div style={{ width: 30, height: 30, borderRadius: 15, overflow: 'hidden', border: isActive ? `2px solid ${color}` : '2px solid transparent', transition: 'all 0.15s', flexShrink: 0, boxSizing: 'content-box' }}><img src={tab.avatar_url} alt="" style={{ width: 30, height: 30, objectFit: 'cover', display: 'block' }} /></div> :
-                     <div style={{ width: 30, height: 30, borderRadius: 7, background: isActive ? color : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s' }}>{tab.icon}</div>}
+                    <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {tab.id === 'community' ? <span style={{ fontSize: 16, color: isActive ? RUBY : SLATE + '66' }}>✦</span> :
+                       tab.id === 'highlights' ? <span style={{ fontSize: 14, color: isActive ? RUBY : SLATE + '66' }}>◉</span> :
+                       tab.avatar_url ? <div style={{ width: 30, height: 30, borderRadius: 15, overflow: 'hidden', border: isActive ? `2px solid ${color}` : '2px solid transparent', transition: 'all 0.15s', flexShrink: 0 }}><img src={tab.avatar_url} alt="" style={{ width: 30, height: 30, objectFit: 'cover', display: 'block' }} /></div> :
+                       <div style={{ width: 30, height: 30, borderRadius: 7, background: isActive ? color : SLATE + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: isActive ? '#fff' : SLATE + '88', fontWeight: 700, fontFamily: "'DM Mono', monospace", transition: 'all 0.15s' }}>{tab.icon}</div>}
+                    </div>
                     <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, color: isActive ? color : SLATE, fontFamily: "'DM Mono', monospace" }}>{tab.label}</span>
                   </button>
                 );
