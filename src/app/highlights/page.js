@@ -75,17 +75,17 @@ export default function HighlightsPage() {
   const highlightsUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const socials = [
-    config.social_instagram && { label: 'instagram', url: `https://instagram.com/${config.social_instagram}`, icon: 'â' },
-    config.social_tiktok && { label: 'tiktok', url: `https://tiktok.com/@${config.social_tiktok}`, icon: 'â' },
-    config.social_spotify && { label: 'spotify', url: config.social_spotify.startsWith('http') ? config.social_spotify : `https://open.spotify.com/${config.social_spotify}`, icon: 'â«' },
-    config.social_apple_music && { label: 'apple music', url: config.social_apple_music, icon: 'âª' },
-    config.social_youtube && { label: 'youtube', url: config.social_youtube, icon: 'â¶' },
-    config.social_website && { label: 'website', url: config.social_website, icon: 'â' },
+    config.social_instagram && { label: 'instagram', url: `https://instagram.com/${config.social_instagram}`, icon: '◉' },
+    config.social_tiktok && { label: 'tiktok', url: `https://tiktok.com/@${config.social_tiktok}`, icon: '◈' },
+    config.social_spotify && { label: 'spotify', url: config.social_spotify.startsWith('http') ? config.social_spotify : `https://open.spotify.com/${config.social_spotify}`, icon: '♫' },
+    config.social_apple_music && { label: 'apple music', url: config.social_apple_music, icon: '♪' },
+    config.social_youtube && { label: 'youtube', url: config.social_youtube, icon: '▶' },
+    config.social_website && { label: 'website', url: config.social_website, icon: '↗' },
   ].filter(Boolean);
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: cream, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: ruby }}>â¦</div>
+      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, color: ruby }}>✦</div>
     </div>
   );
 
@@ -140,9 +140,9 @@ export default function HighlightsPage() {
           {/* Join CTA */}
           <a href={joinUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: ruby, color: cream, padding: '14px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 15, letterSpacing: '-0.2px' }}>
             join the community
-            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14 }}>â¦</span>
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14 }}>✦</span>
           </a>
-          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '44' }}>free to join Â· posts, rewards & exclusive content</div>
+          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '44' }}>free to join · posts, rewards & exclusive content</div>
         </div>
       </div>
 
@@ -185,12 +185,12 @@ export default function HighlightsPage() {
 
         {posts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: 36, marginBottom: 16 }}>â¦</div>
+            <div style={{ fontSize: 36, marginBottom: 16 }}>✦</div>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: SLATE, lineHeight: 1.7 }}>
               {tenantName} hasn't shared any highlights yet.<br />join to be first in the door.
             </div>
             <a href={joinUrl} style={{ display: 'inline-block', marginTop: 24, background: ruby, color: cream, padding: '12px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 14 }}>
-              join the community â¦
+              join the community ✦
             </a>
           </div>
         ) : (
@@ -219,7 +219,7 @@ export default function HighlightsPage() {
                   {/* Audio */}
                   {post.audio_url && !hasImage && (
                     <div style={{ background: ink, padding: '20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 8, background: ruby, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: cream, flexShrink: 0 }}>â«</div>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: ruby, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: cream, flexShrink: 0 }}>♫</div>
                       <audio controls style={{ flex: 1, height: 32 }}><source src={post.audio_url} /></audio>
                     </div>
                   )}
@@ -229,7 +229,7 @@ export default function HighlightsPage() {
                     {/* Author */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                       <div style={{ width: 28, height: 28, borderRadius: 6, background: isBand ? memberColor : BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontFamily: "'DM Mono', monospace", color: isBand ? cream : SLATE, fontWeight: 600 }}>
-                        {isBand ? 'â¦' : name?.charAt(0)}
+                        {isBand ? '✦' : name?.charAt(0)}
                       </div>
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 600, color: ink }}>{name}</div>
@@ -248,7 +248,7 @@ export default function HighlightsPage() {
                     {/* Blurred CTA overlay for long posts */}
                     {post.content?.length > 200 && (
                       <div style={{ marginTop: 6 }}>
-                        <a href={joinUrl} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: ruby, textDecoration: 'none' }}>join to read more â</a>
+                        <a href={joinUrl} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: ruby, textDecoration: 'none' }}>join to read more →</a>
                       </div>
                     )}
                   </div>
@@ -264,10 +264,10 @@ export default function HighlightsPage() {
         <div style={{ maxWidth: 560, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: cream, textTransform: 'lowercase' }}>want in?</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '55', marginTop: 2 }}>posts Â· exclusive content Â· rewards Â· shows</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '55', marginTop: 2 }}>posts · exclusive content · rewards · shows</div>
           </div>
           <a href={joinUrl} style={{ background: ruby, color: cream, padding: '10px 20px', borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            join free â¦
+            join free ✦
           </a>
         </div>
       </div>
@@ -276,7 +276,7 @@ export default function HighlightsPage() {
       {lightboxUrl && (
         <div onClick={() => setLightboxUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <img src={lightboxUrl} alt="" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
-          <button onClick={() => setLightboxUrl(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 20, width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>â</button>
+          <button onClick={() => setLightboxUrl(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 20, width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>�×</button>
         </div>
       )}
     </div>
