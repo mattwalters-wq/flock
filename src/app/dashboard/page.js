@@ -1493,6 +1493,95 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
             <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 3, left: cfg.disable_signup_popup === 'true' ? 3 : 23, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' }} />
           </button>
         </div>
+
+        {/* Section order */}
+        <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 16, paddingTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>section order</div>
+          <div style={{ fontSize: 12, color: SLATE, lineHeight: 1.5, marginBottom: 14 }}>drag sections to reorder how they appear on your landing page. toggle sections on or off.</div>
+          {(() => {
+            const ALL_SECTIONS = [
+              { key: 'shows', label: 'upcoming shows', icon: '◎' },
+              { key: 'posts', label: 'community posts', icon: '✦' },
+              { key: 'cta', label: 'join card', icon: '♛' },
+              { key: 'tiles', label: 'link tiles', icon: '↗' },
+            ];
+            const currentOrder = (cfg.landing_section_order || 'shows,posts,cta').split(',').map(s => s.trim()).filter(Boolean);
+            const activeSections = currentOrder.filter(k => ALL_SECTIONS.some(s => s.key === k));
+            const inactiveSections = ALL_SECTIONS.filter(s => !activeSections.includes(s.key)).map(s => s.key);
+
+            const moveUp = (key) => {
+              const idx = activeSections.indexOf(key);
+              if (idx <= 0) return;
+              const next = [...activeSections];
+              [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+              setCfg(p => ({ ...p, landing_section_order: next.join(',') }));
+            };
+            const moveDown = (key) => {
+              const idx = activeSections.indexOf(key);
+              if (idx < 0 || idx >= activeSections.length - 1) return;
+              const next = [...activeSections];
+              [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+              setCfg(p => ({ ...p, landing_section_order: next.join(',') }));
+            };
+            const toggleSection = (key) => {
+              if (activeSections.includes(key)) {
+                const next = activeSections.filter(k => k !== key);
+                setCfg(p => ({ ...p, landing_section_order: next.join(',') || 'shows,posts,cta' }));
+              } else {
+                const next = [...activeSections, key];
+                setCfg(p => ({ ...p, landing_section_order: next.join(',') }));
+              }
+            };
+
+            return (
+              <div>
+                {activeSections.map((key, idx) => {
+                  const sec = ALL_SECTIONS.find(s => s.key === key);
+                  if (!sec) return null;
+                  return (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, marginBottom: 6 }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: RUBY, width: 20, textAlign: 'center' }}>{sec.icon}</span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: INK }}>{sec.label}</span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => moveUp(key)} disabled={idx === 0}
+                          style={{ width: 28, height: 28, borderRadius: 6, background: idx === 0 ? BORDER + '44' : BORDER, border: 'none', cursor: idx === 0 ? 'default' : 'pointer', fontSize: 12, color: idx === 0 ? SLATE + '44' : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          ↑
+                        </button>
+                        <button onClick={() => moveDown(key)} disabled={idx === activeSections.length - 1}
+                          style={{ width: 28, height: 28, borderRadius: 6, background: idx === activeSections.length - 1 ? BORDER + '44' : BORDER, border: 'none', cursor: idx === activeSections.length - 1 ? 'default' : 'pointer', fontSize: 12, color: idx === activeSections.length - 1 ? SLATE + '44' : SLATE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          ↓
+                        </button>
+                        <button onClick={() => toggleSection(key)}
+                          style={{ width: 28, height: 28, borderRadius: 6, background: RUBY + '15', border: 'none', cursor: 'pointer', fontSize: 11, color: RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {inactiveSections.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <Mono size={9} color={SLATE + '88'} style={{ letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 8 }}>hidden sections</Mono>
+                    {inactiveSections.map(key => {
+                      const sec = ALL_SECTIONS.find(s => s.key === key);
+                      if (!sec) return null;
+                      return (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: BORDER + '33', border: `1px dashed ${BORDER}`, borderRadius: 8, marginBottom: 6, opacity: 0.6 }}>
+                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: SLATE, width: 20, textAlign: 'center' }}>{sec.icon}</span>
+                          <span style={{ flex: 1, fontSize: 13, color: SLATE }}>{sec.label}</span>
+                          <button onClick={() => toggleSection(key)}
+                            style={{ padding: '4px 10px', borderRadius: 6, background: RUBY + '15', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY }}>
+                            + add
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="bandsintown" label="bandsintown integration">

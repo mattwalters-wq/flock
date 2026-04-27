@@ -314,8 +314,8 @@ export function PublicPage({ tenantId }) {
           </div>
         )}
 
-        {/* Link tiles */}
-        {linkTiles.length > 0 && (
+        {/* Link tiles - only show in hero if NOT in landing section order */}
+        {linkTiles.length > 0 && !(config.landing_section_order || '').includes('tiles') && (
           <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10, marginTop: 28, animation: 'fadeIn 0.6s ease-out 0.5s both', position: 'relative', zIndex: 1 }}>
             {linkTiles.map(tile => (
               <a key={tile.id} href={tile.url?.startsWith('http') ? tile.url : `https://${tile.url}`} target="_blank" rel="noopener noreferrer"
@@ -336,121 +336,146 @@ export function PublicPage({ tenantId }) {
       {/* GRADIENT TRANSITION dark -> light */}
       <div style={{ background: `linear-gradient(180deg, ${ink} 0%, ${ink}CC 30%, ${cream} 100%)`, height: 80 }} />
 
-      {/* LIGHT SECTION */}
+      {/* LIGHT SECTION - order driven by landing_section_order config */}
       <div style={{ background: cream }}>
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 20px 60px' }}>
 
-          {/* Shows */}
-          {shows.length > 0 && (
-            <div style={{ marginBottom: 32 }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
-                upcoming shows · {shows.length} {shows.length === 1 ? 'date' : 'dates'}
-              </div>
-              {visibleShows.map(show => (
-                <div key={show.id} onClick={() => show.ticket_url && window.open(show.ticket_url, '_blank')}
-                  style={{ background: OFF_WHITE, borderRadius: 4, padding: '13px 16px', marginBottom: 6, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 14, cursor: show.ticket_url ? 'pointer' : 'default' }}>
-                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, minWidth: 52 }}>{formatDate(show.date)}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>
-                      {show.city}
-                      {show.country && show.country !== 'AU' && <span style={{ color: SLATE, fontWeight: 400 }}> {show.country}</span>}
-                    </div>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + 'AA', marginTop: 2 }}>{show.venue}</div>
-                  </div>
-                  {show.status === 'sold_out'
-                    ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: ruby, letterSpacing: '0.8px', textTransform: 'uppercase' }}>sold out</span>
-                    : show.status === 'door_sales'
-                    ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#C9922A', letterSpacing: '0.8px', textTransform: 'uppercase' }}>on the door</span>
-                    : show.ticket_url
-                    ? <span style={{ background: ink, color: cream, borderRadius: 3, padding: '6px 12px', fontSize: 10, fontWeight: 600 }}>tickets</span>
-                    : null}
+          {(config.landing_section_order || 'shows,posts,cta').split(',').map(key => key.trim()).filter(Boolean).map(section => {
+            if (section === 'shows' && shows.length > 0) return (
+              <div key="shows" style={{ marginBottom: 32 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
+                  upcoming shows · {shows.length} {shows.length === 1 ? 'date' : 'dates'}
                 </div>
-              ))}
-              {shows.length > 4 && (
-                <button onClick={() => setShowAllShows(s => !s)}
-                  style={{ display: 'block', width: '100%', textAlign: 'center', marginTop: 8, padding: '10px', background: 'transparent', border: `1px solid ${SLATE}44`, borderRadius: 4, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby }}>
-                  {showAllShows ? 'show less' : `see all ${shows.length} dates`}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Community teaser posts */}
-          {posts.length > 0 && (
-            <div style={{ marginBottom: 24, position: 'relative' }}>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
-                inside {tenantName.toLowerCase()}
-              </div>
-              <div style={{ position: 'relative' }}>
-                {posts.slice(0, 3).map((post, i) => {
-                  const prof = post.profiles || {};
-                  const isBand = prof.role === 'band' || prof.role === 'admin';
-                  const name = isBand
-                    ? (members.find(m => m.slug === prof.band_member)?.name?.toLowerCase() || prof.display_name?.toLowerCase() || 'band')
-                    : prof.display_name?.toLowerCase() || 'fan';
-                  const memberColor = isBand ? ruby : null;
-                  const borderLeft = isBand ? `3px solid ${memberColor}` : undefined;
-
-                  return (
-                    <div key={post.id} style={{ background: OFF_WHITE, borderRadius: 4, padding: '14px 16px', marginBottom: 6, border: `1px solid ${BORDER}`, borderLeft, filter: i === 0 ? 'none' : `blur(${i * 2}px)`, opacity: 1 - (i * 0.2), pointerEvents: 'none', userSelect: 'none' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <div style={{ width: 26, height: 26, borderRadius: 4, background: isBand ? ruby : BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: "'DM Mono', monospace", color: isBand ? cream : SLATE, fontWeight: 600 }}>
-                          {isBand ? currencyIcon : name.charAt(0)}
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: ink }}>{name}</span>
-                        {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: ruby, border: `1px solid ${ruby}44`, padding: '1px 5px', borderRadius: 2 }}>band</span>}
+                {visibleShows.map(show => (
+                  <div key={show.id} onClick={() => show.ticket_url && window.open(show.ticket_url, '_blank')}
+                    style={{ background: OFF_WHITE, borderRadius: 4, padding: '13px 16px', marginBottom: 6, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 14, cursor: show.ticket_url ? 'pointer' : 'default' }}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, minWidth: 52 }}>{formatDate(show.date)}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>
+                        {show.city}
+                        {show.country && show.country !== 'AU' && <span style={{ color: SLATE, fontWeight: 400 }}> {show.country}</span>}
                       </div>
-                      <p style={{ fontSize: 12, color: ink + 'BB', lineHeight: 1.55, margin: 0 }}>
-                        {post.content?.length > 100 ? post.content.slice(0, 100) + '...' : post.content}
-                      </p>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + 'AA', marginTop: 2 }}>{show.venue}</div>
                     </div>
-                  );
-                })}
+                    {show.status === 'sold_out'
+                      ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: ruby, letterSpacing: '0.8px', textTransform: 'uppercase' }}>sold out</span>
+                      : show.status === 'door_sales'
+                      ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#C9922A', letterSpacing: '0.8px', textTransform: 'uppercase' }}>on the door</span>
+                      : show.ticket_url
+                      ? <span style={{ background: ink, color: cream, borderRadius: 3, padding: '6px 12px', fontSize: 10, fontWeight: 600 }}>tickets</span>
+                      : null}
+                  </div>
+                ))}
+                {shows.length > 4 && (
+                  <button onClick={() => setShowAllShows(s => !s)}
+                    style={{ display: 'block', width: '100%', textAlign: 'center', marginTop: 8, padding: '10px', background: 'transparent', border: `1px solid ${SLATE}44`, borderRadius: 4, cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby }}>
+                    {showAllShows ? 'show less' : `see all ${shows.length} dates`}
+                  </button>
+                )}
+              </div>
+            );
 
-                {/* Fade + CTA overlay */}
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: `linear-gradient(180deg, transparent 0%, ${cream} 55%)`, padding: '60px 0 0', display: 'flex', justifyContent: 'center' }}>
-                  <button id="bottom-sheet-trigger" onClick={() => { setModalMode('join'); setShowModal(false); document.getElementById('auth-sheet').style.display = 'flex'; }}
-                    style={{ background: ruby, color: cream, borderRadius: 4, padding: '14px 28px', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, boxShadow: `0 2px 12px ${ruby}44` }}>
-                    join {tenantName.toLowerCase()} {currencyIcon}
+            if (section === 'posts' && posts.length > 0) return (
+              <div key="posts" style={{ marginBottom: 24, position: 'relative' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
+                  inside {tenantName.toLowerCase()}
+                </div>
+                <div style={{ position: 'relative' }}>
+                  {posts.slice(0, 3).map((post, i) => {
+                    const prof = post.profiles || {};
+                    const isBand = prof.role === 'band' || prof.role === 'admin';
+                    const name = isBand
+                      ? (members.find(m => m.slug === prof.band_member)?.name?.toLowerCase() || prof.display_name?.toLowerCase() || 'band')
+                      : prof.display_name?.toLowerCase() || 'fan';
+                    const memberColor = isBand ? ruby : null;
+                    const borderLeft = isBand ? `3px solid ${memberColor}` : undefined;
+
+                    return (
+                      <div key={post.id} style={{ background: OFF_WHITE, borderRadius: 4, padding: '14px 16px', marginBottom: 6, border: `1px solid ${BORDER}`, borderLeft, filter: i === 0 ? 'none' : `blur(${i * 2}px)`, opacity: 1 - (i * 0.2), pointerEvents: 'none', userSelect: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <div style={{ width: 26, height: 26, borderRadius: 4, background: isBand ? ruby : BORDER, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: "'DM Mono', monospace", color: isBand ? cream : SLATE, fontWeight: 600 }}>
+                            {isBand ? currencyIcon : name.charAt(0)}
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: ink }}>{name}</span>
+                          {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: ruby, border: `1px solid ${ruby}44`, padding: '1px 5px', borderRadius: 2 }}>band</span>}
+                        </div>
+                        <p style={{ fontSize: 12, color: ink + 'BB', lineHeight: 1.55, margin: 0 }}>
+                          {post.content?.length > 100 ? post.content.slice(0, 100) + '...' : post.content}
+                        </p>
+                      </div>
+                    );
+                  })}
+
+                  {/* Fade + CTA overlay */}
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: `linear-gradient(180deg, transparent 0%, ${cream} 55%)`, padding: '60px 0 0', display: 'flex', justifyContent: 'center' }}>
+                    <button id="bottom-sheet-trigger" onClick={() => { setModalMode('join'); setShowModal(false); document.getElementById('auth-sheet').style.display = 'flex'; }}
+                      style={{ background: ruby, color: cream, borderRadius: 4, padding: '14px 28px', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 700, boxShadow: `0 2px 12px ${ruby}44` }}>
+                      join {tenantName.toLowerCase()} {currencyIcon}
+                    </button>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '88' }}>
+                  post, comment, earn {currencyName}, unlock exclusive content
+                </div>
+              </div>
+            );
+
+            if (section === 'tiles' && linkTiles.length > 0) return (
+              <div key="tiles" style={{ marginBottom: 32 }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12 }}>
+                  links
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
+                  {linkTiles.map(tile => (
+                    <a key={tile.id} href={tile.url?.startsWith('http') ? tile.url : `https://${tile.url}`} target="_blank" rel="noopener noreferrer"
+                      style={{ background: ink + '08', border: `1px solid ${BORDER}`, borderRadius: 12, textDecoration: 'none', color: ink, transition: 'all 0.2s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${ruby}11`; e.currentTarget.style.borderColor = `${ruby}44`; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = ink + '08'; e.currentTarget.style.borderColor = BORDER; }}>
+                      {tile.image_url ? (
+                        <img src={tile.image_url} alt={tile.label} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+                      ) : (
+                        <div style={{ fontSize: 13, fontWeight: 600, padding: '16px', textAlign: 'center' }}>{tile.label}</div>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+
+            if (section === 'cta') return (
+              <div key="cta" style={{ background: ink, borderRadius: 4, padding: '32px 22px', textAlign: 'center', border: `1px solid ${ruby}22`, marginBottom: 32 }}>
+                <div style={{ fontSize: 28, marginBottom: 12, color: ruby }}>{currencyIcon}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: cream, textTransform: 'lowercase', marginBottom: 14 }}>{tenantName.toLowerCase()}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300, margin: '0 auto 22px', textAlign: 'left' }}>
+                  {[
+                    memberNames.length > 0 ? `personal feeds from ${memberNames.join(', ')}` : `direct posts from ${tenantName.toLowerCase()}`,
+                    `earn ${currencyName} for posting, commenting, and showing up`,
+                    `unlock rewards as your ${currencyName} grow`,
+                    `connect with fans around the world`,
+                  ].map((text, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: ruby, flexShrink: 0, marginTop: 1 }}>
+                        {['◎', currencyIcon, '♛', '↩'][i]}
+                      </span>
+                      <span style={{ fontSize: 12, color: cream + 'AA', lineHeight: 1.5 }}>{text}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                  <button onClick={() => { setModalMode('join'); document.getElementById('auth-sheet').style.display = 'flex'; }}
+                    style={{ padding: '13px 28px', background: ruby, color: cream, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+                    join free
+                  </button>
+                  <button onClick={() => { setModalMode('password'); document.getElementById('auth-sheet').style.display = 'flex'; }}
+                    style={{ padding: '13px 28px', background: 'transparent', color: cream + '77', border: `1px solid ${cream}22`, borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
+                    sign in
                   </button>
                 </div>
               </div>
-              <div style={{ textAlign: 'center', marginTop: 12, fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '88' }}>
-                post, comment, earn {currencyName}, unlock exclusive content
-              </div>
-            </div>
-          )}
+            );
 
-          {/* Community CTA card */}
-          <div style={{ background: ink, borderRadius: 4, padding: '32px 22px', textAlign: 'center', border: `1px solid ${ruby}22`, marginBottom: 32 }}>
-            <div style={{ fontSize: 28, marginBottom: 12, color: ruby }}>{currencyIcon}</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: cream, textTransform: 'lowercase', marginBottom: 14 }}>{tenantName.toLowerCase()}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300, margin: '0 auto 22px', textAlign: 'left' }}>
-              {[
-                memberNames.length > 0 ? `personal feeds from ${memberNames.join(', ')}` : `direct posts from ${tenantName.toLowerCase()}`,
-                `earn ${currencyName} for posting, commenting, and showing up`,
-                `unlock rewards as your ${currencyName} grow`,
-                `connect with fans around the world`,
-              ].map((text, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: ruby, flexShrink: 0, marginTop: 1 }}>
-                    {['◎', currencyIcon, '♛', '↩'][i]}
-                  </span>
-                  <span style={{ fontSize: 12, color: cream + 'AA', lineHeight: 1.5 }}>{text}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-              <button onClick={() => { setModalMode('join'); document.getElementById('auth-sheet').style.display = 'flex'; }}
-                style={{ padding: '13px 28px', background: ruby, color: cream, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
-                join free
-              </button>
-              <button onClick={() => { setModalMode('password'); document.getElementById('auth-sheet').style.display = 'flex'; }}
-                style={{ padding: '13px 28px', background: 'transparent', color: cream + '77', border: `1px solid ${cream}22`, borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
-                sign in
-              </button>
-            </div>
-          </div>
+            return null;
+          })}
 
           {/* Footer */}
           <div style={{ textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', letterSpacing: '0.5px' }}>
