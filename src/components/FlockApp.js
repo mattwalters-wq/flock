@@ -166,6 +166,7 @@ function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenant
       setText(''); setReplyTo(null);
       await load();
       if (onCommentAdded) onCommentAdded();
+      // Stamps awarded server-side via DB trigger
     }
     setPosting(false);
   };
@@ -264,10 +265,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
     setLiked(nl); setLikeCount(c => c + (nl ? 1 : -1));
     if (nl) await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUserId, tenant_id: tenantId });
     else await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', currentUserId);
-    // Award stamp for liking (stamping a post)
-    if (nl && currentUserId !== post.author_id) {
-      supabase.rpc('award_stamps', { target_user_id: currentUserId, action_trigger_key: 'post_liked', p_tenant_id: tenantId }).catch(() => {});
-    }
+    // Stamps awarded server-side via DB trigger (rate-limited, self-like protected)
   };
 
   return (
@@ -938,7 +936,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       setPostVideo(null); setPostVideoPreview(null);
       setPostTag('general'); setShowPollCreator(false); setPollOptions(['', '']); setPostLink(''); setShowLinkInput(false); setLinkPreviewData(null);
       setLiveUrl(''); setShowLiveInput(false);
-      if (profile?.role === 'fan') supabase.rpc('award_stamps', { target_user_id: user.id, action_trigger_key: 'post_created', p_tenant_id: tenantId }).catch(() => {});
+      // Post stamps awarded server-side via DB trigger
       await fetchPosts();
       if (profile?.role === 'band' || profile?.role === 'admin') {
         // Only notify fans if artist hasn't disabled it
