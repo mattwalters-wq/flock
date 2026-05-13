@@ -200,6 +200,183 @@ export function PublicPage({ tenantId }) {
 
   const visibleShows = showAllShows ? shows : shows.slice(0, 4);
 
+  // Landing mode: 'full' (default) or 'community_only' (minimal join screen)
+  const isCommunityOnly = config.landing_mode === 'community_only';
+
+  // COMMUNITY-ONLY MODE - minimal join screen for artists who already have their own website
+  if (isCommunityOnly) {
+    return (
+      <div style={{ minHeight: '100vh', background: ink, fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+          @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+          @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+        `}</style>
+
+        {/* WELCOME MODAL */}
+        {showModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,16,24,0.75)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'fadeIn 0.3s ease-out' }}
+            onClick={() => setShowModal(false)}>
+            <div style={{ background: ink, borderRadius: 16, padding: '36px 28px', maxWidth: 340, width: '100%', textAlign: 'center', position: 'relative', border: `1px solid ${ruby}22`, boxShadow: '0 20px 60px rgba(0,0,0,0.5)', animation: 'modalIn 0.3s ease-out' }}
+              onClick={e => e.stopPropagation()}>
+              <button onClick={() => setShowModal(false)} style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: cream + '44', fontFamily: "'DM Mono', monospace", lineHeight: 1 }}>×</button>
+              <div style={{ fontSize: 28, color: ruby, marginBottom: 14 }}>{currencyIcon}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: cream, marginBottom: 8, lineHeight: 1.2, textTransform: 'lowercase' }}>
+                welcome to {tenantName.toLowerCase()}
+              </div>
+              <p style={{ fontSize: 13, color: cream + 'AA', lineHeight: 1.65, marginBottom: 22, maxWidth: 260, margin: '0 auto 22px' }}>
+                {bio || `the ${tenantName.toLowerCase()} fan community. post, earn ${currencyName}, and unlock exclusive rewards.`}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button onClick={() => { setShowModal(false); setModalMode('join'); setTimeout(() => document.getElementById('auth-sheet').style.display = 'flex', 100); }}
+                  style={{ display: 'block', width: '100%', padding: '14px 28px', background: ruby, color: cream, borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
+                  join free {currencyIcon}
+                </button>
+                <button onClick={() => { setShowModal(false); setModalMode('password'); setTimeout(() => document.getElementById('auth-sheet').style.display = 'flex', 100); }}
+                  style={{ display: 'block', width: '100%', padding: '12px 28px', background: 'transparent', color: cream + '77', border: `1px solid ${cream}22`, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
+                  sign in
+                </button>
+              </div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '33', marginTop: 14 }}>it's free · takes 30 seconds</div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', maxWidth: 480, margin: '0 auto', width: '100%' }}>
+
+          {/* Logo / artist name */}
+          <div style={{ animation: 'fadeIn 0.6s ease-out', marginBottom: 8, textAlign: 'center', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '-80px', left: '50%', transform: 'translateX(-50%)', width: 320, height: 320, background: `radial-gradient(ellipse, ${ruby}11, transparent 70%)`, pointerEvents: 'none', zIndex: 0 }} />
+            {logoUrl
+              ? <img src={logoUrl} alt={tenantName} style={{ height: 64, maxWidth: 260, objectFit: 'contain', display: 'block', margin: '0 auto 8px', filter: 'brightness(0) invert(1)', position: 'relative', zIndex: 1 }} />
+              : <div style={{ fontSize: 44, fontWeight: 700, color: cream, textTransform: 'lowercase', lineHeight: 1, letterSpacing: '-1px', position: 'relative', zIndex: 1 }}>{tenantName}</div>
+            }
+          </div>
+
+          {/* Tagline / member names */}
+          {memberNames.length > 0 ? (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: cream + '66', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 36, animation: 'fadeIn 0.6s ease-out 0.1s both', textAlign: 'center' }}>
+              {memberNames.join(' · ')}
+            </div>
+          ) : tagline ? (
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: cream + '77', marginBottom: 36, lineHeight: 1.6, animation: 'fadeIn 0.6s ease-out 0.1s both', textAlign: 'center' }}>{tagline}</div>
+          ) : <div style={{ marginBottom: 36 }} />}
+
+          {/* Blurred posts teaser - shows there's activity inside */}
+          {posts.length > 0 && (
+            <div style={{ width: '100%', marginBottom: 32, position: 'relative', animation: 'fadeIn 0.6s ease-out 0.2s both' }}>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '66', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 12, textAlign: 'center' }}>
+                inside {tenantName.toLowerCase()}
+              </div>
+              <div style={{ position: 'relative', maxHeight: 280, overflow: 'hidden' }}>
+                {posts.slice(0, 3).map((post, i) => {
+                  const prof = post.profiles || {};
+                  const isBand = prof.role === 'band' || prof.role === 'admin';
+                  const name = isBand
+                    ? (members.find(m => m.slug === prof.band_member)?.name?.toLowerCase() || prof.display_name?.toLowerCase() || 'band')
+                    : prof.display_name?.toLowerCase() || 'fan';
+                  const borderLeft = isBand ? `3px solid ${ruby}` : undefined;
+                  return (
+                    <div key={post.id} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 6, padding: '14px 16px', marginBottom: 6, border: `1px solid rgba(255,255,255,0.08)`, borderLeft, filter: `blur(${1 + i * 1.5}px)`, opacity: 0.85 - (i * 0.15), pointerEvents: 'none', userSelect: 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <div style={{ width: 26, height: 26, borderRadius: 4, background: isBand ? ruby : 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: "'DM Mono', monospace", color: cream, fontWeight: 600 }}>
+                          {isBand ? currencyIcon : name.charAt(0)}
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: cream }}>{name}</span>
+                        {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 7, color: ruby, border: `1px solid ${ruby}44`, padding: '1px 5px', borderRadius: 2 }}>band</span>}
+                      </div>
+                      <p style={{ fontSize: 12, color: cream + 'BB', lineHeight: 1.55, margin: 0 }}>
+                        {post.content?.length > 100 ? post.content.slice(0, 100) + '...' : post.content}
+                      </p>
+                    </div>
+                  );
+                })}
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100, background: `linear-gradient(180deg, transparent 0%, ${ink} 90%)`, pointerEvents: 'none' }} />
+              </div>
+            </div>
+          )}
+
+          {/* CTA card - what you get + join buttons */}
+          <div style={{ width: '100%', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '28px 22px', textAlign: 'center', border: `1px solid ${ruby}22`, animation: 'fadeIn 0.6s ease-out 0.3s both' }}>
+            <div style={{ fontSize: 28, marginBottom: 12, color: ruby }}>{currencyIcon}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: cream, textTransform: 'lowercase', marginBottom: 16 }}>join the community</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 300, margin: '0 auto 22px', textAlign: 'left' }}>
+              {[
+                memberNames.length > 0 ? `personal posts from ${memberNames.join(', ')}` : `direct posts from ${tenantName.toLowerCase()}`,
+                `earn ${currencyName} for posting, commenting, and showing up`,
+                `unlock rewards as your ${currencyName} grow`,
+                `connect with fans around the world`,
+              ].map((text, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: ruby, flexShrink: 0, marginTop: 1 }}>
+                    {['◎', currencyIcon, '♛', '↩'][i]}
+                  </span>
+                  <span style={{ fontSize: 12, color: cream + 'AA', lineHeight: 1.5 }}>{text}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => { setModalMode('join'); document.getElementById('auth-sheet').style.display = 'flex'; }}
+                style={{ padding: '14px 28px', background: ruby, color: cream, border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans', sans-serif" }}>
+                join free {currencyIcon}
+              </button>
+              <button onClick={() => { setModalMode('password'); document.getElementById('auth-sheet').style.display = 'flex'; }}
+                style={{ padding: '12px 28px', background: 'transparent', color: cream + '88', border: `1px solid ${cream}22`, borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: "'DM Sans', sans-serif" }}>
+                sign in
+              </button>
+            </div>
+          </div>
+
+          {/* Tiny footer */}
+          <div style={{ marginTop: 32, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '33', letterSpacing: '0.5px' }}>
+            © 2026 {tenantName.toLowerCase()} · powered by <a href="https://fans-flock.com" style={{ color: cream + '55', textDecoration: 'none' }}>flock</a>
+          </div>
+        </div>
+
+        {/* AUTH BOTTOM SHEET */}
+        <div id="auth-sheet" style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 200, alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={() => { document.getElementById('auth-sheet').style.display = 'none'; }}>
+          <div style={{ background: cream, borderRadius: '20px 20px 0 0', padding: '24px 24px 48px', width: '100%', maxWidth: 480, animation: 'sheetUp 0.3s ease-out' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: '#E8DDD4', margin: '0 auto 20px' }} />
+            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E8DDD4', marginBottom: 20 }}>
+              {[{ id: 'join', label: 'join' }, { id: 'password', label: 'sign in' }].map(tab => (
+                <button key={tab.id} onClick={() => { setModalMode(tab.id); setAuthError(''); }}
+                  style={{ flex: 1, padding: '10px', background: 'none', border: 'none', borderBottom: modalMode === tab.id ? `2px solid ${ruby}` : '2px solid transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: modalMode === tab.id ? ruby : SLATE, fontWeight: modalMode === tab.id ? 600 : 400, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            {modalMode === 'join' && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 5 }}>your name</label>
+                <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="how you'll appear in the community" autoFocus
+                  style={{ width: '100%', padding: '12px 14px', background: '#FAF5F0', border: '1px solid #E8DDD4', borderRadius: 10, fontSize: 14, color: ink, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
+              </div>
+            )}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 5 }}>email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoFocus={modalMode === 'password'}
+                style={{ width: '100%', padding: '12px 14px', background: '#FAF5F0', border: '1px solid #E8DDD4', borderRadius: 10, fontSize: 14, color: ink, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
+            </div>
+            <div style={{ marginBottom: 16, position: 'relative' }}>
+              <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, display: 'block', marginBottom: 5 }}>password</label>
+              <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="at least 8 characters"
+                style={{ width: '100%', padding: '12px 44px 12px 14px', background: '#FAF5F0', border: '1px solid #E8DDD4', borderRadius: 10, fontSize: 14, color: ink, outline: 'none', fontFamily: "'DM Sans', sans-serif" }} />
+              <button type="button" onClick={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>{showPw ? 'hide' : 'show'}</button>
+            </div>
+            {authError && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby, marginBottom: 12 }}>{authError}</div>}
+            <button onClick={modalMode === 'password' ? signInWithPassword : signUp} disabled={submitting}
+              style={{ width: '100%', padding: '14px', background: ruby, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
+              {submitting ? '...' : modalMode === 'password' ? 'sign in' : `join ${tenantName.toLowerCase()} ${currencyIcon}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Default section order - preserves current look
   const DEFAULT_ORDER = 'tagline,spotify,streaming,socials,tiles,shows,posts,cta';
   const sectionOrder = (config.landing_section_order || DEFAULT_ORDER).split(',').map(s => s.trim()).filter(Boolean);

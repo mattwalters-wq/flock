@@ -1237,6 +1237,7 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
     social_website: '',
     notify_fans_on_post: 'true',
     landing_section_order: 'tagline,spotify,streaming,socials,tiles,shows,posts,cta',
+    landing_mode: 'full',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1484,7 +1485,29 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
       </SettingsSection>
 
       <SettingsSection activeSection={openSections} setActiveSection={setActiveSection} id="landing" label="landing page">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+
+        {/* Landing mode */}
+        <div style={{ paddingBottom: 16, borderBottom: `1px solid ${BORDER}`, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>landing mode</div>
+          <div style={{ fontSize: 12, color: SLATE, lineHeight: 1.5, marginBottom: 12 }}>full landing works as your link in bio (logo, shows, streaming links, posts, etc). community-only is a minimal join screen for artists who already have their own website and just want fans to sign up.</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { id: 'full', label: 'full landing', desc: 'link-in-bio style' },
+              { id: 'community_only', label: 'community-only', desc: 'minimal join screen' },
+            ].map(opt => {
+              const isActive = (cfg.landing_mode || 'full') === opt.id;
+              return (
+                <button key={opt.id} onClick={() => setCfg(p => ({ ...p, landing_mode: opt.id }))}
+                  style={{ flex: 1, padding: '12px 14px', background: isActive ? INK : SURFACE, border: `1px solid ${isActive ? INK : BORDER}`, borderRadius: 8, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? CREAM : INK, marginBottom: 3 }}>{opt.label}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: isActive ? CREAM + '88' : SLATE, letterSpacing: '0.5px' }}>{opt.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', opacity: cfg.landing_mode === 'community_only' ? 0.45 : 1 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>signup popup</div>
             <div style={{ fontSize: 12, color: SLATE, lineHeight: 1.5 }}>show the join/sign in popup when visitors land on your page</div>
@@ -1495,9 +1518,9 @@ function Settings({ supabase, tenantId, currencyName, currencyIcon }) {
           </button>
         </div>
 
-        {/* Section order */}
-        <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 16, paddingTop: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>section order</div>
+        {/* Section order - only relevant in full mode */}
+        <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 16, paddingTop: 16, opacity: cfg.landing_mode === 'community_only' ? 0.45 : 1, pointerEvents: cfg.landing_mode === 'community_only' ? 'none' : 'auto' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>section order {cfg.landing_mode === 'community_only' && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1px', textTransform: 'uppercase', marginLeft: 8 }}>(full mode only)</span>}</div>
           <div style={{ fontSize: 12, color: SLATE, lineHeight: 1.5, marginBottom: 14 }}>reorder how sections appear below your logo. the logo stays at the top and footer at the bottom. gradients auto-adjust between dark and light sections.</div>
           {(() => {
             const ALL_SECTIONS = [
