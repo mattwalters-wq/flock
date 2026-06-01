@@ -779,16 +779,19 @@ export function FlockApp({ tenantId: propTenantId }) {
       setMemberMap(map);
 
       if (tiersRes.data?.length) {
-        // DB tiers are authoritative. Fall back to a DEFAULT_LEVEL only when no DB
-        // tier occupies that stamp threshold. Dedupe by stamps (not key) so a
-        // renamed tier (e.g. 'love_letter' at 50) doesn't collide with a default
-        // ('b_side' at 50).
-        const dbStampLevels = new Set(tiersRes.data.map(t => t.stamps));
+        // DB tiers are fully authoritative. If an artist has set up any tiers,
+        // we show exactly those active ones - no default backfill. This lets an
+        // artist deliberately remove tiers (e.g. hide higher reward tiers they
+        // can't fulfil) without defaults reappearing. The DEFAULT_LEVELS are only
+        // used when a tenant has zero tiers configured (handled by initial state).
         const dbTiers = tiersRes.data.map(t => ({ name: t.name, key: t.key, stamps: t.stamps, icon: t.icon, reward: t.reward_type, rewardDesc: t.reward_desc }));
-        const fallbackDefaults = DEFAULT_LEVELS.filter(def => !dbStampLevels.has(def.stamps));
-        const merged = [...dbTiers, ...fallbackDefaults];
-        merged.sort((a, b) => a.stamps - b.stamps);
-        setStampLevels(merged);
+        dbTiers.sort((a, b) => a.stamps - b.stamps);
+        // Always keep a welcome/first tier at 0 so new fans see a starting point
+        if (!dbTiers.some(t => t.stamps === 0)) {
+          const welcome = DEFAULT_LEVELS.find(d => d.stamps === 0);
+          if (welcome) dbTiers.unshift(welcome);
+        }
+        setStampLevels(dbTiers);
       }
     })();
 
