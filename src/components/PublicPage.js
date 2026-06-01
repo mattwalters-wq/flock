@@ -137,6 +137,17 @@ export function PublicPage({ tenantId }) {
     if (data?.session) window.location.href = '/';
   };
 
+  const [resetSent, setResetSent] = useState(false);
+  const sendPasswordReset = async () => {
+    if (!email.trim()) { setAuthError('enter your email first, then tap reset'); return; }
+    setSubmitting(true); setAuthError('');
+    const sb = getSupabase();
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/login` });
+    setSubmitting(false);
+    if (error) { setAuthError(error.message); return; }
+    setResetSent(true);
+  };
+
   const signUp = async () => {
     if (!displayName.trim() || !email.trim() || !password) { setAuthError('all fields required'); return; }
     if (password.length < 8) { setAuthError('password must be at least 8 characters'); return; }
@@ -367,10 +378,17 @@ export function PublicPage({ tenantId }) {
               <button type="button" onClick={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>{showPw ? 'hide' : 'show'}</button>
             </div>
             {authError && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby, marginBottom: 12 }}>{authError}</div>}
+            {resetSent && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 12 }}>check your email for a reset link</div>}
             <button onClick={modalMode === 'password' ? signInWithPassword : signUp} disabled={submitting}
               style={{ width: '100%', padding: '14px', background: ruby, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
               {submitting ? '...' : modalMode === 'password' ? 'sign in' : `join ${tenantName.toLowerCase()} ${currencyIcon}`}
             </button>
+            {modalMode === 'password' && (
+              <button onClick={sendPasswordReset} disabled={submitting}
+                style={{ display: 'block', width: '100%', marginTop: 12, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, textDecoration: 'underline', textAlign: 'center' }}>
+                forgot password?
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -736,10 +754,17 @@ export function PublicPage({ tenantId }) {
                 <button type="button" onClick={() => setShowPw(p => !p)} style={{ position: 'absolute', right: 12, top: '60%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE + '88', padding: 4 }}>{showPw ? 'hide' : 'show'}</button>
               </div>
               {authError && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: ruby, marginBottom: 12 }}>{authError}</div>}
+              {resetSent && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, marginBottom: 12 }}>check your email for a reset link</div>}
               <button onClick={modalMode === 'password' ? signInWithPassword : signUp} disabled={submitting}
                 style={{ width: '100%', padding: '14px', background: ruby, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: submitting ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
                 {submitting ? '...' : modalMode === 'password' ? 'sign in' : `join ${tenantName.toLowerCase()} ${currencyIcon}`}
               </button>
+              {modalMode === 'password' && (
+                <button onClick={sendPasswordReset} disabled={submitting}
+                  style={{ display: 'block', width: '100%', marginTop: 12, background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, textDecoration: 'underline', textAlign: 'center' }}>
+                  forgot password?
+                </button>
+              )}
             </>
         </div>
       </div>
