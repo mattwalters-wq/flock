@@ -18,19 +18,16 @@ export function middleware(request) {
 
   const response = NextResponse.next();
 
-  // Tenant header for subdomains
+  // Tenant header for subdomains (used by pages to resolve which community to show)
   if (host.endsWith(`.${APP_DOMAIN}`)) {
     const tenantSlug = host.replace(`.${APP_DOMAIN}`, '');
     response.headers.set('x-tenant-slug', tenantSlug);
     response.headers.set('x-host', host);
   }
 
-  // NOTE: Middleware does NOT touch auth cookies. The browser client
-  // (src/lib/supabase-browser.js) is the single owner of the Supabase auth
-  // cookie and sets the apex domain (.fans-flock.com) itself. Having middleware
-  // also rewrite the cookie on every response desyncs the chunked auth token and
-  // causes the client to refresh in a tight loop. Leave auth cookies alone here.
-
+  // Middleware does NOT make any Supabase auth calls and does NOT touch auth
+  // cookies. The browser client owns the session entirely. This keeps page
+  // loads from ever hitting the auth server.
   return response;
 }
 
