@@ -779,22 +779,14 @@ export function FlockApp({ tenantId: propTenantId }) {
       setMemberMap(map);
 
       if (tiersRes.data?.length) {
-        // Merge DB tiers with DEFAULT_LEVELS so missing tiers fall back to defaults.
-        // This prevents the situation where customizing one tier hides the others.
-        const dbByKey = {};
-        tiersRes.data.forEach(t => { dbByKey[t.key] = t; });
-        const merged = DEFAULT_LEVELS.map(def => {
-          const db = dbByKey[def.key];
-          if (db) return { name: db.name, key: db.key, stamps: db.stamps, icon: db.icon, reward: db.reward_type, rewardDesc: db.reward_desc };
-          return def;
-        });
-        // Also include any custom tiers that don't match a default key
-        const defaultKeys = new Set(DEFAULT_LEVELS.map(d => d.key));
-        tiersRes.data.forEach(t => {
-          if (!defaultKeys.has(t.key)) {
-            merged.push({ name: t.name, key: t.key, stamps: t.stamps, icon: t.icon, reward: t.reward_type, rewardDesc: t.reward_desc });
-          }
-        });
+        // DB tiers are authoritative. Fall back to a DEFAULT_LEVEL only when no DB
+        // tier occupies that stamp threshold. Dedupe by stamps (not key) so a
+        // renamed tier (e.g. 'love_letter' at 50) doesn't collide with a default
+        // ('b_side' at 50).
+        const dbStampLevels = new Set(tiersRes.data.map(t => t.stamps));
+        const dbTiers = tiersRes.data.map(t => ({ name: t.name, key: t.key, stamps: t.stamps, icon: t.icon, reward: t.reward_type, rewardDesc: t.reward_desc }));
+        const fallbackDefaults = DEFAULT_LEVELS.filter(def => !dbStampLevels.has(def.stamps));
+        const merged = [...dbTiers, ...fallbackDefaults];
         merged.sort((a, b) => a.stamps - b.stamps);
         setStampLevels(merged);
       }
