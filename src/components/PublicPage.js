@@ -142,7 +142,7 @@ export function PublicPage({ tenantId }) {
     if (!email.trim()) { setAuthError('enter your email first, then tap reset'); return; }
     setSubmitting(true); setAuthError('');
     const sb = getSupabase();
-    const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/login` });
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/reset` });
     setSubmitting(false);
     if (error) { setAuthError(error.message); return; }
     setResetSent(true);

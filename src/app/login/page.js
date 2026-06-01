@@ -35,7 +35,7 @@ export default function LoginPage() {
     setLoading(true); setError('');
     const sb = getSupabase();
     const { error: resetErr } = await sb.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `https://${APP_DOMAIN}/auth/reset`,
+      redirectTo: `${window.location.origin}/auth/reset`,
     });
     if (resetErr) { setError(resetErr.message); setLoading(false); return; }
     setResetSent(true);

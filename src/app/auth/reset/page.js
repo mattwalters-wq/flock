@@ -15,15 +15,26 @@ export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Supabase puts the token in the URL hash - just need to check we have a session
+    // Supabase puts the recovery token in the URL hash and detects it automatically.
     const sb = getSupabase();
-    sb.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true);
+    const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || session) setReady(true);
     });
     // Also check existing session
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session) setReady(true);
     });
+    // Fallback: if the URL carries recovery params, show the form even if the
+    // auth event was missed (e.g. timing or cookie quirks). The updateUser call
+    // will still validate the token server-side.
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('code=')) {
+        setReady(true);
+      }
+    }
+    return () => { sub?.subscription?.unsubscribe?.(); };
   }, []);
 
   const updatePassword = async () => {
