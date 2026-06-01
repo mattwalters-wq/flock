@@ -712,6 +712,9 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   // UI toggles
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const POSTS_PAGE_SIZE = 40;
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [claimingLevel, setClaimingLevel] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
@@ -792,17 +795,31 @@ export function FlockApp({ tenantId: propTenantId }) {
   }, [supabase, tenantId]);
 
   // ── Fetch posts ───────────────────────────────────────────────────────────
-  const fetchPosts = useCallback(async (feed = feedView) => {
+  const fetchPosts = useCallback(async (feed = feedView, append = false) => {
     if (!supabase || !tenantId) return;
-    setLoadingPosts(true);
+    if (append) setLoadingMorePosts(true);
+    else { setLoadingPosts(true); setHasMorePosts(true); }
     try {
-      let query = supabase.from('posts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(40);
+      // For append mode, fetch posts older than the oldest currently shown
+      let query = supabase.from('posts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(POSTS_PAGE_SIZE);
       if (feed === 'community') query = query.eq('feed_type', 'community');
       else if (feed === 'highlights') query = query.eq('is_highlight', true);
       else query = query.eq('feed_type', feed);
 
+      if (append && posts.length > 0) {
+        const oldestPost = posts.filter(p => !p.is_pinned).slice(-1)[0];
+        if (oldestPost) query = query.lt('created_at', oldestPost.created_at);
+      }
+
       const { data } = await query;
-      if (!data) { setPosts([]); setLoadingPosts(false); return; }
+      if (!data) {
+        if (append) setLoadingMorePosts(false);
+        else { setPosts([]); setLoadingPosts(false); }
+        return;
+      }
+
+      // If we got fewer than the page size, we've hit the end
+      if (data.length < POSTS_PAGE_SIZE) setHasMorePosts(false);
 
       const ids = [...new Set(data.map(p => p.author_id))];
       let pmap = {};
@@ -818,11 +835,30 @@ export function FlockApp({ tenantId: propTenantId }) {
       }
 
       const mapped = data.map(p => ({ ...p, profiles: pmap[p.author_id] || null, user_has_liked: likedIds.has(p.id) }));
-      mapped.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
-      setPosts(mapped);
-    } catch (e) { console.error('fetchPosts error:', e); setPosts([]); }
-    setLoadingPosts(false);
-  }, [feedView, user, supabase, tenantId]);
+
+      if (append) {
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const newOnes = mapped.filter(p => !existingIds.has(p.id));
+          const combined = [...prev, ...newOnes];
+          combined.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
+          return combined;
+        });
+      } else {
+        mapped.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
+        setPosts(mapped);
+      }
+    } catch (e) {
+      console.error('fetchPosts error:', e);
+      if (!append) setPosts([]);
+    }
+    if (append) setLoadingMorePosts(false);
+    else setLoadingPosts(false);
+  }, [feedView, user, supabase, tenantId, posts]);
+
+  const loadMorePosts = useCallback(() => {
+    fetchPosts(feedView, true);
+  }, [fetchPosts, feedView]);
 
   const fetchShows = useCallback(async () => {
     if (!supabase || !tenantId) return;
@@ -1256,11 +1292,31 @@ export function FlockApp({ tenantId: propTenantId }) {
                     : 'the artist hasn\'t posted yet. check back soon.'}
                 </div>
               </div>
-            ) : visiblePosts.map((post, i) => (
-              <div key={post.id} style={{ animation: `fadeIn 0.3s ease-out ${i * 0.03}s both` }}>
-                <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} currencyIcon={currencyIcon} onRefresh={fetchPosts} onViewProfile={setViewingProfile} />
-              </div>
-            ))}
+            ) : (
+              <>
+                {visiblePosts.map((post, i) => (
+                  <div key={post.id} style={{ animation: `fadeIn 0.3s ease-out ${i * 0.03}s both` }}>
+                    <PostCard post={post} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} currencyIcon={currencyIcon} onRefresh={fetchPosts} onViewProfile={setViewingProfile} />
+                  </div>
+                ))}
+
+                {/* Load older posts button */}
+                {!feedTagFilter && posts.length >= POSTS_PAGE_SIZE && (
+                  <div style={{ padding: '20px 0 40px', textAlign: 'center' }}>
+                    {hasMorePosts ? (
+                      <button onClick={loadMorePosts} disabled={loadingMorePosts}
+                        style={{ padding: '12px 24px', background: 'transparent', border: `1px solid ${SLATE}44`, borderRadius: 6, cursor: loadingMorePosts ? 'default' : 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, letterSpacing: '0.5px', opacity: loadingMorePosts ? 0.5 : 1 }}>
+                        {loadingMorePosts ? 'loading...' : 'load older posts'}
+                      </button>
+                    ) : (
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE + '77', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        ✦ you're all caught up
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -1364,7 +1420,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                       <div style={{ fontSize: 11.5, color: SLATE, marginTop: 3, lineHeight: 1.4 }}>{level.rewardDesc}</div>
                     </div>
                   </div>
-                  {unlocked && level.reward && (
+                  {unlocked && level.stamps > 0 && (
                     <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BORDER}` }}>
                       {claimed ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span> :
                         <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>}
