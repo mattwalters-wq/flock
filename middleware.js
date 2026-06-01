@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
-const COOKIE_DOMAIN = `.${APP_DOMAIN}`;
 
 export function middleware(request) {
   const { pathname } = new URL(request.url);
@@ -26,18 +25,11 @@ export function middleware(request) {
     response.headers.set('x-host', host);
   }
 
-  // Cross-subdomain session: re-scope any host-only Supabase auth cookies up to
-  // the apex domain so one login is shared across every tenant subdomain.
-  // This is a purely local cookie rewrite - it makes NO calls to the auth server,
-  // so it does not affect rate limits. The client SDK still handles token refresh.
-  const onAppDomain = host === APP_DOMAIN || host.endsWith(`.${APP_DOMAIN}`);
-  if (onAppDomain) {
-    request.cookies.getAll().forEach(c => {
-      if (c.name.startsWith('sb-') && c.name.includes('-auth-token')) {
-        response.cookies.set(c.name, c.value, { domain: COOKIE_DOMAIN, path: '/', secure: true, sameSite: 'lax' });
-      }
-    });
-  }
+  // NOTE: Middleware does NOT touch auth cookies. The browser client
+  // (src/lib/supabase-browser.js) is the single owner of the Supabase auth
+  // cookie and sets the apex domain (.fans-flock.com) itself. Having middleware
+  // also rewrite the cookie on every response desyncs the chunked auth token and
+  // causes the client to refresh in a tight loop. Leave auth cookies alone here.
 
   return response;
 }
