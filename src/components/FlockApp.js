@@ -150,8 +150,35 @@ function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenant
       const { data: profiles } = await supabase.from('profiles').select('id, display_name, role, band_member, avatar_url').in('id', ids);
       if (profiles) profiles.forEach(p => { pmap[p.id] = p; });
     }
-    setComments(list.map(c => ({ ...c, profile: pmap[c.author_id] || null })));
+    // Load comment likes for this post's comments
+    let likeCounts = {};
+    let myLikes = new Set();
+    const commentIds = list.map(c => c.id);
+    if (commentIds.length) {
+      const { data: likes } = await supabase.from('comment_likes').select('comment_id, user_id').in('comment_id', commentIds);
+      if (likes) {
+        likes.forEach(l => {
+          likeCounts[l.comment_id] = (likeCounts[l.comment_id] || 0) + 1;
+          if (l.user_id === currentUserId) myLikes.add(l.comment_id);
+        });
+      }
+    }
+    setComments(list.map(c => ({ ...c, profile: pmap[c.author_id] || null, like_count: likeCounts[c.id] || 0, liked_by_me: myLikes.has(c.id) })));
     setLoading(false);
+  };
+
+  const toggleCommentLike = async (comment) => {
+    if (!currentUserId) return;
+    const nowLiked = !comment.liked_by_me;
+    // Optimistic update
+    setComments(p => p.map(c => c.id === comment.id
+      ? { ...c, liked_by_me: nowLiked, like_count: (c.like_count || 0) + (nowLiked ? 1 : -1) }
+      : c));
+    if (nowLiked) {
+      await supabase.from('comment_likes').insert({ comment_id: comment.id, user_id: currentUserId, tenant_id: tenantId });
+    } else {
+      await supabase.from('comment_likes').delete().eq('comment_id', comment.id).eq('user_id', currentUserId);
+    }
   };
 
   useEffect(() => { load(); }, [postId]);
@@ -190,6 +217,11 @@ function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenant
           <span onClick={() => onViewProfile?.(c.author_id)} style={{ fontSize: 12, fontWeight: 600, color: INK, cursor: 'pointer' }}>{name}</span>
           {isBand && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: RUBY, border: `1px solid ${RUBY}44`, padding: '0 5px', borderRadius: 2 }}>band</span>}
           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '88', marginLeft: 'auto' }}>{timeAgo(c.created_at)}</span>
+          <button onClick={() => toggleCommentLike(c)} title="like"
+            style={{ display: 'flex', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: c.liked_by_me ? RUBY : SLATE + '77', fontSize: 11, fontFamily: "'DM Mono', monospace", padding: 0 }}>
+            <span style={{ fontSize: 12 }}>{c.liked_by_me ? '♥' : '♡'}</span>
+            {c.like_count > 0 && <span>{c.like_count}</span>}
+          </button>
           <button onClick={() => setReplyTo({ id: c.id, name: p.display_name })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: SLATE + '55', fontSize: 10, fontFamily: "'DM Mono', monospace" }}>reply</button>
           {canDel && <button onClick={() => del(c.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: RUBY + '55', fontSize: 13 }}>×</button>}
         </div>
@@ -938,6 +970,15 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (mainTab === 'you') refreshProfile();
     fetchNotifications();
   }, [mainTab]);
+
+  // Poll notifications every 60s so the bell updates without changing tabs.
+  // This is a plain table read (notifications table), NOT an auth call, so it
+  // does not touch auth rate limits.
+  useEffect(() => {
+    if (!supabase || !tenantId || !user) return;
+    const id = setInterval(() => { fetchNotifications(); }, 60000);
+    return () => clearInterval(id);
+  }, [supabase, tenantId, user, fetchNotifications]);
 
   // ── Post submission ───────────────────────────────────────────────────────
   const handlePost = async () => {
