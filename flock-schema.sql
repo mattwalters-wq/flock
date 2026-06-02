@@ -440,6 +440,90 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
+-- ============ SECURITY HARDENING ============
+-- Mirrors migrations/harden_rls_security.sql so a fresh project is locked down
+-- on first run. See that file for the full rationale. Two protections:
+--   1. Fans cannot self-edit stamp_count / stamp_level / role / show_count /
+--      tenant_id on their own profile (only the SECURITY DEFINER award path,
+--      a tenant admin, the super admin, or the service role can).
+--   2. Inserts must carry the writer's OWN tenant_id (no cross-tenant forging).
+
+-- Helper: the calling user's own tenant_id (definer -> not gated by RLS).
+CREATE OR REPLACE FUNCTION public.current_tenant_id()
+RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT tenant_id FROM public.profiles WHERE id = auth.uid();
+$$;
+
+-- Helper: is the caller a band/admin within the given tenant?
+CREATE OR REPLACE FUNCTION public.is_tenant_admin(p_tenant_id bigint)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND tenant_id = p_tenant_id AND role IN ('band', 'admin')
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.current_tenant_id() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_tenant_admin(bigint) TO anon, authenticated, service_role;
+
+-- Clamp protected profile columns for ordinary fans. SECURITY INVOKER (default)
+-- so current_user reflects the real caller; internal definer calls and the
+-- service role run as the owner/service role and pass straight through.
+CREATE OR REPLACE FUNCTION public.guard_profile_protected_columns()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF current_user NOT IN ('authenticated', 'anon') THEN
+    RETURN NEW;
+  END IF;
+  IF auth.uid() = '5cdcf898-6bda-42b7-860e-0964562c9c22'::uuid THEN
+    RETURN NEW;
+  END IF;
+  IF public.is_tenant_admin(OLD.tenant_id) THEN
+    RETURN NEW;
+  END IF;
+  NEW.stamp_count := OLD.stamp_count;
+  NEW.stamp_level := OLD.stamp_level;
+  NEW.role        := OLD.role;
+  NEW.show_count  := OLD.show_count;
+  NEW.tenant_id   := OLD.tenant_id;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_profile_protected_columns ON public.profiles;
+CREATE TRIGGER guard_profile_protected_columns
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.guard_profile_protected_columns();
+
+-- Authorise admin / super-admin profile updates (additive to profiles_update_own).
+DROP POLICY IF EXISTS "profiles_update_admin" ON public.profiles;
+CREATE POLICY "profiles_update_admin" ON public.profiles FOR UPDATE USING (
+  auth.uid() = '5cdcf898-6bda-42b7-860e-0964562c9c22'::uuid
+  OR public.is_tenant_admin(tenant_id)
+);
+
+-- Tenant-scoped inserts (replace the authorship-only checks above).
+DROP POLICY IF EXISTS "posts_insert" ON public.posts;
+CREATE POLICY "posts_insert" ON public.posts FOR INSERT WITH CHECK (
+  auth.uid() = author_id AND tenant_id = public.current_tenant_id()
+);
+DROP POLICY IF EXISTS "comments_insert" ON public.comments;
+CREATE POLICY "comments_insert" ON public.comments FOR INSERT WITH CHECK (
+  auth.uid() = author_id AND tenant_id = public.current_tenant_id()
+);
+DROP POLICY IF EXISTS "likes_insert" ON public.post_likes;
+CREATE POLICY "likes_insert" ON public.post_likes FOR INSERT WITH CHECK (
+  auth.uid() = user_id AND tenant_id = public.current_tenant_id()
+);
+DROP POLICY IF EXISTS "poll_votes_insert" ON public.poll_votes;
+CREATE POLICY "poll_votes_insert" ON public.poll_votes FOR INSERT WITH CHECK (
+  auth.uid() = user_id AND tenant_id = public.current_tenant_id()
+);
+DROP POLICY IF EXISTS "reward_claims_insert" ON public.reward_claims;
+CREATE POLICY "reward_claims_insert" ON public.reward_claims FOR INSERT WITH CHECK (
+  auth.uid() = user_id AND tenant_id = public.current_tenant_id()
+);
+
 -- ============ SEED: The Stamps as tenant 1 ============
 -- (Run separately after schema is created if needed)
 -- INSERT INTO tenants (slug, name) VALUES ('the-stamps', 'The Stamps');
