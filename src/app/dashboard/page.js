@@ -600,6 +600,16 @@ function TierForm({ value, onChange, currencyName, currencyIcon, onSave, onCance
         <TierFormField value={value} onChange={onChange} label="icon" field="icon" placeholder="✦" />
       </div>
       <TierFormField value={value} onChange={onChange} label="reward description" field="reward_desc" placeholder="what fans get at this level..." span={3} />
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 14px', cursor: 'pointer' }}>
+        <button type="button" onClick={() => onChange({ ...value, collect_address: !value.collect_address })}
+          style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: value.collect_address ? RUBY : BORDER, position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+          <div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 2, left: value.collect_address ? 20 : 2, transition: 'left 0.2s' }} />
+        </button>
+        <div>
+          <div style={{ fontSize: 13, color: INK }}>collect shipping address</div>
+          <Mono size={9} color={SLATE + '88'}>turn on for rewards you post (vinyl, shirts, letters…)</Mono>
+        </div>
+      </label>
       <div style={{ display: 'flex', gap: 8 }}>
         <Btn onClick={onSave} disabled={!value.name || !value.reward_desc || saving}>{saving ? 'saving...' : saveLabel}</Btn>
         <Btn onClick={onCancel} variant="ghost">cancel</Btn>
@@ -611,7 +621,7 @@ function TierForm({ value, onChange, currencyName, currencyIcon, onSave, onCance
 function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
   const [actions, setActions] = useState([]);
   const [tiers, setTiers] = useState([]);
-  const [newTier, setNewTier] = useState({ name: '', stamps: 0, icon: '✦', reward_type: '', reward_desc: '' });
+  const [newTier, setNewTier] = useState({ name: '', stamps: 0, icon: '✦', reward_type: '', reward_desc: '', collect_address: false });
   const [showNewTier, setShowNewTier] = useState(false);
   const [savingNew, setSavingNew] = useState(false);
   const [editingTier, setEditingTier] = useState(null);
@@ -633,7 +643,7 @@ function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
     await supabase.from('reward_tiers').insert({ ...newTier, tenant_id: tenantId, sort_order: tiers.length, is_active: true, key: newTier.name.toLowerCase().replace(/[^a-z0-9]+/g, '_') });
     const { data } = await supabase.from('reward_tiers').select('*').eq('tenant_id', tenantId).order('sort_order');
     setTiers(data || []);
-    setNewTier({ name: '', stamps: 0, icon: '✦', reward_type: '', reward_desc: '' });
+    setNewTier({ name: '', stamps: 0, icon: '✦', reward_type: '', reward_desc: '', collect_address: false });
     setShowNewTier(false); setSavingNew(false);
   };
 
@@ -643,6 +653,7 @@ function PointsManager({ supabase, tenantId, currencyName, currencyIcon }) {
     await supabase.from('reward_tiers').update({
       name: editingTier.name, stamps: editingTier.stamps, icon: editingTier.icon,
       reward_desc: editingTier.reward_desc, reward_type: editingTier.reward_type,
+      collect_address: editingTier.collect_address,
     }).eq('id', editingTier.id);
     setTiers(prev => prev.map(t => t.id === editingTier.id ? { ...t, ...editingTier } : t));
     setEditingTier(null); setSavingEdit(false);

@@ -1,20 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { getSupabase } from '@/lib/supabase-browser';
+import { useAuth } from '@/lib/auth-context';
 import { PublicPage } from '@/components/PublicPage';
 import { FlockApp } from '@/components/FlockApp';
 
 export default function Home() {
+  // Auth state comes from the single global AuthProvider — no second getSession
+  // / onAuthStateChange here, so a page load only touches the auth server once.
+  const { user, loading: authLoading, supabase } = useAuth();
   const [state, setState] = useState('loading');
   const [tenantId, setTenantId] = useState(null);
+  const [tenantChecked, setTenantChecked] = useState(false);
 
+  // Resolve which community (tenant) this subdomain maps to. Unchanged routing:
+  // root domain and unknown subdomains still bounce to the marketing site.
   useEffect(() => {
-    const sb = getSupabase();
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
     const host = window.location.hostname;
 
     const init = async () => {
-      // Root domain - redirect to marketing page
       if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
         window.location.href = '/start';
         return;
@@ -23,42 +27,41 @@ export default function Home() {
       let tid = null;
       if (host.endsWith(`.${APP_DOMAIN}`)) {
         const slug = host.replace(`.${APP_DOMAIN}`, '');
-        const { data: tenant } = await sb.from('tenants').select('id').eq('slug', slug).single();
+        const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single();
         tid = tenant?.id || null;
       }
       setTenantId(tid);
+      setTenantChecked(true);
 
-      // No tenant found - show nothing useful, redirect to marketing
       if (!tid) {
         window.location.href = `https://${APP_DOMAIN}/start`;
-        return;
       }
-
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session?.user) { setState('public'); return; }
-
-      // Ensure profile exists for this tenant
-      const { data: profile } = await sb.from('profiles').select('id').eq('id', session.user.id).eq('tenant_id', tid).single();
-      if (!profile) {
-        const displayName = session.user.user_metadata?.display_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'fan';
-        await sb.from('profiles').insert({
-          id: session.user.id, tenant_id: tid, display_name: displayName,
-          avatar_url: session.user.user_metadata?.avatar_url || null,
-          role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-        }).catch(() => {});
-      }
-      setState('app');
     };
 
     init();
-
-    const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) setState('app');
-      else if (event === 'SIGNED_OUT') setState('public');
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
+
+  // Decide public vs app from the shared auth state once tenant + auth resolve.
+  useEffect(() => {
+    if (!tenantChecked || !tenantId || authLoading) return;
+    if (!user) { setState('public'); return; }
+
+    let cancelled = false;
+    (async () => {
+      // Ensure a profile exists for this tenant (e.g. first visit after OAuth).
+      const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).eq('tenant_id', tenantId).single();
+      if (!profile && !cancelled) {
+        const displayName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'fan';
+        await supabase.from('profiles').insert({
+          id: user.id, tenant_id: tenantId, display_name: displayName,
+          avatar_url: user.user_metadata?.avatar_url || null,
+          role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
+        }).catch(() => {});
+      }
+      if (!cancelled) setState('app');
+    })();
+    return () => { cancelled = true; };
+  }, [tenantChecked, tenantId, authLoading, user]);
 
   if (state === 'loading') return (
     <div style={{ minHeight: '100vh', background: 'var(--cream, #F5EFE6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getSupabase } from '@/lib/supabase-browser';
+import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
 
 export function LandingPage() {
   const [mode, setMode] = useState('signup');
@@ -48,7 +48,7 @@ export function LandingPage() {
     setLoading(true); setError('');
     const sb = getSupabase();
     const { data, error: err } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-    if (err) { setError(err.message); setLoading(false); return; }
+    if (err) { setError(authErrorMessage(err)); setLoading(false); return; }
     if (data?.session) {
       if (tenantId) {
         const { data: existing } = await sb.from('profiles').select('id').eq('id', data.user.id).eq('tenant_id', tenantId).single();
@@ -81,11 +81,16 @@ export function LandingPage() {
       email: email.trim(), password,
       options: { data: { display_name: displayName.trim(), tenant_id: tenantId } }
     });
-    if (err) { setError(err.message); setLoading(false); return; }
+    if (err) { setError(authErrorMessage(err)); setLoading(false); return; }
 
-    // Try immediate sign-in so user goes straight to feed
-    const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-    const session = signInData?.session || data?.session;
+    // signUp already returns a session when email confirmation is off; only do
+    // an explicit sign-in if it didn't, to avoid a redundant auth request that
+    // eats into the rate limit.
+    let session = data?.session;
+    if (!session) {
+      const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      session = signInData?.session;
+    }
 
     if (session && tenantId) {
       try { await sb.from('profiles').insert({
