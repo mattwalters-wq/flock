@@ -167,6 +167,7 @@ CREATE TABLE public.reward_tiers (
   icon text DEFAULT '✦',
   reward_type text,
   reward_desc text,
+  collect_address boolean NOT NULL DEFAULT false,
   sort_order integer DEFAULT 0,
   is_active boolean DEFAULT true,
   UNIQUE(tenant_id, key)

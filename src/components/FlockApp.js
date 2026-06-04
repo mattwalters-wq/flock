@@ -613,7 +613,9 @@ function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClos
   const [name, setName] = useState(''); const [address, setAddress] = useState('');
   const [city, setCity] = useState(''); const [country, setCountry] = useState('');
   const [postcode, setPostcode] = useState(''); const [submitting, setSubmitting] = useState(false);
-  const needsShipping = ['tshirt', 'vinyl'].includes(level.reward);
+  // Show address fields when the artist flagged this tier as posted, falling
+  // back to the built-in physical reward types so legacy tiers don't regress.
+  const needsShipping = !!level.collectAddress || ['tshirt', 'vinyl', 'postcard'].includes(level.reward);
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const BORDER = 'var(--border)';
   const SLATE = 'var(--slate)'; const WARM_GOLD = 'var(--warm-gold)'; const SURFACE = 'var(--surface)';
   const RUBY = 'var(--ruby)';
@@ -816,7 +818,7 @@ export function FlockApp({ tenantId: propTenantId }) {
         // artist deliberately remove tiers (e.g. hide higher reward tiers they
         // can't fulfil) without defaults reappearing. The DEFAULT_LEVELS are only
         // used when a tenant has zero tiers configured (handled by initial state).
-        const dbTiers = tiersRes.data.map(t => ({ name: t.name, key: t.key, stamps: t.stamps, icon: t.icon, reward: t.reward_type, rewardDesc: t.reward_desc }));
+        const dbTiers = tiersRes.data.map(t => ({ name: t.name, key: t.key, stamps: t.stamps, icon: t.icon, reward: t.reward_type, rewardDesc: t.reward_desc, collectAddress: t.collect_address }));
         dbTiers.sort((a, b) => a.stamps - b.stamps);
         // Always keep a welcome/first tier at 0 so new fans see a starting point
         if (!dbTiers.some(t => t.stamps === 0)) {

@@ -83,9 +83,14 @@ export function LandingPage() {
     });
     if (err) { setError(err.message); setLoading(false); return; }
 
-    // Try immediate sign-in so user goes straight to feed
-    const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-    const session = signInData?.session || data?.session;
+    // signUp already returns a session when email confirmation is off; only do
+    // an explicit sign-in if it didn't, to avoid a redundant auth request that
+    // eats into the rate limit.
+    let session = data?.session;
+    if (!session) {
+      const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      session = signInData?.session;
+    }
 
     if (session && tenantId) {
       try { await sb.from('profiles').insert({

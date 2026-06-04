@@ -180,9 +180,14 @@ export function PublicPage({ tenantId }) {
     try {
       const { data, error } = await sb.auth.signUp({ email: email.trim(), password, options: { data: { display_name: displayName.trim() } } });
       if (error) { setAuthError(error.message); setSubmitting(false); return; }
-      // Try immediate sign-in so user goes straight to feed
-      const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-      const session = signInData?.session || data?.session;
+      // signUp already returns a session when email confirmation is off; only
+      // do an explicit sign-in if it didn't, to avoid a redundant auth request
+      // that eats into the rate limit.
+      let session = data?.session;
+      if (!session) {
+        const { data: signInData } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+        session = signInData?.session;
+      }
       if (session && tenantId) {
         try { await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }); } catch (_) {}
         await handleReferralAward(data.user.id);
