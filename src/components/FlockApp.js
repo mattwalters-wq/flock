@@ -538,9 +538,26 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
   const [preview, setPreview] = useState(profile?.avatar_url || null);
   const [file, setFile] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(profile?.email_notifications !== false);
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState(null); // { type: 'error' | 'ok', text }
 
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
   const SLATE = 'var(--slate)'; const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)';
+
+  // Change password directly from the logged-in session — no email reset link,
+  // so it sidesteps the single-use-link / wrong-browser pitfalls of recovery.
+  const changePassword = async () => {
+    if (newPw.length < 8) { setPwMsg({ type: 'error', text: 'password must be at least 8 characters' }); return; }
+    if (newPw !== confirmPw) { setPwMsg({ type: 'error', text: 'passwords do not match' }); return; }
+    setPwSaving(true); setPwMsg(null);
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    setPwSaving(false);
+    if (error) { setPwMsg({ type: 'error', text: error.message }); return; }
+    setNewPw(''); setConfirmPw('');
+    setPwMsg({ type: 'ok', text: 'password updated ✦' });
+  };
 
   const save = async () => {
     setSaving(true);
@@ -594,6 +611,18 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
           </div>
           <button onClick={() => setEmailNotifs(!emailNotifs)} style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: emailNotifs ? RUBY : BORDER, position: 'relative', transition: 'background 0.2s' }}>
             <div style={{ width: 20, height: 20, borderRadius: 10, background: '#fff', position: 'absolute', top: 2, left: emailNotifs ? 22 : 2, transition: 'left 0.2s' }} />
+          </button>
+        </div>
+        <div style={{ paddingBottom: 18, marginBottom: 20, borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: 13, color: INK, fontWeight: 500 }}>change password</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, marginTop: 2, marginBottom: 10 }}>set a new password for your account</div>
+          <input type="password" value={newPw} onChange={e => { setNewPw(e.target.value); setPwMsg(null); }} placeholder="new password" autoComplete="new-password"
+            style={{ width: '100%', padding: '11px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', marginBottom: 8 }} />
+          <input type="password" value={confirmPw} onChange={e => { setConfirmPw(e.target.value); setPwMsg(null); }} onKeyDown={e => e.key === 'Enter' && changePassword()} placeholder="confirm new password" autoComplete="new-password"
+            style={{ width: '100%', padding: '11px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+          {pwMsg && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: pwMsg.type === 'ok' ? '#3B7D4F' : RUBY, marginTop: 8 }}>{pwMsg.text}</div>}
+          <button onClick={changePassword} disabled={pwSaving || !newPw || !confirmPw} style={{ marginTop: 10, padding: '9px 16px', background: 'transparent', color: INK, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: (pwSaving || !newPw || !confirmPw) ? 'default' : 'pointer', opacity: (pwSaving || !newPw || !confirmPw) ? 0.5 : 1 }}>
+            {pwSaving ? 'updating...' : 'update password'}
           </button>
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
