@@ -4,30 +4,27 @@ let client = null;
 
 // Circuit breaker for the auth token-refresh endpoint.
 //
-// A stale/invalid refresh token can send gotrue-js into a tight retry loop: it
-// treats 429s (and 5xx) as retryable, so once the per-IP rate limit trips, every
-// retry gets a 429 which spawns yet another retry. In production this snowballed
-// to ~28k refresh requests from a single IP, locking out everyone behind that IP
-// (e.g. a whole office network). This guard caps the damage: after a couple of
-// failed refreshes it short-circuits and returns a terminal `invalid_grant`,
-// which makes gotrue clear the dead session and stop auto-refreshing.
+// A stale refresh token against a rate-limited IP makes gotrue-js loop: it
+// treats 429/5xx as retryable, so every retry draws another 429 and spawns more
+// retries (~28k requests from one IP in production, locking out a whole office).
+// This guard caps that: if refreshes fail in a rapid burst it briefly stops
+// hitting the network and *replays the real server response* so the app shows an
+// accurate, friendly message — never internal jargon.
 //
-// The breaker state is persisted in localStorage (not just in memory) so the
-// cooldown survives this app's frequent full-page reloads and is shared across
-// tabs — otherwise a fresh client per reload would reset the counter and keep
-// leaking a failed refresh on every load.
-//
-// It only ever intercepts `grant_type=refresh_token` — password sign-in, sign-up
-// and every other request pass straight through untouched.
-const BREAKER_KEY = 'flock_refresh_breaker';
-const FAIL_THRESHOLD = 2;     // failures within the window before we open
-const WINDOW_MS = 60000;      // rolling window for counting failures
-const OPEN_MS = 120000;       // how long the breaker stays open once tripped
+// Deliberately narrow so it can't disrupt normal auth:
+//   - only `grant_type=refresh_token` is ever touched (sign-in/up/recovery pass through)
+//   - a plain 400 (genuinely dead token) passes through so gotrue clears the
+//     session itself — no loop, no interference
+//   - it only opens on a tight burst of retryable failures, not a one-off refresh
+//   - state is persisted (localStorage) so the cooldown survives this app's
+//     frequent full-page reloads and is shared across tabs
+const BREAKER_KEY = 'flock_refresh_breaker_v2';
+const FAIL_THRESHOLD = 5;   // retryable failures within the window before we open
+const WINDOW_MS = 5000;     // they must cluster into a real storm, not normal use
+const OPEN_MS = 20000;      // brief cooldown once tripped
 
 function readBreaker() {
-  try {
-    return JSON.parse(localStorage.getItem(BREAKER_KEY)) || {};
-  } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(BREAKER_KEY)) || {}; } catch { return {}; }
 }
 function writeBreaker(state) {
   try { localStorage.setItem(BREAKER_KEY, JSON.stringify(state)); } catch {}
@@ -39,38 +36,39 @@ function clearBreaker() {
 function makeGuardedFetch() {
   const hasStore = typeof window !== 'undefined' && !!window.localStorage;
 
-  const terminalRefreshResponse = () =>
-    new Response(
-      JSON.stringify({ error: 'invalid_grant', error_description: 'refresh suppressed by client circuit breaker' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    );
-
   return async (input, init) => {
     const url = typeof input === 'string' ? input : (input?.url ?? '');
     const isRefresh = url.includes('/auth/v1/token') && url.includes('grant_type=refresh_token');
 
     if (isRefresh && hasStore) {
       const b = readBreaker();
-      // Circuit open: refuse to fire more refreshes, hand gotrue a terminal
-      // error so it gives up on the dead token rather than retrying.
       if (b.openUntil && Date.now() < b.openUntil) {
-        return terminalRefreshResponse();
+        // Cooldown active: replay the last real failure without touching the
+        // network, so the loop can't keep hammering the auth server.
+        const status = b.lastStatus || 429;
+        const body = b.lastBody || JSON.stringify({ error: 'over_request_rate_limit', message: 'Request rate limit reached' });
+        return new Response(body, { status, headers: { 'Content-Type': 'application/json' } });
       }
     }
 
     const res = await fetch(input, init);
     if (!isRefresh || !hasStore) return res;
 
+    // Only retryable failures fuel the loop; a 400 (dead token) is handled by
+    // gotrue on its own, so leave it alone.
     const now = Date.now();
-    if (res.status === 429 || res.status === 400 || res.status >= 500) {
+    if (res.status === 429 || res.status >= 500) {
       const b = readBreaker();
-      const fails = (b.windowStart && now - b.windowStart < WINDOW_MS) ? (b.fails || 0) + 1 : 1;
+      const within = b.windowStart && now - b.windowStart < WINDOW_MS;
+      const fails = within ? (b.fails || 0) + 1 : 1;
+      let lastBody = '';
+      try { lastBody = await res.clone().text(); } catch {}
       if (fails >= FAIL_THRESHOLD) {
-        writeBreaker({ openUntil: now + OPEN_MS });
+        writeBreaker({ openUntil: now + OPEN_MS, lastStatus: res.status, lastBody });
       } else {
-        writeBreaker({ fails, windowStart: b.windowStart && now - b.windowStart < WINDOW_MS ? b.windowStart : now });
+        writeBreaker({ fails, windowStart: within ? b.windowStart : now, lastStatus: res.status, lastBody });
       }
-    } else if (res.ok) {
+    } else {
       clearBreaker();
     }
     return res;
