@@ -1,6 +1,15 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { authErrorMessage } from '@/lib/supabase-browser';
+
+// Bound an auth call so a stuck token-refresh can't freeze the UI forever.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -552,11 +561,18 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
     if (newPw.length < 8) { setPwMsg({ type: 'error', text: 'password must be at least 8 characters' }); return; }
     if (newPw !== confirmPw) { setPwMsg({ type: 'error', text: 'passwords do not match' }); return; }
     setPwSaving(true); setPwMsg(null);
-    const { error } = await supabase.auth.updateUser({ password: newPw });
-    setPwSaving(false);
-    if (error) { setPwMsg({ type: 'error', text: error.message }); return; }
-    setNewPw(''); setConfirmPw('');
-    setPwMsg({ type: 'ok', text: 'password updated ✦' });
+    try {
+      const { error } = await withTimeout(supabase.auth.updateUser({ password: newPw }), 15000);
+      if (error) { setPwMsg({ type: 'error', text: authErrorMessage(error) }); return; }
+      setNewPw(''); setConfirmPw('');
+      setPwMsg({ type: 'ok', text: 'password updated ✦' });
+    } catch (e) {
+      setPwMsg({ type: 'error', text: e?.message === 'timeout'
+        ? 'this is taking too long — your network may be rate-limited. try mobile data, then retry.'
+        : authErrorMessage(e) });
+    } finally {
+      setPwSaving(false);
+    }
   };
 
   const save = async () => {
