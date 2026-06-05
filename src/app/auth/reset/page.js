@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getSupabase } from '@/lib/supabase-browser';
+import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
 
 const INK = '#1A1018'; const CREAM = '#F5EFE6'; const RUBY = '#8B1A2B';
 const SLATE = '#6A5A62'; const SURFACE = '#FAF5F0'; const BORDER = '#E8DDD4';
@@ -43,7 +43,7 @@ export default function ResetPasswordPage() {
     setLoading(true); setError('');
     const sb = getSupabase();
     const { error: updateErr } = await sb.auth.updateUser({ password });
-    if (updateErr) { setError(updateErr.message); setLoading(false); return; }
+    if (updateErr) { setError(authErrorMessage(updateErr)); setLoading(false); return; }
     setDone(true);
     setTimeout(() => { window.location.href = '/'; }, 2500);
   };
