@@ -11,6 +11,12 @@ function withTimeout(promise, ms) {
   ]);
 }
 
+// A reward tier collects a shipping address when the artist flagged it, or for
+// the built-in physical reward types.
+function levelNeedsShipping(level) {
+  return !!level?.collectAddress || ['tshirt', 'vinyl', 'postcard'].includes(level?.reward);
+}
+
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
 function getLiveEmbedUrl(url) {
@@ -654,24 +660,35 @@ function EditProfileModal({ profile, supabase, tenantId, onSave, onClose }) {
 
 // ─── CLAIM REWARD MODAL ──────────────────────────────────────────────────────
 
-function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClose }) {
-  const [name, setName] = useState(''); const [address, setAddress] = useState('');
-  const [city, setCity] = useState(''); const [country, setCountry] = useState('');
-  const [postcode, setPostcode] = useState(''); const [submitting, setSubmitting] = useState(false);
-  // Show address fields when the artist flagged this tier as posted, falling
-  // back to the built-in physical reward types so legacy tiers don't regress.
-  const needsShipping = !!level.collectAddress || ['tshirt', 'vinyl', 'postcard'].includes(level.reward);
+function ClaimRewardModal({ level, existingClaim, supabase, userId, tenantId, onClaimed, onClose }) {
+  const [name, setName] = useState(existingClaim?.shipping_name || ''); const [address, setAddress] = useState(existingClaim?.shipping_address || '');
+  const [city, setCity] = useState(existingClaim?.shipping_city || ''); const [country, setCountry] = useState(existingClaim?.shipping_country || '');
+  const [postcode, setPostcode] = useState(existingClaim?.shipping_postcode || ''); const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState('');
+  const needsShipping = levelNeedsShipping(level);
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const BORDER = 'var(--border)';
   const SLATE = 'var(--slate)'; const WARM_GOLD = 'var(--warm-gold)'; const SURFACE = 'var(--surface)';
   const RUBY = 'var(--ruby)';
 
   const claim = async () => {
-    setSubmitting(true);
-    await supabase.from('reward_claims').insert({
-      user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending',
-      shipping_name: needsShipping ? name : null, shipping_address: needsShipping ? address : null,
-      shipping_city: needsShipping ? city : null, shipping_country: needsShipping ? country : null, shipping_postcode: needsShipping ? postcode : null,
-    });
+    setSubmitting(true); setErr('');
+    const ship = needsShipping
+      ? { shipping_name: name, shipping_address: address, shipping_city: city, shipping_country: country, shipping_postcode: postcode }
+      : {};
+    let error;
+    if (existingClaim) {
+      // Adding an address to an existing claim — only touch the shipping fields
+      // so an already-approved/shipped status isn't reset.
+      ({ error } = await supabase.from('reward_claims').update(ship).eq('id', existingClaim.id));
+    } else {
+      ({ error } = await supabase.from('reward_claims').insert({
+        user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending', ...ship,
+      }));
+      // Already claimed (double-tap / race) — treat as success, don't re-offer.
+      if (error && (error.code === '23505' || /duplicate|unique/i.test(error.message || ''))) error = null;
+    }
+    setSubmitting(false);
+    if (error) { setErr(error.message || 'could not save — please try again'); return; }
     onClaimed();
   };
 
@@ -683,7 +700,7 @@ function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClos
       <div style={{ background: CREAM, borderRadius: 12, padding: '24px 18px', width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>{level.icon}</div>
-          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>claim your reward</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>{existingClaim ? 'add your address' : 'claim your reward'}</div>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD, marginTop: 6 }}>{level.name} · {level.stamps} ✦</div>
         </div>
         <div style={{ background: SURFACE, borderRadius: 8, padding: '14px 16px', marginBottom: 20, border: `1px solid ${BORDER}` }}>
@@ -713,10 +730,11 @@ function ClaimRewardModal({ level, supabase, userId, tenantId, onClaimed, onClos
             <input type="text" value={country} onChange={e => setCountry(e.target.value)} placeholder="country" style={fieldStyle} />
           </div>
         </>}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+        {err && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, marginBottom: 10 }}>{err}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
           <button onClick={onClose} style={{ padding: '10px 20px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>cancel</button>
           <button onClick={claim} disabled={submitting || (needsShipping && (!name || !address || !city || !country || !postcode))} style={{ padding: '10px 20px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }}>
-            {submitting ? 'claiming...' : 'claim ✦'}
+            {submitting ? 'saving...' : existingClaim ? 'save address ✦' : 'claim ✦'}
           </button>
         </div>
       </div>
@@ -1124,7 +1142,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
       {/* ── MODALS ── */}
       {showEditProfile && <EditProfileModal profile={profile} supabase={supabase} tenantId={tenantId} onSave={updateProfile} onClose={() => setShowEditProfile(false)} />}
-      {claimingLevel && <ClaimRewardModal level={claimingLevel} supabase={supabase} userId={user?.id} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
+      {claimingLevel && <ClaimRewardModal level={claimingLevel} existingClaim={rewardClaims.find(c => c.level_key === claimingLevel.key) || null} supabase={supabase} userId={user?.id} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
       {viewingProfile && <UserProfileModal userId={viewingProfile} supabase={supabase} tenantId={tenantId} onClose={() => setViewingProfile(null)} levels={STAMP_LEVELS} currencyName={currencyName} currencyIcon={currencyIcon} />}
 
       {/* ── CHECK-IN MODAL ── */}
@@ -1506,8 +1524,10 @@ export function FlockApp({ tenantId: propTenantId }) {
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 10 }}>your {rewardsLabel}</div>
             {STAMP_LEVELS.map(level => {
               const unlocked = userStamps >= level.stamps;
-              const claimed = rewardClaims.some(c => c.level_key === level.key);
-              const claimStatus = rewardClaims.find(c => c.level_key === level.key)?.status;
+              const claimRow = rewardClaims.find(c => c.level_key === level.key);
+              const claimed = !!claimRow;
+              const claimStatus = claimRow?.status;
+              const missingAddress = claimed && levelNeedsShipping(level) && !claimRow.shipping_address;
               return (
                 <div key={level.key} style={{ background: unlocked ? SURFACE : CREAM, borderRadius: 10, padding: '16px 18px', marginBottom: 8, border: `1px solid ${unlocked ? WARM_GOLD + '33' : BORDER}`, opacity: unlocked ? 1 : 0.45 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1522,8 +1542,13 @@ export function FlockApp({ tenantId: propTenantId }) {
                   </div>
                   {unlocked && level.stamps > 0 && (
                     <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BORDER}` }}>
-                      {claimed ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span> :
-                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>}
+                      {!claimed ? (
+                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>claim reward {currencyIcon}</button>
+                      ) : missingAddress ? (
+                        <button onClick={() => setClaimingLevel(level)} style={{ padding: '8px 16px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ add shipping address</button>
+                      ) : (
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>{currencyIcon} {claimStatus || 'claimed'}</span>
+                      )}
                     </div>
                   )}
                 </div>
