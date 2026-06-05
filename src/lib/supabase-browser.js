@@ -95,5 +95,6 @@ export const supabase = typeof window !== 'undefined' ? getSupabase() : null;
 export function authErrorMessage(error) {
   const m = error?.message || 'something went wrong, please try again';
   if (/rate limit/i.test(m)) return 'too many attempts right now — please wait a minute, then try again';
+  if (/refresh token|session (missing|expired|not found)|auth session/i.test(m)) return 'your session expired — please sign in again';
   return m;
 }

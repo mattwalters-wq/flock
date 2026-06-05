@@ -42,10 +42,20 @@ export default function ResetPasswordPage() {
     if (password !== confirm) { setError('passwords do not match'); return; }
     setLoading(true); setError('');
     const sb = getSupabase();
-    const { error: updateErr } = await sb.auth.updateUser({ password });
-    if (updateErr) { setError(authErrorMessage(updateErr)); setLoading(false); return; }
-    setDone(true);
-    setTimeout(() => { window.location.href = '/'; }, 2500);
+    try {
+      const { error: updateErr } = await Promise.race([
+        sb.auth.updateUser({ password }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+      ]);
+      if (updateErr) { setError(authErrorMessage(updateErr)); setLoading(false); return; }
+      setDone(true);
+      setTimeout(() => { window.location.href = '/'; }, 2500);
+    } catch (e) {
+      setError(e?.message === 'timeout'
+        ? 'this is taking too long — your reset link may be expired, or your network is rate-limited. request a fresh link or try mobile data.'
+        : authErrorMessage(e));
+      setLoading(false);
+    }
   };
 
   return (
