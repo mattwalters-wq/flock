@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getSupabase } from '@/lib/supabase-browser';
+import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
 
 // Super admin is scoped to this user ID only
 const SUPER_ADMIN_ID = '5cdcf898-6bda-42b7-860e-0964562c9c22';
@@ -335,6 +335,10 @@ export default function SuperAdmin() {
   const [loading, setLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [search, setSearch] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInErr, setSignInErr] = useState('');
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -346,6 +350,22 @@ export default function SuperAdmin() {
       setChecking(false);
     });
   }, []);
+
+  // Sign in directly on this page so /admin works as a standalone entry point
+  // (sessions are per-origin, so a session elsewhere doesn't carry to here).
+  const signIn = async () => {
+    setSignInErr(''); setSigningIn(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setSigningIn(false);
+    if (error) { setSignInErr(authErrorMessage(error)); return; }
+    if (data?.user?.id === SUPER_ADMIN_ID) {
+      setUser(data.user);
+      loadData();
+    } else {
+      setSignInErr('that account is not the super admin');
+      await supabase.auth.signOut();
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -385,12 +405,21 @@ export default function SuperAdmin() {
   );
 
   if (!user) return (
-    <div style={{ minHeight: '100vh', background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✦</div>
-        <H size={24} style={{ marginBottom: 8 }}>access denied</H>
-        <Mono style={{ marginBottom: 24 }}>super admin only</Mono>
-        <a href="/" style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, textDecoration: 'underline' }}>← back home</a>
+    <div style={{ minHeight: '100vh', background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>✦</div>
+        <H size={22} style={{ marginBottom: 4 }}>super admin</H>
+        <Mono style={{ marginBottom: 20 }}>sign in to continue</Mono>
+        <input type="email" value={email} onChange={e => { setEmail(e.target.value); setSignInErr(''); }} placeholder="email" autoComplete="username"
+          style={{ width: '100%', padding: '12px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', marginBottom: 8 }} />
+        <input type="password" value={password} onChange={e => { setPassword(e.target.value); setSignInErr(''); }} onKeyDown={e => e.key === 'Enter' && signIn()} placeholder="password" autoComplete="current-password"
+          style={{ width: '100%', padding: '12px 14px', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+        {signInErr && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, marginTop: 10 }}>{signInErr}</div>}
+        <button onClick={signIn} disabled={signingIn || !email || !password}
+          style={{ width: '100%', marginTop: 14, padding: '13px', background: INK, color: CREAM, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: (signingIn || !email || !password) ? 'default' : 'pointer', opacity: (signingIn || !email || !password) ? 0.6 : 1 }}>
+          {signingIn ? 'signing in...' : 'sign in'}
+        </button>
+        <a href="/" style={{ display: 'inline-block', marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, textDecoration: 'underline' }}>← back home</a>
       </div>
     </div>
   );
