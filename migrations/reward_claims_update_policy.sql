@@ -9,9 +9,18 @@
 -- admin), and a guard trigger so a fan can only change the shipping_* fields —
 -- never the fulfilment status or identity columns. Mirrors the profiles guard.
 --
--- Depends on public.is_tenant_admin(bigint) from harden_rls_security.sql.
--- Idempotent.
+-- Self-contained: (re)creates the is_tenant_admin helper so it works even if
+-- harden_rls_security.sql hasn't been applied to this database yet. Idempotent.
 -- ============================================================
+
+CREATE OR REPLACE FUNCTION public.is_tenant_admin(p_tenant_id bigint)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND tenant_id = p_tenant_id AND role IN ('band', 'admin')
+  );
+$$;
+GRANT EXECUTE ON FUNCTION public.is_tenant_admin(bigint) TO anon, authenticated, service_role;
 
 DROP POLICY IF EXISTS "reward_claims_update" ON public.reward_claims;
 CREATE POLICY "reward_claims_update" ON public.reward_claims
