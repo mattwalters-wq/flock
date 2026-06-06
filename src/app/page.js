@@ -52,16 +52,19 @@ export default function Home() {
 
     let cancelled = false;
     (async () => {
-      // Ensure a profile exists for this tenant (e.g. first visit after OAuth).
-      const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).eq('tenant_id', tenantId).single();
-      if (!profile && !cancelled) {
-        const displayName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'fan';
-        await supabase.from('profiles').insert({
-          id: user.id, tenant_id: tenantId, display_name: displayName,
-          avatar_url: user.user_metadata?.avatar_url || null,
-          role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-        }).catch(() => {});
-      }
+      try {
+        // Ensure a profile exists for this tenant (e.g. first visit after OAuth).
+        // maybeSingle() avoids a 406 when there's no row yet.
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).eq('tenant_id', tenantId).maybeSingle();
+        if (!profile && !cancelled) {
+          const displayName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'fan';
+          await supabase.from('profiles').insert({
+            id: user.id, tenant_id: tenantId, display_name: displayName,
+            avatar_url: user.user_metadata?.avatar_url || null,
+            role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
+          });
+        }
+      } catch { /* don't block render on profile bootstrap */ }
       if (!cancelled) setState('app');
     })();
     return () => { cancelled = true; };
