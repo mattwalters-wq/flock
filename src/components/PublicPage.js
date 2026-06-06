@@ -169,7 +169,7 @@ export function PublicPage({ tenantId }) {
       if (!referrerId || !newUserId || !tenantId) return;
       try {
         // Award stamps to referrer via the existing action trigger
-        await sb.rpc('award_stamps', { target_user_id: referrerId, action_trigger_key: 'referral_completed', p_tenant_id: tenantId }).catch(() => {});
+        await sb.rpc('award_stamps', { target_user_id: referrerId, action_trigger_key: 'referral_completed', p_tenant_id: tenantId });
         // Increment referrer's referral_count
         const { data: ref } = await sb.from('profiles').select('referral_count').eq('id', referrerId).single();
         await sb.from('profiles').update({ referral_count: (ref?.referral_count || 0) + 1 }).eq('id', referrerId);
