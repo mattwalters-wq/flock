@@ -525,6 +525,35 @@ CREATE POLICY "reward_claims_insert" ON public.reward_claims FOR INSERT WITH CHE
   auth.uid() = user_id AND tenant_id = public.current_tenant_id()
 );
 
+-- A fan may update their own claim to add a shipping address (admins/super too);
+-- a guard trigger limits fans to the shipping_* fields so they can't fake status.
+DROP POLICY IF EXISTS "reward_claims_update" ON public.reward_claims;
+CREATE POLICY "reward_claims_update" ON public.reward_claims FOR UPDATE USING (
+  auth.uid() = user_id
+  OR auth.uid() = '5cdcf898-6bda-42b7-860e-0964562c9c22'::uuid
+  OR public.is_tenant_admin(tenant_id)
+);
+
+CREATE OR REPLACE FUNCTION public.guard_reward_claim_columns()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF current_user NOT IN ('authenticated', 'anon') THEN RETURN NEW; END IF;
+  IF auth.uid() = '5cdcf898-6bda-42b7-860e-0964562c9c22'::uuid THEN RETURN NEW; END IF;
+  IF public.is_tenant_admin(OLD.tenant_id) THEN RETURN NEW; END IF;
+  NEW.status      := OLD.status;
+  NEW.user_id     := OLD.user_id;
+  NEW.tenant_id   := OLD.tenant_id;
+  NEW.level_key   := OLD.level_key;
+  NEW.reward_type := OLD.reward_type;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_reward_claim_columns ON public.reward_claims;
+CREATE TRIGGER guard_reward_claim_columns
+BEFORE UPDATE ON public.reward_claims
+FOR EACH ROW EXECUTE FUNCTION public.guard_reward_claim_columns();
+
 -- ============ SEED: The Stamps as tenant 1 ============
 -- (Run separately after schema is created if needed)
 -- INSERT INTO tenants (slug, name) VALUES ('the-stamps', 'The Stamps');

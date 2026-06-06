@@ -678,8 +678,13 @@ function ClaimRewardModal({ level, existingClaim, supabase, userId, tenantId, on
     let error;
     if (existingClaim) {
       // Adding an address to an existing claim — only touch the shipping fields
-      // so an already-approved/shipped status isn't reset.
-      ({ error } = await supabase.from('reward_claims').update(ship).eq('id', existingClaim.id));
+      // so an already-approved/shipped status isn't reset. Select back so we can
+      // tell whether the row actually changed (RLS denial = 0 rows, no error).
+      const resp = await supabase.from('reward_claims').update(ship).eq('id', existingClaim.id).select();
+      error = resp.error;
+      if (!error && (!resp.data || resp.data.length === 0)) {
+        error = { message: 'could not save your address — please refresh the page and try again' };
+      }
     } else {
       ({ error } = await supabase.from('reward_claims').insert({
         user_id: userId, tenant_id: tenantId, level_key: level.key, reward_type: level.reward, status: 'pending', ...ship,
