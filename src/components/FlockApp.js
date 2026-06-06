@@ -1532,7 +1532,9 @@ export function FlockApp({ tenantId: propTenantId }) {
               const claimRow = rewardClaims.find(c => c.level_key === level.key);
               const claimed = !!claimRow;
               const claimStatus = claimRow?.status;
-              const missingAddress = claimed && levelNeedsShipping(level) && !claimRow.shipping_address;
+              // Only nag for an address while the claim is still pending (unfulfilled).
+              // Once the artist approves/ships it, don't ask — they've handled it.
+              const missingAddress = claimed && claimRow.status === 'pending' && levelNeedsShipping(level) && !claimRow.shipping_address;
               return (
                 <div key={level.key} style={{ background: unlocked ? SURFACE : CREAM, borderRadius: 10, padding: '16px 18px', marginBottom: 8, border: `1px solid ${unlocked ? WARM_GOLD + '33' : BORDER}`, opacity: unlocked ? 1 : 0.45 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
