@@ -25,10 +25,14 @@ export default function Home() {
       }
 
       let tid = null;
-      if (host.endsWith(`.${APP_DOMAIN}`)) {
-        const slug = host.replace(`.${APP_DOMAIN}`, '');
-        const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single();
-        tid = tenant?.id || null;
+      try {
+        if (host.endsWith(`.${APP_DOMAIN}`)) {
+          const slug = host.replace(`.${APP_DOMAIN}`, '');
+          const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single();
+          tid = tenant?.id || null;
+        }
+      } catch {
+        tid = null; // fall through; never leave the page hanging on the spinner
       }
       setTenantId(tid);
       setTenantChecked(true);
