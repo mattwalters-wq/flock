@@ -41,15 +41,22 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
     if (mounted.current) return;
     mounted.current = true;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Resolve the initial auth state, but never let a stuck getSession (e.g. a
+    // hung token refresh) leave the app spinning forever — fail open to
+    // logged-out after a timeout, and don't block `loading` on the profile fetch.
+    let settled = false;
+    const finish = (session) => {
+      if (settled) return;
+      settled = true;
       const u = session?.user ?? null;
       setUser(u);
-      if (u) {
-        const p = await fetchProfile(u.id);
-        setProfile(p);
-      }
       setLoading(false);
-    });
+      if (u) fetchProfile(u.id).then(p => { if (p) setProfile(p); }).catch(() => {});
+    };
+    supabase.auth.getSession()
+      .then(({ data }) => finish(data?.session ?? null))
+      .catch(() => finish(null));
+    const failsafe = setTimeout(() => finish(null), 8000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
@@ -62,7 +69,7 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(failsafe); subscription.unsubscribe(); };
   }, []);
 
   // Re-fetch profile once tenantId resolves (client-side resolution case)
