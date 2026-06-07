@@ -2,10 +2,10 @@
 import { useEffect } from 'react';
 
 // flock — marketing homepage (apex: fans-flock.com).
-// Faithful port of the Claude Design handoff (flock-homepage/index.html + styles.css).
-// CSS is injected via a <style> so it only applies while this page is mounted and
-// never leaks into tenant community pages. Markup is rendered verbatim; the
-// scroll-reveal + sticky-nav behaviour is ported into the effect below.
+// Faithful port of the Claude Design handoff (flock-homepage v2).
+// CSS is injected via a <style> and scoped under .fm-root so it only applies on
+// this page and never leaks into tenant community pages. The hero "product shot"
+// is a pure HTML/CSS recreation of the real feed (fictional "halcyon" community).
 
 const FONT_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');";
 
@@ -67,14 +67,52 @@ body.fm-body { background:var(--paper); }
 .fm-root .frame__bar { display:flex; align-items:center; gap:7px; padding:13px 18px; border-bottom:1px solid var(--line); background:var(--surface-2); }
 .fm-root .frame__bar i { width:11px; height:11px; border-radius:999px; background:var(--line-2); display:block; }
 .fm-root .frame__bar .url { margin-left:14px; font-family:var(--mono); font-size:0.78rem; color:var(--ink-3); }
-.fm-root .ph { position:relative; background-color:var(--surface-2); background-image:repeating-linear-gradient(-45deg, transparent 0 11px, color-mix(in srgb, var(--ink-3) 8%, transparent) 11px 12px); display:grid; place-items:center; }
-.fm-root .ph__tag { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.06em; color:var(--ink-3); background:var(--paper); border:1px solid var(--line); padding:7px 13px; border-radius:999px; }
-.fm-root .frame .ph { aspect-ratio:16 / 8.4; }
-.fm-root .trust { border-block:1px solid var(--line); background:var(--paper); }
-.fm-root .trust__inner { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:24px 40px; padding-block:26px; }
-.fm-root .trust__label { font-family:var(--mono); font-size:0.74rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-3); }
-.fm-root .trust__logos { display:flex; flex-wrap:wrap; align-items:center; gap:clamp(20px,3vw,44px); }
-.fm-root .trust__logos span { font-weight:700; font-size:clamp(1rem,1.4vw,1.25rem); letter-spacing:-0.02em; color:var(--ink-3); opacity:.85; }
+
+/* product shot: artist fan-community feed (mirrors the real app) */
+.fm-root .shot { --pk-bg:#F8D7DC; --pk-card:#FBF6F1; --pk-ink:#5E2A39; --pk-ink2:#A66E7B; --pk-line:#EEDED9; --pk-rose:#CC5E72; --pk-track:#F1CBD3; --pk-green:#2E7D6B; --pk-gold:#C8992F; position:relative; aspect-ratio:16 / 8.6; background:var(--pk-bg); font-size:13px; color:var(--pk-ink); overflow:hidden; user-select:none; }
+.fm-root .shot * { min-width:0; box-sizing:border-box; }
+.fm-root .shot__top { position:absolute; inset:0 0 auto 0; z-index:3; display:flex; align-items:center; justify-content:space-between; padding:13px clamp(16px,4vw,40px); background:color-mix(in srgb, var(--pk-bg) 88%, transparent); backdrop-filter:blur(8px); }
+.fm-root .shot__title { font-weight:800; font-size:19px; letter-spacing:-0.02em; color:var(--pk-ink); }
+.fm-root .shot__top-r { display:flex; align-items:center; gap:14px; }
+.fm-root .shot__gem { position:relative; font-size:15px; color:var(--pk-green); }
+.fm-root .shot__gem b { position:absolute; top:-6px; right:-8px; background:var(--pk-green); color:#fff; font-family:var(--mono); font-size:8px; min-width:13px; height:13px; border-radius:999px; display:grid; place-items:center; padding:0 2px; }
+.fm-root .shot__bal { font-family:var(--mono); font-size:12px; color:var(--pk-ink); display:flex; align-items:center; gap:4px; }
+.fm-root .shot__bal .s { color:var(--pk-gold); }
+.fm-root .shot__feed { position:absolute; inset:0; padding:58px clamp(12px,3vw,28px) 0; display:flex; justify-content:center; }
+.fm-root .shot__col { width:100%; max-width:520px; display:flex; flex-direction:column; gap:12px; }
+.fm-root .shot__composer { background:var(--pk-card); border-radius:16px; padding:12px 14px; display:flex; flex-direction:column; gap:11px; }
+.fm-root .shot__chips { display:flex; flex-wrap:wrap; gap:6px; }
+.fm-root .shot__chips span { font-family:var(--mono); font-size:10px; color:var(--pk-ink2); padding:4px 9px; border-radius:999px; background:#F4E7E3; }
+.fm-root .shot__chips span.on { background:var(--pk-ink); color:#FBF6F1; }
+.fm-root .shot__crow { display:flex; align-items:center; gap:12px; }
+.fm-root .shot__crow .ci { color:var(--pk-ink2); font-size:13px; }
+.fm-root .shot__post-btn { margin-left:auto; font-weight:700; font-size:12px; color:var(--pk-ink); background:#F1D7DC; padding:7px 16px; border-radius:999px; }
+.fm-root .shot__post { background:var(--pk-card); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+.fm-root .shot__tag { font-family:var(--mono); font-size:9.5px; color:var(--pk-rose); letter-spacing:0.04em; }
+.fm-root .shot__prow { display:flex; align-items:center; gap:10px; }
+.fm-root .shot__ava { width:38px; height:38px; border-radius:11px; flex:none; }
+.fm-root .shot__a1 { background:linear-gradient(150deg, #F6C66E, #E0202F 80%); }
+.fm-root .shot__a2 { background:linear-gradient(150deg, #C9A8F0, #6E4FA8); }
+.fm-root .shot__pwho b { font-weight:700; font-size:13px; white-space:nowrap; }
+.fm-root .shot__pwho .vf { color:var(--pk-rose); font-size:11px; }
+.fm-root .shot__pwho time { display:block; font-family:var(--mono); font-size:10px; color:var(--pk-ink2); margin-top:2px; }
+.fm-root .shot__ptxt { font-size:13.5px; line-height:1.5; color:var(--pk-ink); }
+.fm-root .shot__ptxt .hl { color:var(--pk-rose); }
+.fm-root .shot__poll { display:flex; flex-direction:column; gap:7px; }
+.fm-root .shot__opt { position:relative; background:var(--pk-track); border-radius:9px; padding:9px 12px; font-size:12.5px; font-weight:600; color:var(--pk-ink); overflow:hidden; display:flex; justify-content:space-between; white-space:nowrap; }
+.fm-root .shot__opt i { position:absolute; inset:0 auto 0 0; background:#EAAFBC; border-radius:9px; z-index:0; }
+.fm-root .shot__opt span { position:relative; z-index:1; }
+.fm-root .shot__opt .pct { font-family:var(--mono); font-weight:500; color:var(--pk-ink2); }
+.fm-root .shot__votes { font-family:var(--mono); font-size:10px; color:var(--pk-ink2); }
+.fm-root .shot__pft { display:flex; align-items:center; gap:18px; font-family:var(--mono); font-size:11.5px; color:var(--pk-ink2); }
+.fm-root .shot__pft span { white-space:nowrap; }
+.fm-root .shot__pft .st { color:var(--pk-gold); }
+.fm-root .shot__fade { position:absolute; inset:auto 0 0 0; height:92px; background:linear-gradient(to top, var(--pk-bg) 52%, transparent); z-index:4; pointer-events:none; }
+.fm-root .shot__nav { position:absolute; inset:auto 0 14px 0; z-index:5; display:flex; justify-content:center; gap:clamp(26px,7vw,64px); }
+.fm-root .shot__nav a { display:flex; flex-direction:column; align-items:center; gap:4px; font-family:var(--mono); font-size:9.5px; color:var(--pk-ink2); white-space:nowrap; }
+.fm-root .shot__nav a .ni { font-size:15px; }
+.fm-root .shot__nav a.on { color:var(--pk-ink); }
+
 .fm-root .head { max-width:60ch; margin-bottom:clamp(40px,5vw,64px); }
 .fm-root .head .h2 { margin-top:16px; }
 .fm-root .head .lede { margin-top:22px; }
@@ -149,7 +187,8 @@ html.fm-force-reveal .fm-root .reveal { opacity:1 !important; transform:none !im
   .fm-root .compare__row .compare__tag { justify-self:start; }
   .fm-root .reward-grid { grid-template-columns:1fr 1fr; }
   .fm-root .footer__top { flex-direction:column; }
-  .fm-root .frame .ph { aspect-ratio:16 / 13; }
+  .fm-root .shot { aspect-ratio:9 / 13; }
+  .fm-root .shot__composer { display:none; }
 }
 @media (max-width:460px) { .fm-root .reward-grid { grid-template-columns:1fr; } }
 `;
@@ -177,35 +216,83 @@ const BODY_HTML = `
       <div class="eyebrow">
         <span class="label label--accent"><span class="star">✦</span>&nbsp; the future of fan relationships</span>
       </div>
-      <h1 class="h1 hero__head">social media <span class="accent-word">broke</span> the artist–fan relationship.</h1>
-      <p class="lede hero__lede">You built an audience on platforms that own your fans, throttle your reach, and take the relationship hostage. Flock gives it back — a community you own, on your own terms.</p>
+      <h1 class="h1 hero__head">social media <span class="accent-word">broke</span> the artist-fan relationship.</h1>
+      <p class="lede hero__lede">You built an audience on platforms that own your fans, throttle your reach, and take the relationship hostage. Flock gives it back: a community you own, on your own terms.</p>
       <div class="hero__actions">
         <a class="btn btn--primary" href="/start">launch your community&nbsp;<span class="star">✦</span></a>
         <a class="btn btn--ghost" href="#how">see how it works</a>
       </div>
       <p class="hero__meta"><b>free in beta</b> · no credit card needed · early artists get a founder rate</p>
 
-      <div class="frame reveal" role="img" aria-label="Placeholder for product screenshot of an artist's flock community dashboard">
+      <div class="frame reveal">
         <div class="frame__bar">
           <i></i><i></i><i></i>
-          <span class="url">yourname.fans-flock.com</span>
+          <span class="url">halcyon.fans-flock.com</span>
         </div>
-        <div class="ph">
-          <span class="ph__tag">product shot · community dashboard · 1600×840</span>
+        <div class="shot" role="img" aria-label="Screenshot of an artist's flock fan community: a feed of fan posts, a poll, and gold-star rewards">
+          <div class="shot__top">
+            <div class="shot__title">halcyon</div>
+            <div class="shot__top-r">
+              <span class="shot__gem">◈<b>3</b></span>
+              <span class="shot__bal"><span class="s">✦</span> 482</span>
+            </div>
+          </div>
+          <div class="shot__feed">
+            <div class="shot__col">
+              <div class="shot__composer">
+                <div class="shot__chips">
+                  <span class="on">✦ general</span>
+                  <span>♪ new music</span>
+                  <span>◎ gig</span>
+                  <span>? question</span>
+                  <span>✦ poll</span>
+                </div>
+                <div class="shot__crow">
+                  <span class="ci">▦</span>
+                  <span class="ci">▶</span>
+                  <span class="ci">↗</span>
+                  <span class="shot__post-btn">post</span>
+                </div>
+              </div>
+              <div class="shot__post">
+                <div class="shot__tag">♪ new music</div>
+                <div class="shot__prow">
+                  <span class="shot__ava shot__a1"></span>
+                  <div class="shot__pwho">
+                    <b>halcyon <span class="vf">✿</span></b>
+                    <time>7h ago</time>
+                  </div>
+                </div>
+                <p class="shot__ptxt">studio leak just for the nest <span class="hl">✦</span> 'paper moon' drops friday. first 500 gold stars unlock the secret show.</p>
+                <div class="shot__pft"><span><span class="st">✦</span> 248</span><span>↩ 31</span></div>
+              </div>
+              <div class="shot__post">
+                <div class="shot__tag">✦ poll</div>
+                <div class="shot__prow">
+                  <span class="shot__ava shot__a2"></span>
+                  <div class="shot__pwho">
+                    <b>ivy ⊹˚</b>
+                    <time>1d ago</time>
+                  </div>
+                </div>
+                <p class="shot__ptxt">which b-side makes the vinyl??</p>
+                <div class="shot__poll">
+                  <div class="shot__opt"><i style="width:41%"></i><span>paper moon (live)</span><span class="pct">41%</span></div>
+                  <div class="shot__opt"><i style="width:59%"></i><span>golden hour (demo)</span><span class="pct">59%</span></div>
+                </div>
+                <div class="shot__votes">128 votes</div>
+                <div class="shot__pft"><span><span class="st">✦</span> 19</span><span>↩ 4</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="shot__fade"></div>
+          <nav class="shot__nav">
+            <a class="on"><span class="ni">◎</span>feed</a>
+            <a><span class="ni">♪</span>shows</a>
+            <a><span class="ni">✦</span>gold stars</a>
+            <a><span class="ni">○</span>you</a>
+          </nav>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="trust">
-    <div class="wrap trust__inner">
-      <span class="trust__label">built for independent artists &amp; their teams</span>
-      <div class="trust__logos" aria-label="Replaces these tools">
-        <span>your website</span>
-        <span>linktree</span>
-        <span>patreon</span>
-        <span>mailchimp</span>
-        <span>bandsintown</span>
       </div>
     </div>
   </section>
@@ -225,7 +312,7 @@ const BODY_HTML = `
         <article class="card reveal">
           <div class="card__sym">✕</div>
           <h3 class="h3">you don't own the list</h3>
-          <p>The platform shuts down, changes the rules, or bans you — and your audience disappears overnight.</p>
+          <p>The platform shuts down, changes the rules, or bans you, and your audience disappears overnight.</p>
         </article>
         <article class="card reveal">
           <div class="card__sym">∅</div>
@@ -241,18 +328,18 @@ const BODY_HTML = `
       <div class="head reveal">
         <span class="label label--accent">how it works</span>
         <h2 class="h2">your community. your currency. your rules.</h2>
-        <p class="lede">Every artist gets a fully branded fan community with its own loyalty system — their own economy, their own language, their own world. Here's the loop.</p>
+        <p class="lede">Every artist gets a fully branded fan community with its own loyalty system: their own economy, their own language, their own world. Here's the loop.</p>
       </div>
       <div class="steps">
         <div class="step reveal">
           <div class="step__n">step 01</div>
           <h3>fans join your world</h3>
-          <p>A fully white-label community on your own subdomain. Fans see your brand — never "flock."</p>
+          <p>A fully white-label community on your own subdomain. Fans see your brand, never "flock."</p>
         </div>
         <div class="step reveal">
           <div class="step__n">step 02</div>
           <h3>they earn your currency</h3>
-          <p>Stamps, points, echoes, drops — whatever fits your world. Fans earn it by showing up: check-ins, streams, shares.</p>
+          <p>Stamps, points, echoes, drops, whatever fits your world. Fans earn it by showing up: check-ins, streams, shares.</p>
         </div>
         <div class="step reveal">
           <div class="step__n">step 03</div>
@@ -274,10 +361,10 @@ const BODY_HTML = `
           <div class="reward"><div class="reward__sym">✦</div><h4>custom fan currency</h4><p>Name it, theme it, fans earn it.</p></div>
           <div class="reward"><div class="reward__sym">♪</div><h4>show check-ins</h4><p>Fans check in at gigs with a code.</p></div>
           <div class="reward"><div class="reward__sym">♛</div><h4>reward tiers</h4><p>Postcards, merch, signed vinyl, zoom calls.</p></div>
-          <div class="reward"><div class="reward__sym">▤</div><h4>member feeds</h4><p>Solo or band — each member gets a feed.</p></div>
+          <div class="reward"><div class="reward__sym">▤</div><h4>member feeds</h4><p>Solo or band, each member gets a feed.</p></div>
           <div class="reward"><div class="reward__sym">▶</div><h4>livestream embeds</h4><p>Go live on YouTube or Twitch, in-house.</p></div>
           <div class="reward"><div class="reward__sym">⌖</div><h4>fan map</h4><p>See where your community actually is.</p></div>
-          <div class="reward"><div class="reward__sym">✉</div><h4>direct email digest</h4><p>Reach every fan — no algorithm in between.</p></div>
+          <div class="reward"><div class="reward__sym">✉</div><h4>direct email digest</h4><p>Reach every fan, no algorithm in between.</p></div>
         </div>
       </div>
     </div>
@@ -333,7 +420,7 @@ const BODY_HTML = `
       <div class="stats stats--flush reveal">
         <div class="stat">
           <div class="stat__num">100<span class="accent-word">%</span></div>
-          <p class="stat__label">of the fan relationship stays yours — no revenue share, ever.</p>
+          <p class="stat__label">of the fan relationship stays yours. no revenue share, ever.</p>
         </div>
         <div class="stat">
           <div class="stat__num">5<span class="accent-word">→1</span></div>
@@ -341,7 +428,7 @@ const BODY_HTML = `
         </div>
         <div class="stat">
           <div class="stat__num">$<span class="accent-word">0</span></div>
-          <p class="stat__label">to launch in beta — early artists keep a founder rate.</p>
+          <p class="stat__label">to launch in beta. early artists keep a founder rate.</p>
         </div>
       </div>
     </div>
@@ -421,7 +508,6 @@ export function MarketingHome() {
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
 
-    // reveal-on-scroll — content is never permanently hidden (failsafe force-reveal).
     const reveals = Array.from(document.querySelectorAll('.fm-root .reveal'));
     const forceReveal = () => root.classList.add('fm-force-reveal');
     let io;
