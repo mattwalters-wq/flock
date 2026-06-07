@@ -98,7 +98,7 @@ function Footer() {
       <div style={{ display: 'flex', gap: 20 }}>
         <a href="/terms" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#6A5A62', textDecoration: 'none' }}>terms</a>
         <a href="/privacy" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#6A5A62', textDecoration: 'none' }}>privacy</a>
-        <a href="/start" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', textDecoration: 'none' }}>get started →</a>
+        <a href="/onboarding" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: '#8B1A2B', textDecoration: 'none' }}>get started →</a>
       </div>
     </div>
   );

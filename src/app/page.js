@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { PublicPage } from '@/components/PublicPage';
 import { FlockApp } from '@/components/FlockApp';
-import { MarketingHome } from '@/components/MarketingHome';
 
 export default function Home() {
   // Auth state comes from the single global AuthProvider — no second getSession
@@ -21,7 +20,7 @@ export default function Home() {
 
     const init = async () => {
       if (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`) {
-        setState('marketing'); // apex/marketing homepage
+        window.location.href = '/start'; // homepage lives at /start (middleware also forwards this)
         return;
       }
 
@@ -77,7 +76,6 @@ export default function Home() {
     </div>
   );
 
-  if (state === 'marketing') return <MarketingHome />;
   if (state === 'public') return <PublicPage tenantId={tenantId} />;
   return <FlockApp tenantId={tenantId} />;
 }

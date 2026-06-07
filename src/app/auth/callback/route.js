@@ -26,7 +26,7 @@ export async function GET(request) {
       if (slug) {
         return NextResponse.redirect(`https://${slug}.${APP_DOMAIN}`);
       }
-      return NextResponse.redirect(`https://${APP_DOMAIN}/start`);
+      return NextResponse.redirect(`https://${APP_DOMAIN}/onboarding`);
     }
   }
 
