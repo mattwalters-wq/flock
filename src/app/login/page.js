@@ -26,7 +26,7 @@ export default function LoginPage() {
     if (slug) {
       window.location.href = `https://${slug}.${APP_DOMAIN}`;
     } else {
-      window.location.href = `/start`;
+      window.location.href = `/onboarding`;
     }
   };
 
@@ -111,7 +111,7 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '44' }}>
             don't have a community yet?{' '}
-            <a href="/start?join=1" style={{ color: RUBY, textDecoration: 'none', fontWeight: 600 }}>get started →</a>
+            <a href="/onboarding?join=1" style={{ color: RUBY, textDecoration: 'none', fontWeight: 600 }}>get started →</a>
           </div>
         </div>
         <div style={{ textAlign: 'center', marginTop: 16, fontFamily: "'DM Mono', monospace", fontSize: 9, color: CREAM + '33' }}>

@@ -205,7 +205,7 @@ const BODY_HTML = `
     </nav>
     <div class="nav__cta">
       <a class="link" href="/login" style="font-size:.95rem;font-weight:500;color:var(--ink-2);white-space:nowrap">sign in</a>
-      <a class="btn btn--primary btn--sm" href="/start">get started</a>
+      <a class="btn btn--primary btn--sm" href="/onboarding">get started</a>
     </div>
   </div>
 </header>
@@ -219,7 +219,7 @@ const BODY_HTML = `
       <h1 class="h1 hero__head">social media <span class="accent-word">broke</span> the artist-fan relationship.</h1>
       <p class="lede hero__lede">You built an audience on platforms that own your fans, throttle your reach, and take the relationship hostage. Flock gives it back: a community you own, on your own terms.</p>
       <div class="hero__actions">
-        <a class="btn btn--primary" href="/start">launch your community&nbsp;<span class="star">✦</span></a>
+        <a class="btn btn--primary" href="/onboarding">launch your community&nbsp;<span class="star">✦</span></a>
         <a class="btn btn--ghost" href="#how">see how it works</a>
       </div>
       <p class="hero__meta"><b>free in beta</b> · no credit card needed · early artists get a founder rate</p>
@@ -452,7 +452,7 @@ const BODY_HTML = `
           <li><span class="tick">✓</span> no revenue share. ever.</li>
         </ul>
         <div class="cta__actions">
-          <a class="btn btn--primary" href="/start">launch your community&nbsp;<span class="star">✦</span></a>
+          <a class="btn btn--primary" href="/onboarding">launch your community&nbsp;<span class="star">✦</span></a>
           <a class="btn btn--ghost" href="#compare">see what's included</a>
         </div>
         <p class="cta__fine">free in beta · no credit card needed · early artists get a founder rate</p>
@@ -478,7 +478,7 @@ const BODY_HTML = `
         </div>
         <div class="footer__col">
           <h5>company</h5>
-          <a href="/start">get started</a>
+          <a href="/onboarding">get started</a>
           <a href="/contact">contact</a>
           <a href="/login">sign in</a>
         </div>

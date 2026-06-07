@@ -283,7 +283,7 @@ function StepLaunching({ communityName, error, onRetry }) {
       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, lineHeight: 1.7, marginBottom: 24, padding: '0 8px' }}>{error}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
         <button onClick={onRetry} style={{ padding: '10px 24px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>← edit details</button>
-        <button onClick={() => { localStorage.removeItem('flock_onboarding_v1'); window.location.href = '/start?join=1'; }} style={{ padding: '10px 24px', background: RUBY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>start over</button>
+        <button onClick={() => { localStorage.removeItem('flock_onboarding_v1'); window.location.href = '/onboarding?join=1'; }} style={{ padding: '10px 24px', background: RUBY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>start over</button>
       </div>
     </div>
   );
@@ -539,9 +539,9 @@ function OnboardingWizard() {
         if (msg.toLowerCase().includes('already') || msg.toLowerCase().includes('exists')) {
           const { error: signInErr } = await sb().auth.signInWithPassword({ email: account.email, password: account.password });
           if (signInErr) {
-            setError('an account with that email already exists. try signing in at fans-flock.com/start instead.');
+            setError('an account with that email already exists. try signing in at fans-flock.com/onboarding instead.');
           } else {
-            setError('an account with that email already exists and you\'ve been signed in. go to fans-flock.com/start to access your community.');
+            setError('an account with that email already exists and you\'ve been signed in. go to fans-flock.com/onboarding to access your community.');
           }
         } else {
           setError(msg);

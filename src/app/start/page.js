@@ -1,4 +1,4 @@
-import StartClient from './StartClient';
+import { MarketingHome } from '@/components/MarketingHome';
 
 export const metadata = {
   title: 'flock · fan communities for independent artists',
@@ -27,5 +27,5 @@ export const metadata = {
 };
 
 export default function StartPage() {
-  return <StartClient />;
+  return <MarketingHome />;
 }
