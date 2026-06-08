@@ -69,16 +69,21 @@ export async function POST(request) {
     // 5b. Seed a welcome post so the community feed and the highlights (link-in-bio)
     // page aren't empty on day one. Flagged is_highlight so it shows on highlights,
     // and pinned to the top of the feed. It's a normal post the artist can edit or
-    // delete — keeps a brand-new site from looking abandoned to the first fans.
-    await db.from('posts').insert({
-      tenant_id: tenantId,
-      author_id: userId,
-      content: `welcome to ${community.name} ✦ this is home base — exclusive posts, show check-ins, and rewards for the people who show up early. this first post is yours: edit it or delete it and make it your own.`,
-      feed_type: 'community',
-      is_highlight: true,
-      is_pinned: true,
-      tag: 'general',
-    });
+    // delete, and keeps a brand-new site from looking abandoned to the first fans.
+    // Best-effort: a failure here must never break an otherwise successful signup.
+    try {
+      await db.from('posts').insert({
+        tenant_id: tenantId,
+        author_id: userId,
+        content: `welcome to ${community.name} ✦ this is home base. exclusive posts, show check-ins, and rewards for the people who show up early. this first post is yours: edit it or delete it and make it your own.`,
+        feed_type: 'community',
+        is_highlight: true,
+        is_pinned: true,
+        tag: 'general',
+      });
+    } catch (e) {
+      console.error('[onboarding] welcome post skipped:', e?.message);
+    }
 
     // 6. Stamp actions (using currency name)
     await db.from('stamp_actions').insert([
