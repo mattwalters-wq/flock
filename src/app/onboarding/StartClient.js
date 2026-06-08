@@ -86,6 +86,7 @@ function StepAccount({ initial, onNext }) {
       <Input label="your name" value={data.fullName} onChange={e => setData(p => ({ ...p, fullName: e.target.value }))} placeholder="how you'd like to be known" autoFocus error={errors.fullName} />
       <Input label="email" type="email" value={data.email} onChange={e => setData(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" error={errors.email} />
       <Input label="password" type="password" value={data.password} onChange={e => setData(p => ({ ...p, password: e.target.value }))} placeholder="at least 8 characters" hint="you'll use this to log into your dashboard" error={errors.password} />
+      <Input label="referral code (optional)" value={data.referralCode || ''} onChange={e => setData(p => ({ ...p, referralCode: e.target.value }))} placeholder="who invited you?" hint="the flock url of the artist who referred you — leave blank if none" />
       <Btn onClick={() => validate() && onNext(data)} style={{ width: '100%', marginTop: 8 }}>continue →</Btn>
       <div style={{ textAlign: 'center', marginTop: 16 }}>
         <Mono size={10}>already have a community? <a href="/login" style={{ color: RUBY, textDecoration: 'none', fontWeight: 600 }}>sign in</a></Mono>
@@ -298,7 +299,7 @@ function StepLaunching({ communityName, error, onRetry }) {
   );
 }
 
-function StepLive({ communityName, slug, primaryColor }) {
+function StepLive({ communityName, slug, primaryColor, session }) {
   const [subStep, setSubStep] = useState(1); // 1 = socials, 2 = profile, 3 = share
   const [socials, setSocials] = useState({ instagram: '', tiktok: '', spotify: '', website: '' });
   const [profile, setProfile] = useState({ tagline: '', bio: '' });
@@ -310,6 +311,15 @@ function StepLive({ communityName, slug, primaryColor }) {
   const accent = primaryColor || RUBY;
   const url = `https://${slug}.${APP_DOMAIN}`;
   const highlightsUrl = `${url}/highlights`;
+
+  // Carry the freshly created session across the origin boundary to the tenant
+  // subdomain via the URL hash (never sent to the server). auth-context reads
+  // fl_at/fl_rt on arrival, calls setSession, then strips them from the URL.
+  const withSession = (u) => {
+    if (!session?.access_token || !session?.refresh_token) return u;
+    const sep = u.includes('#') ? '&' : '#';
+    return `${u}${sep}fl_at=${encodeURIComponent(session.access_token)}&fl_rt=${encodeURIComponent(session.refresh_token)}`;
+  };
 
   const saveToDb = async (data) => {
     setSaving(true);
@@ -467,11 +477,11 @@ join for free ✦ ${highlightsUrl}`;
         ))}
       </div>
 
-      <a href={`${url}/dashboard`} style={{ display: 'block', width: '100%', padding: '14px', background: accent, color: '#fff', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
+      <a href={withSession(`${url}/dashboard`)} style={{ display: 'block', width: '100%', padding: '14px', background: accent, color: '#fff', borderRadius: 12, fontSize: 15, fontWeight: 700, textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
         go to my dashboard →
       </a>
       <div style={{ textAlign: 'center', marginTop: 10 }}>
-        <a href={url} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, textDecoration: 'none' }}>or visit my community →</a>
+        <a href={withSession(url)} style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, textDecoration: 'none' }}>or visit my community →</a>
       </div>
     </div>
   );
@@ -484,9 +494,10 @@ const STORAGE_KEY = 'flock_onboarding_v1';
 function OnboardingWizard() {
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
+  const [session, setSession] = useState(null); // fresh session, handed to the subdomain via URL hash
 
   // Persisted state - survives tab switches
-  const [account, setAccount] = useState({ email: '', password: '', fullName: '' });
+  const [account, setAccount] = useState({ email: '', password: '', fullName: '', referralCode: '' });
   const [community, setCommunity] = useState({ name: '', slug: '', tagline: '' });
   const [branding, setBranding] = useState({ primaryColor: '#8B1A2B', secondaryColor: '#F5EFE6', inkColor: '#1A1018' });
   const [currency, setCurrency] = useState({ name: 'points', icon: '✦', customName: '', customIcon: '' });
@@ -505,6 +516,16 @@ function OnboardingWizard() {
         if (d.currency) setCurrency(d.currency);
         if (d.members) setMembers(d.members);
       }
+    } catch {}
+  }, []);
+
+  // Pre-fill the referral code from ?ref= so artists can share a link
+  // (fans-flock.com/onboarding?ref=their-slug). Runs after the localStorage load
+  // above so the URL value wins.
+  useEffect(() => {
+    try {
+      const ref = new URLSearchParams(window.location.search).get('ref');
+      if (ref) setAccount(p => ({ ...p, referralCode: ref.trim().toLowerCase() }));
     } catch {}
   }, []);
 
@@ -530,7 +551,7 @@ function OnboardingWizard() {
       const res = await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account, community, branding, currency: { name: finalCurrencyName, icon: finalCurrencyIcon }, members: finalMembers }),
+        body: JSON.stringify({ account, community, branding, currency: { name: finalCurrencyName, icon: finalCurrencyIcon }, members: finalMembers, referralCode: account.referralCode }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -550,14 +571,11 @@ function OnboardingWizard() {
       }
       const { data: signInData } = await sb().auth.signInWithPassword({ email: account.email, password: account.password });
       localStorage.removeItem(STORAGE_KEY);
+      // The session lives on the apex origin (fans-flock.com) and can't follow the
+      // user to {slug}.fans-flock.com on its own. Hold onto it so StepLive can pass
+      // it to the subdomain via the URL hash, where auth-context adopts it.
+      if (signInData?.session) setSession(signInData.session);
       goToStep(7);
-      // Store session token so subdomain can pick it up
-      if (signInData?.session) {
-        sessionStorage.setItem('flock_new_session', JSON.stringify({
-          access_token: signInData.session.access_token,
-          refresh_token: signInData.session.refresh_token,
-        }));
-      }
     } catch (e) {
       setError(e.message);
     }
@@ -594,7 +612,7 @@ function OnboardingWizard() {
           {step === 4 && <StepCurrency initial={currency} onNext={d => { setCurrency(d); save({ currency: d }); goToStep(5); }} onBack={() => goToStep(3)} />}
           {step === 5 && <StepMembers initial={members} primaryColor={branding.primaryColor} onNext={d => { setMembers(d); save({ members: d }); launch(d); }} onBack={() => goToStep(4)} />}
           {step === 6 && <StepLaunching communityName={community.name} error={error} onRetry={() => goToStep(5)} />}
-          {step === 7 && <StepLive communityName={community.name} slug={community.slug} primaryColor={branding.primaryColor} />}
+          {step === 7 && <StepLive communityName={community.name} slug={community.slug} primaryColor={branding.primaryColor} session={session} />}
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20 }}>

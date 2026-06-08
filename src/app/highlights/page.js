@@ -133,9 +133,6 @@ export default function HighlightsPage() {
           <div style={{ marginTop: 12, ...mono, fontSize: 9, color: cream + '44', letterSpacing: '0.5px' }}>free to join · posts, rewards &amp; exclusive content</div>
         </div>
 
-        <div style={{ position: 'absolute', top: 18, right: 24, ...mono, fontSize: 9, color: cream + '33', letterSpacing: '1px' }}>
-          powered by flock
-        </div>
       </div>
 
       {/* UPCOMING SHOWS */}

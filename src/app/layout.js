@@ -2,6 +2,7 @@ import './globals.css';
 import { headers } from 'next/headers';
 import { getTenantBySlug, getTenantByDomain, getTenantPalette } from '@/lib/tenant';
 import { AuthProvider } from '@/lib/auth-context';
+import { PoweredByFlock } from '@/components/PoweredByFlock';
 
 export default async function RootLayout({ children }) {
   const headersList = headers();
@@ -68,6 +69,7 @@ export default async function RootLayout({ children }) {
       <body>
         <AuthProvider tenantId={tenantId}>
           {children}
+          {tenant && !tenant.hide_branding && <PoweredByFlock slug={tenant.slug} />}
         </AuthProvider>
       </body>
     </html>

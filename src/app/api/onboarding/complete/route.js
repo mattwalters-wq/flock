@@ -11,7 +11,7 @@ function getServiceClient() {
 
 export async function POST(request) {
   try {
-    const { account, community, branding, currency, members } = await request.json();
+    const { account, community, branding, currency, members, referralCode } = await request.json();
     const db = getServiceClient();
 
     // 1. Create auth user
@@ -28,6 +28,22 @@ export async function POST(request) {
     const { data: tenant, error: tenantError } = await db.from('tenants').insert({ slug: community.slug, name: community.name }).select('id').single();
     if (tenantError) { console.error('[onboarding] tenant error:', tenantError); return NextResponse.json({ error: tenantError.message }, { status: 400 }); }
     const tenantId = tenant.id;
+
+    // 2b. Referral attribution (best-effort). The referral code is just the
+    // referrer's slug; we store it as referred_by on the new tenant. Wrapped so a
+    // bogus code — or the referred_by column not being migrated yet — can never
+    // break a signup. Crediting is handled manually for now.
+    const refCode = (referralCode || '').trim().toLowerCase();
+    if (refCode && refCode !== community.slug) {
+      try {
+        const { data: referrer } = await db.from('tenants').select('id').eq('slug', refCode).single();
+        if (referrer?.id) {
+          await db.from('tenants').update({ referred_by: referrer.id }).eq('id', tenantId);
+        }
+      } catch (e) {
+        console.error('[onboarding] referral attribution skipped:', e?.message);
+      }
+    }
 
     // 3. Tenant config
     const currencyName = currency?.name || 'points';
@@ -49,6 +65,25 @@ export async function POST(request) {
 
     // 5. Admin profile
     await db.from('profiles').insert({ id: userId, tenant_id: tenantId, display_name: account.fullName, role: 'admin', stamp_count: 0, stamp_level: 'first_press', email_notifications: true });
+
+    // 5b. Seed a welcome post so the community feed and the highlights (link-in-bio)
+    // page aren't empty on day one. Flagged is_highlight so it shows on highlights,
+    // and pinned to the top of the feed. It's a normal post the artist can edit or
+    // delete, and keeps a brand-new site from looking abandoned to the first fans.
+    // Best-effort: a failure here must never break an otherwise successful signup.
+    try {
+      await db.from('posts').insert({
+        tenant_id: tenantId,
+        author_id: userId,
+        content: `welcome to ${community.name} ✦ this is home base. exclusive posts, show check-ins, and rewards for the people who show up early. this first post is yours: edit it or delete it and make it your own.`,
+        feed_type: 'community',
+        is_highlight: true,
+        is_pinned: true,
+        tag: 'general',
+      });
+    } catch (e) {
+      console.error('[onboarding] welcome post skipped:', e?.message);
+    }
 
     // 6. Stamp actions (using currency name)
     await db.from('stamp_actions').insert([
