@@ -53,10 +53,6 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
       setLoading(false);
       if (u) fetchProfile(u.id).then(p => { if (p) setProfile(p); }).catch(() => {});
     };
-    supabase.auth.getSession()
-      .then(({ data }) => finish(data?.session ?? null))
-      .catch(() => finish(null));
-    const failsafe = setTimeout(() => finish(null), 8000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
@@ -68,6 +64,32 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
         setProfile(null);
       }
     });
+
+    // A brand-new tenant arrives straight from onboarding with its session in the
+    // URL hash (#fl_at / #fl_rt): the session was created on the apex origin and
+    // can't cross to this subdomain on its own. Adopt it, then immediately scrub
+    // the tokens from the URL. The hash is never sent to the server, and we
+    // replaceState before doing anything else so it can't leak via navigation.
+    const adoptHashSession = async () => {
+      if (typeof window === 'undefined') return;
+      const raw = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+      if (!raw.includes('fl_at=')) return;
+      const params = new URLSearchParams(raw);
+      const access_token = params.get('fl_at');
+      const refresh_token = params.get('fl_rt');
+      params.delete('fl_at'); params.delete('fl_rt');
+      const rest = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + window.location.search + (rest ? `#${rest}` : ''));
+      if (access_token && refresh_token) {
+        try { await supabase.auth.setSession({ access_token, refresh_token }); } catch {}
+      }
+    };
+
+    adoptHashSession()
+      .then(() => supabase.auth.getSession())
+      .then(({ data }) => finish(data?.session ?? null))
+      .catch(() => finish(null));
+    const failsafe = setTimeout(() => finish(null), 8000);
 
     return () => { clearTimeout(failsafe); subscription.unsubscribe(); };
   }, []);
