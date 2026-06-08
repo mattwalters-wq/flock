@@ -1656,6 +1656,20 @@ export function FlockApp({ tenantId: propTenantId }) {
                 <span style={{ fontSize: 13, color: RUBY, flex: 1 }}>sign out</span>
               </div>
             </div>
+
+            {/* flock brand mark — clear, tappable, links to the marketing site */}
+            <a
+              href={`https://fans-flock.com?utm_source=tenant&utm_medium=app_profile&utm_campaign=${typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : ''}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, textDecoration: 'none', padding: '28px 0 8px' }}
+            >
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: RUBY, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14 }}>✦</div>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase', letterSpacing: '-0.5px' }}>flock</span>
+              </div>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '99', letterSpacing: '0.5px' }}>start your own fan community →</span>
+            </a>
           </div>
         )}
       </div>
