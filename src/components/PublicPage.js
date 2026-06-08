@@ -346,7 +346,7 @@ export function PublicPage({ tenantId }) {
 
           {/* Tiny footer */}
           <div style={{ marginTop: 32, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 9, color: cream + '33', letterSpacing: '0.5px' }}>
-            © 2026 {tenantName.toLowerCase()} · powered by <a href="https://fans-flock.com" style={{ color: cream + '55', textDecoration: 'none' }}>flock</a>
+            © 2026 {tenantName.toLowerCase()}
           </div>
         </div>
 
@@ -718,7 +718,7 @@ export function PublicPage({ tenantId }) {
       <div style={{ background: cream }}>
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 20px 60px' }}>
           <div style={{ textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77', letterSpacing: '0.5px' }}>
-            © 2026 {tenantName.toLowerCase()} · powered by <a href="https://fans-flock.com" style={{ color: SLATE + '55', textDecoration: 'none' }}>flock</a>
+            © 2026 {tenantName.toLowerCase()}
           </div>
         </div>
       </div>
