@@ -46,6 +46,13 @@ function TenantRow({ tenant, onSelect, onDelete }) {
           {isActive && <div style={{ width: 6, height: 6, borderRadius: '50%', background: SAGE, flexShrink: 0 }} title="active this week" />}
         </div>
         <Mono size={9} color={SLATE + '88'}>{tenant.slug}.fans-flock.com · {tenant.fan_count || 0} fans · {tenant.post_count || 0} posts</Mono>
+        {(tenant.referred_by_slug || tenant.referrals_count > 0) && (
+          <Mono size={9} color={WARM_GOLD} style={{ marginTop: 2 }}>
+            {tenant.referred_by_slug ? `referred by ${tenant.referred_by_slug}` : ''}
+            {tenant.referred_by_slug && tenant.referrals_count > 0 ? ' · ' : ''}
+            {tenant.referrals_count > 0 ? `referred ${tenant.referrals_count} ${tenant.referrals_count === 1 ? 'tenant' : 'tenants'}` : ''}
+          </Mono>
+        )}
       </div>
 
       {/* Created */}
@@ -381,11 +388,21 @@ export default function SuperAdmin() {
       return { ...t, fan_count: fans.count || 0, post_count: posts.count || 0 };
     }));
 
-    setTenants(enriched);
+    // Resolve the referral graph in-memory: who referred each tenant (slug) and
+    // how many tenants each one has referred. Lets referrals show in the list
+    // without extra queries. Manual crediting is handled off-platform for now.
+    const byId = Object.fromEntries(enriched.map(t => [t.id, t]));
+    const withRefs = enriched.map(t => ({
+      ...t,
+      referred_by_slug: t.referred_by ? (byId[t.referred_by]?.slug || `#${t.referred_by}`) : null,
+      referrals_count: enriched.filter(x => x.referred_by === t.id).length,
+    }));
+
+    setTenants(withRefs);
     setStats({
-      tenants: enriched.length,
-      fans: enriched.reduce((s, t) => s + (t.fan_count || 0), 0),
-      posts: enriched.reduce((s, t) => s + (t.post_count || 0), 0),
+      tenants: withRefs.length,
+      fans: withRefs.reduce((s, t) => s + (t.fan_count || 0), 0),
+      posts: withRefs.reduce((s, t) => s + (t.post_count || 0), 0),
     });
     setLoading(false);
   };

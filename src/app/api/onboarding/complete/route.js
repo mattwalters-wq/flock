@@ -11,7 +11,7 @@ function getServiceClient() {
 
 export async function POST(request) {
   try {
-    const { account, community, branding, currency, members } = await request.json();
+    const { account, community, branding, currency, members, referralCode } = await request.json();
     const db = getServiceClient();
 
     // 1. Create auth user
@@ -28,6 +28,22 @@ export async function POST(request) {
     const { data: tenant, error: tenantError } = await db.from('tenants').insert({ slug: community.slug, name: community.name }).select('id').single();
     if (tenantError) { console.error('[onboarding] tenant error:', tenantError); return NextResponse.json({ error: tenantError.message }, { status: 400 }); }
     const tenantId = tenant.id;
+
+    // 2b. Referral attribution (best-effort). The referral code is just the
+    // referrer's slug; we store it as referred_by on the new tenant. Wrapped so a
+    // bogus code — or the referred_by column not being migrated yet — can never
+    // break a signup. Crediting is handled manually for now.
+    const refCode = (referralCode || '').trim().toLowerCase();
+    if (refCode && refCode !== community.slug) {
+      try {
+        const { data: referrer } = await db.from('tenants').select('id').eq('slug', refCode).single();
+        if (referrer?.id) {
+          await db.from('tenants').update({ referred_by: referrer.id }).eq('id', tenantId);
+        }
+      } catch (e) {
+        console.error('[onboarding] referral attribution skipped:', e?.message);
+      }
+    }
 
     // 3. Tenant config
     const currencyName = currency?.name || 'points';

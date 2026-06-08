@@ -86,6 +86,7 @@ function StepAccount({ initial, onNext }) {
       <Input label="your name" value={data.fullName} onChange={e => setData(p => ({ ...p, fullName: e.target.value }))} placeholder="how you'd like to be known" autoFocus error={errors.fullName} />
       <Input label="email" type="email" value={data.email} onChange={e => setData(p => ({ ...p, email: e.target.value }))} placeholder="you@example.com" error={errors.email} />
       <Input label="password" type="password" value={data.password} onChange={e => setData(p => ({ ...p, password: e.target.value }))} placeholder="at least 8 characters" hint="you'll use this to log into your dashboard" error={errors.password} />
+      <Input label="referral code (optional)" value={data.referralCode || ''} onChange={e => setData(p => ({ ...p, referralCode: e.target.value }))} placeholder="who invited you?" hint="the flock url of the artist who referred you — leave blank if none" />
       <Btn onClick={() => validate() && onNext(data)} style={{ width: '100%', marginTop: 8 }}>continue →</Btn>
       <div style={{ textAlign: 'center', marginTop: 16 }}>
         <Mono size={10}>already have a community? <a href="/login" style={{ color: RUBY, textDecoration: 'none', fontWeight: 600 }}>sign in</a></Mono>
@@ -496,7 +497,7 @@ function OnboardingWizard() {
   const [session, setSession] = useState(null); // fresh session, handed to the subdomain via URL hash
 
   // Persisted state - survives tab switches
-  const [account, setAccount] = useState({ email: '', password: '', fullName: '' });
+  const [account, setAccount] = useState({ email: '', password: '', fullName: '', referralCode: '' });
   const [community, setCommunity] = useState({ name: '', slug: '', tagline: '' });
   const [branding, setBranding] = useState({ primaryColor: '#8B1A2B', secondaryColor: '#F5EFE6', inkColor: '#1A1018' });
   const [currency, setCurrency] = useState({ name: 'points', icon: '✦', customName: '', customIcon: '' });
@@ -515,6 +516,16 @@ function OnboardingWizard() {
         if (d.currency) setCurrency(d.currency);
         if (d.members) setMembers(d.members);
       }
+    } catch {}
+  }, []);
+
+  // Pre-fill the referral code from ?ref= so artists can share a link
+  // (fans-flock.com/onboarding?ref=their-slug). Runs after the localStorage load
+  // above so the URL value wins.
+  useEffect(() => {
+    try {
+      const ref = new URLSearchParams(window.location.search).get('ref');
+      if (ref) setAccount(p => ({ ...p, referralCode: ref.trim().toLowerCase() }));
     } catch {}
   }, []);
 
@@ -540,7 +551,7 @@ function OnboardingWizard() {
       const res = await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account, community, branding, currency: { name: finalCurrencyName, icon: finalCurrencyIcon }, members: finalMembers }),
+        body: JSON.stringify({ account, community, branding, currency: { name: finalCurrencyName, icon: finalCurrencyIcon }, members: finalMembers, referralCode: account.referralCode }),
       });
       const data = await res.json();
       if (!res.ok) {
