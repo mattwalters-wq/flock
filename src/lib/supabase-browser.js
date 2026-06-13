@@ -1,6 +1,24 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 
 let client = null;
+let anonClient = null;
+
+// A sessionless client that only ever sends the anon key — never a user JWT.
+// Use this for public reads that must not fail while a user session is in flux
+// (e.g. resolving a tenant by slug during the god-mode session handoff). With the
+// authed client, an expired/handoff token makes PostgREST 401 the whole request
+// before it even reaches the public tenants table.
+export function getAnonClient() {
+  if (!anonClient) {
+    anonClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+  }
+  return anonClient;
+}
 
 // Circuit breaker for the auth token-refresh endpoint.
 //
