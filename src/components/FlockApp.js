@@ -788,6 +788,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [bandsintownEvents, setBandsintownEvents] = useState([]);
   const [stampActions, setStampActions] = useState([]);
   const [topCollectors, setTopCollectors] = useState([]);
+  const [myRank, setMyRank] = useState(null);
   const [rewardClaims, setRewardClaims] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -1019,11 +1020,14 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (!supabase || !tenantId) return;
     const { data: actions } = await supabase.from('stamp_actions').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('points');
     if (actions) setStampActions(actions);
-    const { data: top } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10);
+    const { data: top } = await supabase.from('profiles').select('display_name, stamp_count, member_number').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10);
     if (top) setTopCollectors(top);
     if (user) {
       const { data: claims } = await supabase.from('reward_claims').select('*').eq('user_id', user.id).eq('tenant_id', tenantId);
       if (claims) setRewardClaims(claims);
+      // My leaderboard rank = fans ahead of me + 1 (shown when I'm outside the top 10).
+      const { count: ahead } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).gt('stamp_count', profile?.stamp_count || 0);
+      setMyRank((ahead || 0) + 1);
     }
   }, [supabase, user, tenantId]);
 
@@ -1040,6 +1044,19 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (mainTab === 'you') refreshProfile();
     fetchNotifications();
   }, [mainTab]);
+
+  // Daily check-in: advances the streak and awards the daily_login stamps, once
+  // per UTC day. Idempotent server-side; best-effort here so a missing function
+  // (pre-migration) or any error never blocks the app.
+  useEffect(() => {
+    if (!supabase || !tenantId || !user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `flock_checkin_${tenantId}_${user.id}`;
+    try { if (localStorage.getItem(key) === today) return; } catch {}
+    supabase.rpc('daily_checkin', { p_tenant_id: tenantId })
+      .then(() => { try { localStorage.setItem(key, today); } catch {} refreshProfile(); })
+      .catch(() => {});
+  }, [supabase, tenantId, user]);
 
   // Poll notifications every 60s so the bell updates without changing tabs.
   // This is a plain table read (notifications table), NOT an auth call, so it
@@ -1515,6 +1532,11 @@ export function FlockApp({ tenantId: propTenantId }) {
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 12, position: 'relative' }}>your {currencyName}</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 56, fontWeight: 700, color: CREAM, position: 'relative' }}>{userStamps}</div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM + '77', marginTop: 6, position: 'relative' }}>{currencyName} · {currentLevel.name}</div>
+              {profile?.login_streak > 0 && (
+                <div style={{ display: 'inline-block', marginTop: 12, background: WARM_GOLD + '22', borderRadius: 20, padding: '4px 14px', position: 'relative' }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: WARM_GOLD }}>🔥 {profile.login_streak} day streak</span>
+                </div>
+              )}
               {nextLevel && (
                 <>
                   <div style={{ marginTop: 18, background: CREAM + '15', borderRadius: 2, height: 4, overflow: 'hidden', position: 'relative' }}>
@@ -1582,11 +1604,21 @@ export function FlockApp({ tenantId: propTenantId }) {
               <div style={{ background: SURFACE, borderRadius: 10, padding: '4px 18px', border: `1px solid ${BORDER}` }}>
                 {topCollectors.map((u, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < topCollectors.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: i === 0 ? WARM_GOLD : SLATE, width: 20 }}>{i + 1}</span>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: INK }}>{u.display_name?.toLowerCase()}</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: i < 3 ? WARM_GOLD : SLATE, width: 20, fontWeight: i < 3 ? 700 : 400 }}>{i + 1}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: INK }}>
+                      {u.display_name?.toLowerCase()}
+                      {u.member_number ? <span style={{ color: SLATE + '88', fontFamily: "'DM Mono', monospace", fontSize: 9, marginLeft: 6 }}>#{u.member_number}</span> : null}
+                    </span>
                     <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>{u.stamp_count} {currencyIcon}</span>
                   </div>
                 ))}
+                {myRank && myRank > topCollectors.length && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: `2px solid ${BORDER}` }}>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, color: RUBY, width: 20, fontWeight: 700 }}>{myRank}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: RUBY }}>you</span>
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY }}>{userStamps} {currencyIcon}</span>
+                  </div>
+                )}
               </div>
             </>}
           </div>
@@ -1608,6 +1640,12 @@ export function FlockApp({ tenantId: propTenantId }) {
               <div style={{ display: 'inline-block', marginTop: 12, background: RUBY + '11', border: `1px solid ${RUBY}22`, borderRadius: 20, padding: '4px 14px' }}>
                 <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY }}>{currentLevel.icon} {currentLevel.name.toLowerCase()}</span>
               </div>
+              {(profile.member_number || profile.login_streak > 0) && (
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginTop: 12, display: 'flex', gap: 16, justifyContent: 'center' }}>
+                  {profile.member_number ? <span>✦ member #{profile.member_number}</span> : null}
+                  {profile.login_streak > 0 ? <span style={{ color: WARM_GOLD }}>🔥 {profile.login_streak} day streak</span> : null}
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'center', gap: 40, marginTop: 20 }}>
                 <div><div style={{ fontSize: 28, fontWeight: 700, color: RUBY }}>{userStamps}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5, textTransform: 'uppercase' }}>{currencyName}</div></div>
                 <div><div style={{ fontSize: 28, fontWeight: 700, color: WARM_GOLD }}>{profile.show_count || 0}</div><div style={{ fontFamily: "'DM Mono', monospace", fontSize: 8, color: SLATE, letterSpacing: 1.5 }}>shows</div></div>
