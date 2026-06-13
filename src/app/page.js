@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { PublicPage } from '@/components/PublicPage';
 import { FlockApp } from '@/components/FlockApp';
+import { isGod } from '@/lib/god';
 
 export default function Home() {
   // Auth state comes from the single global AuthProvider — no second getSession
@@ -56,7 +57,9 @@ export default function Home() {
         // Ensure a profile exists for this tenant (e.g. first visit after OAuth).
         // maybeSingle() avoids a 406 when there's no row yet.
         const { data: profile } = await supabase.from('profiles').select('id').eq('id', user.id).eq('tenant_id', tenantId).maybeSingle();
-        if (!profile && !cancelled) {
+        // Never create a fan profile for the god admin — they act as admin in
+        // every community without holding a membership row.
+        if (!profile && !cancelled && !isGod(user)) {
           const displayName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'fan';
           await supabase.from('profiles').insert({
             id: user.id, tenant_id: tenantId, display_name: displayName,

@@ -1207,7 +1207,7 @@ export function FlockApp({ tenantId: propTenantId }) {
         {/* Admin bar */}
         {(profile?.role === 'admin' || profile?.role === 'band') && (
           <div style={{ background: INK, padding: '6px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: CREAM + '55', letterSpacing: '1px' }}>artist view</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: profile?._god ? WARM_GOLD : CREAM + '55', letterSpacing: '1px' }}>{profile?._god ? '⚡ god mode' : 'artist view'}</div>
             <a href="/dashboard" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: CREAM, background: RUBY, padding: '4px 12px', borderRadius: 6, textDecoration: 'none', fontWeight: 600, letterSpacing: '0.5px' }}>
               dashboard →
             </a>
