@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useState, useRef, useMemo } from 'react';
-import { getSupabase } from '@/lib/supabase-browser';
+import { getSupabase, getAnonClient } from '@/lib/supabase-browser';
 import { isGod } from '@/lib/god';
 
 const AuthContext = createContext({});
@@ -20,7 +20,8 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
     const host = window.location.hostname;
     if (host.endsWith(`.${APP_DOMAIN}`)) {
       const slug = host.replace(`.${APP_DOMAIN}`, '');
-      supabase.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => {
+      // Anon client so this public lookup can't 401 on an in-flux user session.
+      getAnonClient().from('tenants').select('id').eq('slug', slug).maybeSingle().then(({ data }) => {
         if (data?.id) setTenantId(data.id);
       });
     }
