@@ -1020,7 +1020,10 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (!supabase || !tenantId) return;
     const { data: actions } = await supabase.from('stamp_actions').select('*').eq('tenant_id', tenantId).eq('is_active', true).order('points');
     if (actions) setStampActions(actions);
-    const { data: top } = await supabase.from('profiles').select('display_name, stamp_count, member_number').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10);
+    // Enriched select; fall back to the basic columns if member_number isn't
+    // migrated yet, so the leaderboard never regresses before the SQL is applied.
+    let { data: top } = await supabase.from('profiles').select('display_name, stamp_count, member_number').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10);
+    if (!top) ({ data: top } = await supabase.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).order('stamp_count', { ascending: false }).limit(10));
     if (top) setTopCollectors(top);
     if (user) {
       const { data: claims } = await supabase.from('reward_claims').select('*').eq('user_id', user.id).eq('tenant_id', tenantId);
@@ -1054,7 +1057,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     const key = `flock_checkin_${tenantId}_${user.id}`;
     try { if (localStorage.getItem(key) === today) return; } catch {}
     supabase.rpc('daily_checkin', { p_tenant_id: tenantId })
-      .then(() => { try { localStorage.setItem(key, today); } catch {} refreshProfile(); })
+      .then(({ error }) => { if (!error) { try { localStorage.setItem(key, today); } catch {} refreshProfile(); } })
       .catch(() => {});
   }, [supabase, tenantId, user]);
 
