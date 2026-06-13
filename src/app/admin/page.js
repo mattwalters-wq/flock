@@ -8,18 +8,25 @@ const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 // Open a tenant community/dashboard carrying the god admin's session across the
 // subdomain origin via the URL hash (#fl_at/#fl_rt), which auth-context adopts on
 // arrival. Without this the owner lands logged-out on the subdomain.
-async function openAsGod(supabase, slug, path = '') {
+//
+// The window is opened SYNCHRONOUSLY (before any await) so popup blockers don't
+// kill it — getSession() is async and would otherwise lose the click's user
+// gesture. We then point the already-open tab at the final URL.
+function openAsGod(supabase, slug, path = '') {
   const base = `https://${slug}.${APP_DOMAIN}${path}`;
-  try {
-    const { data } = await supabase.auth.getSession();
-    const s = data?.session;
-    const url = s?.access_token && s?.refresh_token
-      ? `${base}#fl_at=${encodeURIComponent(s.access_token)}&fl_rt=${encodeURIComponent(s.refresh_token)}`
-      : base;
-    window.open(url, '_blank', 'noopener');
-  } catch {
-    window.open(base, '_blank', 'noopener');
-  }
+  const w = window.open('about:blank', '_blank');
+  (async () => {
+    let url = base;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const s = data?.session;
+      if (s?.access_token && s?.refresh_token) {
+        url = `${base}#fl_at=${encodeURIComponent(s.access_token)}&fl_rt=${encodeURIComponent(s.refresh_token)}`;
+      }
+    } catch { /* fall back to base */ }
+    if (w && !w.closed) w.location.href = url;
+    else window.location.href = url; // popup blocked → navigate this tab instead
+  })();
 }
 
 const INK = '#1A1018'; const CREAM = '#F5EFE6'; const RUBY = '#8B1A2B';
