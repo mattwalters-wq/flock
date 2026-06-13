@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState, useRef, useMemo } from 'react';
 import { getSupabase } from '@/lib/supabase-browser';
+import { isGod } from '@/lib/god';
 
 const AuthContext = createContext({});
 
@@ -25,16 +26,24 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
     }
   }, []);
 
-  const fetchProfile = async (userId, tid) => {
+  const fetchProfile = async (authUser, tid) => {
+    const userId = authUser?.id;
     const id = tid || tenantId;
-    if (!id) return null;
+    if (!userId || !id) return null;
     const { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .eq('tenant_id', id)
       .maybeSingle();
-    return data;
+    if (data) return data;
+    // God admin operates as an admin in every community without holding a
+    // per-tenant profile row. Synthesize one so the UI grants admin powers; the
+    // database side is authorised separately by the SQL is_god() used in RLS.
+    if (isGod(authUser)) {
+      return { id: userId, tenant_id: id, role: 'admin', display_name: 'flock', stamp_count: 0, stamp_level: 'inner_circle', _god: true };
+    }
+    return null;
   };
 
   useEffect(() => {
@@ -51,14 +60,14 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
       const u = session?.user ?? null;
       setUser(u);
       setLoading(false);
-      if (u) fetchProfile(u.id).then(p => { if (p) setProfile(p); }).catch(() => {});
+      if (u) fetchProfile(u).then(p => { if (p) setProfile(p); }).catch(() => {});
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        const p = await fetchProfile(u.id);
+        const p = await fetchProfile(u);
         setProfile(p);
       } else {
         setProfile(null);
@@ -97,7 +106,7 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
   // Re-fetch profile once tenantId resolves (client-side resolution case)
   useEffect(() => {
     if (!tenantId || !user || profile) return;
-    fetchProfile(user.id, tenantId).then(p => { if (p) setProfile(p); });
+    fetchProfile(user, tenantId).then(p => { if (p) setProfile(p); });
   }, [tenantId, user]);
 
   const signInWithGoogle = async () => {
@@ -128,7 +137,7 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
 
   const refreshProfile = async () => {
     if (user && tenantId) {
-      const p = await fetchProfile(user.id, tenantId);
+      const p = await fetchProfile(user, tenantId);
       if (p) setProfile(p);
     }
   };

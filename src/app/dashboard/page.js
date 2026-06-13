@@ -2,8 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
+import { isGod } from '@/lib/god';
 
-const SUPER_ADMIN_ID = '5cdcf898-6bda-42b7-860e-0964562c9c22';
 const INK = '#1a1a1a'; const CREAM = '#F5F0E8'; const RUBY = '#8B1A2B';
 const WARM_GOLD = '#C9922A'; const SLATE = '#6A5A62'; const SURFACE = '#FAF5F0';
 const BORDER = '#E8DDD4'; const SAGE = '#7D8B6A';
@@ -1727,7 +1727,7 @@ export default function Dashboard() {
     if (!user) { router.push('/'); return; }
     if (!tenantId) return; // wait for tenant to resolve before checking profile
     // Allow super admin to access any dashboard via ?superadmin=1
-    const isSuperAdmin = user?.id === SUPER_ADMIN_ID;
+    const isSuperAdmin = isGod(user);
     const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
     if (profile && profile.role === 'fan' && !(isSuperAdmin && superAdminParam)) router.push('/');
   }, [user, profile, loading, tenantId]);
@@ -1764,7 +1764,7 @@ export default function Dashboard() {
     return () => window.removeEventListener('dashboard-tab', handler);
   }, []);
 
-  const isSuperAdmin = user?.id === SUPER_ADMIN_ID;
+  const isSuperAdmin = isGod(user);
   const superAdminParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('superadmin') === '1';
   const isGodMode = isSuperAdmin && superAdminParam;
 

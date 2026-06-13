@@ -1,9 +1,26 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
+import { isGod } from '@/lib/god';
 
-// Super admin is scoped to this user ID only
-const SUPER_ADMIN_ID = '5cdcf898-6bda-42b7-860e-0964562c9c22';
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
+
+// Open a tenant community/dashboard carrying the god admin's session across the
+// subdomain origin via the URL hash (#fl_at/#fl_rt), which auth-context adopts on
+// arrival. Without this the owner lands logged-out on the subdomain.
+async function openAsGod(supabase, slug, path = '') {
+  const base = `https://${slug}.${APP_DOMAIN}${path}`;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const s = data?.session;
+    const url = s?.access_token && s?.refresh_token
+      ? `${base}#fl_at=${encodeURIComponent(s.access_token)}&fl_rt=${encodeURIComponent(s.refresh_token)}`
+      : base;
+    window.open(url, '_blank', 'noopener');
+  } catch {
+    window.open(base, '_blank', 'noopener');
+  }
+}
 
 const INK = '#1A1018'; const CREAM = '#F5EFE6'; const RUBY = '#8B1A2B';
 const WARM_GOLD = '#C9922A'; const SLATE = '#6A5A62'; const SURFACE = '#FAF5F0';
@@ -28,7 +45,7 @@ function StatCard({ label, value, color = RUBY }) {
   );
 }
 
-function TenantRow({ tenant, onSelect, onDelete }) {
+function TenantRow({ tenant, onSelect, onDelete, onVisit }) {
   const [deleting, setDeleting] = useState(false);
   const isActive = (tenant.last_activity_at && new Date(tenant.last_activity_at) > new Date(Date.now() - 7 * 86400000));
 
@@ -63,10 +80,10 @@ function TenantRow({ tenant, onSelect, onDelete }) {
       {/* Actions */}
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
         <Btn onClick={() => onSelect(tenant)} variant="ghost" style={{ fontSize: 11, padding: '6px 12px' }}>view</Btn>
-        <a href={`https://${tenant.slug}.fans-flock.com`} target="_blank" rel="noopener noreferrer"
-          style={{ padding: '6px 12px', background: 'transparent', color: RUBY, border: `1px solid ${RUBY}44`, borderRadius: 8, fontSize: 11, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
+        <button onClick={() => onVisit(tenant.slug)}
+          style={{ padding: '6px 12px', background: 'transparent', color: RUBY, border: `1px solid ${RUBY}44`, borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
           visit ↗
-        </a>
+        </button>
         <a href={`/dashboard?slug=${tenant.slug}&superadmin=1`} target="_blank" rel="noopener noreferrer"
           style={{ padding: '6px 12px', background: WARM_GOLD, color: INK, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
           manage ⚡
@@ -158,10 +175,10 @@ function TenantDetail({ tenant, supabase, onBack }) {
           <Mono size={9} color={SLATE + '88'}>{tenant.slug}.fans-flock.com</Mono>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <a href={`https://${tenant.slug}.fans-flock.com`} target="_blank" rel="noopener noreferrer"
-            style={{ padding: '8px 16px', background: RUBY, color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
+          <button onClick={() => openAsGod(supabase, tenant.slug)}
+            style={{ padding: '8px 16px', background: RUBY, color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
             visit community ↗
-          </a>
+          </button>
           <a href={`/dashboard?slug=${tenant.slug}&superadmin=1`} target="_blank" rel="noopener noreferrer"
             style={{ padding: '8px 16px', background: 'transparent', color: SLATE, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: "'DM Sans', sans-serif" }}>
             dashboard ↗
@@ -350,7 +367,7 @@ export default function SuperAdmin() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.id === SUPER_ADMIN_ID) {
+      if (isGod(session?.user)) {
         setUser(session.user);
         loadData();
       }
@@ -365,7 +382,7 @@ export default function SuperAdmin() {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setSigningIn(false);
     if (error) { setSignInErr(authErrorMessage(error)); return; }
-    if (data?.user?.id === SUPER_ADMIN_ID) {
+    if (isGod(data?.user)) {
       setUser(data.user);
       loadData();
     } else {
@@ -489,7 +506,7 @@ export default function SuperAdmin() {
               ) : filtered.length === 0 ? (
                 <div style={{ padding: 40, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>no communities found</div>
               ) : filtered.map(t => (
-                <TenantRow key={t.id} tenant={t} onSelect={setSelectedTenant} onDelete={deleteTenant} />
+                <TenantRow key={t.id} tenant={t} onSelect={setSelectedTenant} onDelete={deleteTenant} onVisit={(slug) => openAsGod(supabase, slug)} />
               ))}
             </div>
           </>
