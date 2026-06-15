@@ -280,10 +280,10 @@ function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenant
 
 // ─── POST CARD ───────────────────────────────────────────────────────────────
 
-function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, currencyName, currencyIcon, onRefresh, onViewProfile }) {
+function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, memberMap, currencyName, currencyIcon, onRefresh, onViewProfile, defaultShowComments = false }) {
   const [liked, setLiked] = useState(post.user_has_liked || false);
   const [likeCount, setLikeCount] = useState(post.like_count || 0);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(defaultShowComments);
   const [commentCount, setCommentCount] = useState(post.comment_count || 0);
   const [showMenu, setShowMenu] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -822,6 +822,8 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [claimingLevel, setClaimingLevel] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [focusPostId, setFocusPostId] = useState(null); // post opened from a notification / ?post= link
+  const [focusPost, setFocusPost] = useState(null);
   const [checkinShow, setCheckinShow] = useState(null);
   const [checkinCode, setCheckinCode] = useState('');
   const [checkinStatus, setCheckinStatus] = useState('');
@@ -1061,6 +1063,32 @@ export function FlockApp({ tenantId: propTenantId }) {
       .catch(() => {});
   }, [supabase, tenantId, user]);
 
+  // Open a single post (with its comments) from a notification or a ?post= deep
+  // link — so "someone replied to your comment" actually takes you to the post.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const pid = new URLSearchParams(window.location.search).get('post');
+    if (pid) setFocusPostId(pid);
+  }, []);
+
+  useEffect(() => {
+    if (!focusPostId || !supabase || !tenantId) { setFocusPost(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data: p } = await supabase.from('posts').select('*').eq('id', focusPostId).eq('tenant_id', tenantId).maybeSingle();
+      if (cancelled) return;
+      if (!p) { setFocusPost(null); return; }
+      const { data: prof } = await supabase.from('profiles').select('id, display_name, role, band_member, avatar_url').eq('id', p.author_id).maybeSingle();
+      let liked = false;
+      if (user) {
+        const { data: lk } = await supabase.from('post_likes').select('post_id').eq('post_id', p.id).eq('user_id', user.id).maybeSingle();
+        liked = !!lk;
+      }
+      if (!cancelled) setFocusPost({ ...p, profiles: prof || null, user_has_liked: liked });
+    })();
+    return () => { cancelled = true; };
+  }, [focusPostId, supabase, tenantId, user]);
+
   // Poll notifications every 60s so the bell updates without changing tabs.
   // This is a plain table read (notifications table), NOT an auth call, so it
   // does not touch auth rate limits.
@@ -1167,6 +1195,22 @@ export function FlockApp({ tenantId: propTenantId }) {
 
       {/* ── MODALS ── */}
       {showEditProfile && <EditProfileModal profile={profile} supabase={supabase} tenantId={tenantId} onSave={updateProfile} onClose={() => setShowEditProfile(false)} />}
+
+      {/* Post opened from a notification ("replied to your comment") or ?post= link */}
+      {focusPostId && (
+        <div onClick={() => { setFocusPostId(null); setFocusPost(null); }} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(26,16,24,0.55)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 540 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button onClick={() => { setFocusPostId(null); setFocusPost(null); }} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>close ×</button>
+            </div>
+            {focusPost ? (
+              <PostCard post={focusPost} currentUserId={user?.id} currentProfile={profile} supabase={supabase} tenantId={tenantId} memberMap={memberMap} currencyName={currencyName} currencyIcon={currencyIcon} onRefresh={() => fetchPosts(feedView)} onViewProfile={setViewingProfile} defaultShowComments />
+            ) : (
+              <div style={{ background: SURFACE, borderRadius: 10, padding: 30, textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>loading post…</div>
+            )}
+          </div>
+        </div>
+      )}
       {claimingLevel && <ClaimRewardModal level={claimingLevel} existingClaim={rewardClaims.find(c => c.level_key === claimingLevel.key) || null} supabase={supabase} userId={user?.id} tenantId={tenantId} onClaimed={() => { setClaimingLevel(null); fetchStampData(); }} onClose={() => setClaimingLevel(null)} />}
       {viewingProfile && <UserProfileModal userId={viewingProfile} supabase={supabase} tenantId={tenantId} onClose={() => setViewingProfile(null)} levels={STAMP_LEVELS} currencyName={currencyName} currencyIcon={currencyIcon} />}
 
@@ -1240,8 +1284,12 @@ export function FlockApp({ tenantId: propTenantId }) {
               <button onClick={() => setShowNotifications(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: SLATE }}>×</button>
             </div>
             {notifications.length === 0 ? <div style={{ padding: '24px 16px', textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>no notifications yet</div> :
-              notifications.map(n => (
-                <div key={n.id} style={{ padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, background: n.is_read ? 'transparent' : WARM_GOLD + '08' }}>
+              notifications.map(n => {
+                const postMatch = (n.link || '').match(/post=([0-9a-fA-F-]+)/);
+                return (
+                <div key={n.id}
+                  onClick={postMatch ? () => { setShowNotifications(false); setFocusPostId(postMatch[1]); } : undefined}
+                  style={{ padding: '12px 16px', borderBottom: `1px solid ${BORDER}`, background: n.is_read ? 'transparent' : WARM_GOLD + '08', cursor: postMatch ? 'pointer' : 'default' }}>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: n.type === 'stamp' ? WARM_GOLD : n.type === 'like' ? RUBY : SLATE, flexShrink: 0 }}>
                       {n.type === 'stamp' ? currencyIcon : n.type === 'like' ? '♥' : n.type === 'comment' ? '↩' : n.type === 'reward' ? '♛' : '◈'}
@@ -1253,7 +1301,8 @@ export function FlockApp({ tenantId: propTenantId }) {
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             }
           </div>
         )}
