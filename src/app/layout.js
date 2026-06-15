@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { getTenantBySlug, getTenantByDomain, getTenantPalette } from '@/lib/tenant';
 import { AuthProvider } from '@/lib/auth-context';
 import { PoweredByFlock } from '@/components/PoweredByFlock';
+import { PwaRegister } from '@/components/PwaRegister';
 
 export default async function RootLayout({ children }) {
   const headersList = headers();
@@ -44,6 +45,8 @@ export default async function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content={palette.ruby} />
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -71,6 +74,7 @@ export default async function RootLayout({ children }) {
           {children}
           {tenant && !tenant.hide_branding && <PoweredByFlock slug={tenant.slug} />}
         </AuthProvider>
+        <PwaRegister />
       </body>
     </html>
   );

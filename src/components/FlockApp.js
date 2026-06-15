@@ -11,6 +11,18 @@ function withTimeout(promise, ms) {
   ]);
 }
 
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+
+// VAPID public key (base64url) → Uint8Array for PushManager.subscribe.
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
 // A reward tier collects a shipping address when the artist flagged it, or for
 // the built-in physical reward types.
 function levelNeedsShipping(level) {
@@ -824,6 +836,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [focusPostId, setFocusPostId] = useState(null); // post opened from a notification / ?post= link
   const [focusPost, setFocusPost] = useState(null);
+  const [pushState, setPushState] = useState('unknown'); // unknown | unsupported | off | on | busy
   const [checkinShow, setCheckinShow] = useState(null);
   const [checkinCode, setCheckinCode] = useState('');
   const [checkinStatus, setCheckinStatus] = useState('');
@@ -1089,6 +1102,51 @@ export function FlockApp({ tenantId: propTenantId }) {
     return () => { cancelled = true; };
   }, [focusPostId, supabase, tenantId, user]);
 
+  // Detect current push state on mount (supported? already subscribed?).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window) || !VAPID_PUBLIC_KEY) {
+        if (!cancelled) setPushState('unsupported');
+        return;
+      }
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (!cancelled) setPushState(sub && Notification.permission === 'granted' ? 'on' : 'off');
+      } catch {
+        if (!cancelled) setPushState('off');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const enablePush = async () => {
+    if (!user || !tenantId || pushState === 'busy') return;
+    setPushState('busy');
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { setPushState('off'); return; }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
+      const j = sub.toJSON();
+      await supabase.from('push_subscriptions').upsert(
+        { endpoint: j.endpoint, user_id: user.id, tenant_id: tenantId, p256dh: j.keys.p256dh, auth: j.keys.auth },
+        { onConflict: 'endpoint' },
+      );
+      setPushState('on');
+    } catch (e) {
+      console.error('[push] enable failed:', e?.message);
+      setPushState('off');
+    }
+  };
+
   // Poll notifications every 60s so the bell updates without changing tabs.
   // This is a plain table read (notifications table), NOT an auth call, so it
   // does not touch auth rate limits.
@@ -1137,7 +1195,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (showPollCreator && pollOptions.filter(o => o.trim()).length >= 2) row.poll_options = pollOptions.filter(o => o.trim());
     if (liveUrl.trim()) row.live_url = liveUrl.trim();
 
-    const { error } = await supabase.from('posts').insert(row);
+    const { data: inserted, error } = await supabase.from('posts').insert(row).select('id').single();
     if (!error) {
       setNewPost(''); setPostImages([]); setPostImagePreviews([]); setPostAudio(null); setPostAudioName(null);
       setPostVideo(null); setPostVideoPreview(null);
@@ -1148,7 +1206,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       if (profile?.role === 'band' || profile?.role === 'admin') {
         // Only notify fans if artist hasn't disabled it
         if (cfg.notify_fans_on_post !== 'false') {
-          fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType }) }).catch(() => {});
+          fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType, postId: inserted?.id }) }).catch(() => {});
         }
       }
     }
@@ -1723,6 +1781,23 @@ export function FlockApp({ tenantId: propTenantId }) {
                   <span style={{ fontFamily: "'DM Mono', monospace", color: SLATE + '55', fontSize: 14 }}>→</span>
                 </div>
               ))}
+
+              {/* Push notifications */}
+              {pushState !== 'unsupported' && pushState !== 'unknown' && (
+                <div onClick={pushState === 'on' ? undefined : enablePush}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: `1px solid ${BORDER}`, cursor: pushState === 'on' ? 'default' : 'pointer' }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 15, color: pushState === 'on' ? SAGE : SLATE, width: 24, textAlign: 'center' }}>◔</span>
+                  <span style={{ fontSize: 13, color: INK, flex: 1 }}>
+                    {pushState === 'on' ? 'notifications on' : 'turn on notifications'}
+                    <span style={{ display: 'block', fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '99', marginTop: 2 }}>
+                      {pushState === 'on' ? 'you’ll get a ping when new posts drop' : 'get pinged when the artist posts'}
+                    </span>
+                  </span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", color: pushState === 'on' ? SAGE : SLATE + '55', fontSize: pushState === 'busy' ? 11 : 14 }}>
+                    {pushState === 'busy' ? '...' : pushState === 'on' ? '✓' : '→'}
+                  </span>
+                </div>
+              )}
 
               {/* Referral */}
               {profile.referral_code && (
