@@ -14,7 +14,16 @@ export function getAnonClient() {
     anonClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      { auth: { persistSession: false, autoRefreshToken: false } },
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          // Distinct storageKey so this read-only client doesn't share the
+          // navigator.locks lock with the real session client. Sharing it caused
+          // getSession() to contend/stall on load (login loop on some browsers).
+          storageKey: 'sb-flock-anon',
+        },
+      },
     );
   }
   return anonClient;
