@@ -847,7 +847,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   const INK = 'var(--ink)'; const CREAM = 'var(--cream)'; const RUBY = 'var(--ruby)';
   const BLUSH = 'var(--blush)'; const WARM_GOLD = 'var(--warm-gold)'; const SLATE = 'var(--slate)';
-  const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)';
+  const SURFACE = 'var(--surface)'; const BORDER = 'var(--border)'; const SAGE = '#7D8B6A';
 
   // ── Load tenant config ────────────────────────────────────────────────────
   useEffect(() => {
