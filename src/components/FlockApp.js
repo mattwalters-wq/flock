@@ -793,6 +793,8 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [mainTab, setMainTab] = useState('feed');
   const [feedView, setFeedView] = useState('community');
   const [feedTagFilter, setFeedTagFilter] = useState(null);
+  const [feedArtistOnly, setFeedArtistOnly] = useState(false); // "everyone" feed: show only the artist's posts
+  const [artistIds, setArtistIds] = useState([]); // profile ids of admin/band (the artist) in this tenant
 
   // Data
   const [posts, setPosts] = useState([]);
@@ -936,6 +938,12 @@ export function FlockApp({ tenantId: propTenantId }) {
       else if (feed === 'highlights') query = query.eq('is_highlight', true);
       else query = query.eq('feed_type', feed);
 
+      // "everyone" feed: optionally narrow to just the artist's posts (server-side
+      // so it surfaces every one of them, not only those on the first page).
+      if (feed === 'community' && feedArtistOnly && artistIds.length) {
+        query = query.in('author_id', artistIds);
+      }
+
       if (append && posts.length > 0) {
         const oldestPost = posts.filter(p => !p.is_pinned).slice(-1)[0];
         if (oldestPost) query = query.lt('created_at', oldestPost.created_at);
@@ -984,7 +992,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     }
     if (append) setLoadingMorePosts(false);
     else setLoadingPosts(false);
-  }, [feedView, user, supabase, tenantId, posts]);
+  }, [feedView, user, supabase, tenantId, posts, feedArtistOnly, artistIds]);
 
   const loadMorePosts = useCallback(() => {
     fetchPosts(feedView, true);
@@ -1055,7 +1063,15 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (data) { setNotifications(data); setUnreadCount(data.filter(n => !n.is_read).length); }
   }, [user, supabase, tenantId]);
 
-  useEffect(() => { if (supabase && tenantId) fetchPosts(); }, [feedView, supabase, tenantId]);
+  useEffect(() => { if (supabase && tenantId) fetchPosts(); }, [feedView, supabase, tenantId, feedArtistOnly]);
+
+  // Load the artist's author ids (admin/band) so the "just the artist" feed filter
+  // can query by them.
+  useEffect(() => {
+    if (!supabase || !tenantId) return;
+    supabase.from('profiles').select('id').eq('tenant_id', tenantId).in('role', ['admin', 'band'])
+      .then(({ data }) => { if (data) setArtistIds(data.map(p => p.id)); });
+  }, [supabase, tenantId]);
   useEffect(() => {
     if (mainTab === 'shows') fetchShows();
     if (mainTab === 'points') fetchStampData();
@@ -1384,7 +1400,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                 const isActive = feedView === tab.id;
                 const color = tab.color || RUBY;
                 return (
-                  <button key={tab.id} onClick={() => { setFeedView(tab.id); setFeedTagFilter(null); }} style={{ flex: tab.id === 'highlights' ? '0 0 auto' : 1, padding: '12px 8px 10px', background: 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: tab.id === 'highlights' ? 80 : 56 }}>
+                  <button key={tab.id} onClick={() => { setFeedView(tab.id); setFeedTagFilter(null); setFeedArtistOnly(false); }} style={{ flex: tab.id === 'highlights' ? '0 0 auto' : 1, padding: '12px 8px 10px', background: 'transparent', border: 'none', borderBottom: isActive ? `2.5px solid ${color}` : '2.5px solid transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: tab.id === 'highlights' ? 80 : 56 }}>
                     <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {tab.id === 'community' ? <span style={{ fontSize: 16, color: isActive ? RUBY : SLATE + '66' }}>✦</span> :
                        tab.id === 'highlights' ? <span style={{ fontSize: 14, color: isActive ? RUBY : SLATE + '66' }}>◉</span> :
@@ -1403,6 +1419,9 @@ export function FlockApp({ tenantId: propTenantId }) {
             {/* Tag filter */}
             <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 2 }}>
               <button onClick={() => setFeedTagFilter(null)} style={{ padding: '4px 10px', borderRadius: 12, border: `1px solid ${!feedTagFilter ? RUBY : BORDER}`, background: !feedTagFilter ? RUBY + '11' : 'transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 9, color: !feedTagFilter ? RUBY : SLATE, whiteSpace: 'nowrap' }}>all</button>
+              {feedView === 'community' && artistIds.length > 0 && (
+                <button onClick={() => setFeedArtistOnly(v => !v)} style={{ padding: '4px 10px', borderRadius: 12, border: `1px solid ${feedArtistOnly ? RUBY : BORDER}`, background: feedArtistOnly ? RUBY + '11' : 'transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 9, color: feedArtistOnly ? RUBY : SLATE, whiteSpace: 'nowrap', fontWeight: 600 }}>✦ from {tenantName?.toLowerCase() || 'the artist'}</button>
+              )}
               {POST_TAGS.filter(t => t.key !== 'general').map(t => (
                 <button key={t.key} onClick={() => setFeedTagFilter(feedTagFilter === t.key ? null : t.key)} style={{ padding: '4px 10px', borderRadius: 12, border: `1px solid ${feedTagFilter === t.key ? RUBY : BORDER}`, background: feedTagFilter === t.key ? RUBY + '11' : 'transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 9, color: feedTagFilter === t.key ? RUBY : SLATE, whiteSpace: 'nowrap' }}>{t.icon} {t.label}</button>
               ))}
