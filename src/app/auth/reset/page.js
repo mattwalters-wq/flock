@@ -12,66 +12,29 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
-  // 'loading' → still establishing the recovery session
-  // 'ready'   → a real session exists; the form can be submitted
-  // 'invalid' → the link was expired/already used; show "request a fresh one"
-  const [phase, setPhase] = useState('loading');
-  const ready = phase === 'ready';
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // Supabase puts the recovery token in the URL hash and detects it automatically.
     const sb = getSupabase();
-    let cancelled = false;
-    const markReady = () => { if (!cancelled) { setError(''); setPhase('ready'); } };
-    const markInvalid = (msg) => { if (!cancelled) { setError(msg); setPhase('invalid'); } };
-
-    // A real PASSWORD_RECOVERY/SIGNED_IN event with a session is the happy path.
-    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-      if (session) markReady();
+    const { data: sub } = sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || session) setReady(true);
     });
-
-    (async () => {
-      const hash = new URLSearchParams((typeof window !== 'undefined' ? window.location.hash : '').replace(/^#/, ''));
-      const query = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-
-      // 1. GoTrue redirects back with an explicit error when the one-time token is
-      // expired or already consumed (e.g. the link was clicked twice, or an email
-      // scanner pre-opened it). Trust that instead of letting the user type a
-      // password that can never be saved.
-      const errCode = hash.get('error_code') || query.get('error_code');
-      if (errCode) {
-        const desc = (hash.get('error_description') || query.get('error_description') || '').replace(/\+/g, ' ');
-        return markInvalid(/expired|otp/i.test(errCode)
-          ? 'this reset link has expired or was already used — request a fresh one below'
-          : (desc ? decodeURIComponent(desc) : 'this reset link is invalid — request a fresh one below'));
+    // Also check existing session
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true);
+    });
+    // Fallback: if the URL carries recovery params, show the form even if the
+    // auth event was missed (e.g. timing or cookie quirks). The updateUser call
+    // will still validate the token server-side.
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('code=')) {
+        setReady(true);
       }
-
-      // 2. Recovery session already established (hash flow auto-detected, or a
-      // session left over from the link's first verify).
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) return markReady();
-
-      // 3. PKCE flow: the link came back as ?code=… — exchange it explicitly so a
-      // failure surfaces here, not after the user has typed a new password.
-      const code = query.get('code');
-      if (code) {
-        const { error: exErr } = await sb.auth.exchangeCodeForSession(code);
-        if (!exErr) {
-          // Scrub the code so a refresh/re-mount can't try to reuse it.
-          try { window.history.replaceState(null, '', window.location.pathname); } catch {}
-          return markReady();
-        }
-        return markInvalid('this reset link is invalid or has expired — request a fresh one below');
-      }
-
-      // 4. Implicit hash tokens are still being processed by the client; the
-      // onAuthStateChange handler above will flip us to ready when they land.
-      if (hash.get('access_token')) return;
-
-      // 5. The page was opened without any recovery token at all.
-      markInvalid('open the most recent reset link from your email to set a new password');
-    })().catch(() => markInvalid('could not verify your reset link — request a fresh one below'));
-
-    return () => { cancelled = true; sub?.subscription?.unsubscribe?.(); };
+    }
+    return () => { sub?.subscription?.unsubscribe?.(); };
   }, []);
 
   const updatePassword = async () => {
@@ -80,15 +43,6 @@ export default function ResetPasswordPage() {
     setLoading(true); setError('');
     const sb = getSupabase();
     try {
-      // Guard: never call updateUser without a live session — that's what produced
-      // the bare "session expired" with no way forward. Send them back for a fresh link.
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) {
-        setPhase('invalid');
-        setError('your reset link expired before the password could be saved — request a fresh one below');
-        setLoading(false);
-        return;
-      }
       const { error: updateErr } = await Promise.race([
         sb.auth.updateUser({ password }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
@@ -122,17 +76,6 @@ export default function ResetPasswordPage() {
               <div style={{ fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase', marginBottom: 8 }}>password updated</div>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE }}>redirecting you back to your community...</div>
             </div>
-          ) : phase === 'invalid' ? (
-            <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <div style={{ marginBottom: 6, fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>reset link expired</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: RUBY, marginBottom: 4, lineHeight: 1.6 }}>{error}</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 20, lineHeight: 1.6 }}>
-                reset links can only be opened once — open the newest email, or request a new link.
-              </div>
-              <a href="/login" style={{ display: 'block', width: '100%', padding: '14px', background: RUBY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", textDecoration: 'none', boxSizing: 'border-box' }}>
-                request a new link →
-              </a>
-            </div>
           ) : (
             <>
               <div style={{ marginBottom: 6, fontSize: 18, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>set new password</div>
@@ -162,7 +105,7 @@ export default function ResetPasswordPage() {
                 style={{ width: '100%', padding: '14px', background: RUBY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: (loading || !ready) ? 0.7 : 1, fontFamily: "'DM Sans', sans-serif" }}>
                 {loading ? '...' : 'update password →'}
               </button>
-              {phase === 'loading' && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginTop: 10, textAlign: 'center' }}>verifying your reset link...</div>}
+              {!ready && <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginTop: 10, textAlign: 'center' }}>loading session...</div>}
             </>
           )}
         </div>
