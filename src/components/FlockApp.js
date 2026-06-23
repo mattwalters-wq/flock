@@ -1331,10 +1331,10 @@ export function FlockApp({ tenantId: propTenantId }) {
             </a>
           </div>
         )}
-        <div style={{ maxWidth: 480, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 20, fontWeight: 700, color: INK, textTransform: 'lowercase' }}>
+        <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 26, fontWeight: 700, color: INK, textTransform: 'lowercase', letterSpacing: '-0.5px' }}>
             {logoUrl
-              ? <img src={logoUrl} alt={tenantName} style={{ height: 28, maxWidth: 140, objectFit: 'contain', display: 'block' }} />
+              ? <img src={logoUrl} alt={tenantName} style={{ height: 44, maxWidth: 200, objectFit: 'contain', display: 'block' }} />
               : tenantName}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
