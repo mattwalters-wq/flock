@@ -160,6 +160,7 @@ function CommentsPanel({ postId, supabase, currentUserId, currentProfile, tenant
   const [comments, setComments] = useState([]);
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState('');
   const [loading, setLoading] = useState(true);
   const [replyTo, setReplyTo] = useState(null);
 
@@ -811,6 +812,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   // Post composer
   const [newPost, setNewPost] = useState('');
   const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState('');
   const [postImages, setPostImages] = useState([]);
   const [postImagePreviews, setPostImagePreviews] = useState([]);
   const [postAudio, setPostAudio] = useState(null);
@@ -1212,6 +1214,16 @@ export function FlockApp({ tenantId: propTenantId }) {
     if (liveUrl.trim()) row.live_url = liveUrl.trim();
 
     const { data: inserted, error } = await supabase.from('posts').insert(row).select('id').single();
+    if (error) {
+      console.error('[post] insert failed:', error);
+      const msg = /row-level security|policy|permission/i.test(error.message || '')
+        ? "couldn't post here — you don't have permission to post in this community."
+        : "couldn't post — please try again.";
+      setPostError(msg);
+      setPosting(false);
+      return;
+    }
+    setPostError('');
     if (!error) {
       setNewPost(''); setPostImages([]); setPostImagePreviews([]); setPostAudio(null); setPostAudioName(null);
       setPostVideo(null); setPostVideoPreview(null);
@@ -1544,6 +1556,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                   {posting ? '...' : liveUrl.trim() ? 'go live' : 'post'}
                 </button>
               </div>
+              {postError && <div style={{ marginTop: 8, fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY }}>{postError}</div>}
             </div>
 
             {/* Posts */}
