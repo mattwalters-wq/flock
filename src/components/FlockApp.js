@@ -1343,6 +1343,22 @@ export function FlockApp({ tenantId: propTenantId }) {
             </a>
           </div>
         )}
+        {/* Fans: a clear, tappable flock mark up top so curious members know what
+            the platform is. Artists get the admin bar above instead. */}
+        {!(profile?.role === 'admin' || profile?.role === 'band') && (
+          <a
+            href={`https://fans-flock.com?utm_source=tenant&utm_medium=app_header&utm_campaign=${typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : ''}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: '5px 20px', textDecoration: 'none' }}
+          >
+            <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, letterSpacing: '1px', color: SLATE + 'AA' }}>powered by</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 15, height: 15, borderRadius: 4, background: RUBY, color: '#fff', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✦</span>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, color: INK, textTransform: 'lowercase', letterSpacing: '-0.3px' }}>flock</span>
+            </span>
+          </a>
+        )}
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 26, fontWeight: 700, color: INK, textTransform: 'lowercase', letterSpacing: '-0.5px' }}>
             {logoUrl
