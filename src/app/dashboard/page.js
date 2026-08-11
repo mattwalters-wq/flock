@@ -40,12 +40,14 @@ function SetupChecklist({ supabase, tenantId }) {
       const hasLogo = !!cfg.logo_url;
       const hasBanner = !!cfg.banner_url;
       const hasTagline = !!cfg.tagline;
+      const fanCount = membersRes.count || 0;
       const hasPosts = (postsRes.count || 0) > 0;
       const hasShows = (showsRes.count || 0) > 0;
-      const hasFans = (membersRes.count || 0) > 0;
+      const hasFans = fanCount > 0;
+      const hasTenFans = fanCount >= 10;
       const hasHighlightsLink = hasPosts; // proxy - if they've posted they've probably highlighted
 
-      setChecks({ hasSocials, hasLogo, hasBanner, hasTagline, hasPosts, hasShows, hasFans });
+      setChecks({ hasSocials, hasLogo, hasBanner, hasTagline, hasPosts, hasShows, hasFans, hasTenFans, fanCount });
     })();
   }, [supabase, tenantId]);
 
@@ -58,6 +60,7 @@ function SetupChecklist({ supabase, tenantId }) {
     { key: 'hasPosts', label: 'write your first post', detail: 'welcome your fans in - they see this when they join', tab: null, action: 'post' },
     { key: 'hasShows', label: 'add an upcoming show', detail: 'fans can check in and earn points', tab: 'shows' },
     { key: 'hasFans', label: 'get your first fan', detail: 'share your link in bio and invite someone', tab: null, action: 'share' },
+    { key: 'hasTenFans', label: 'reach 10 fans', detail: `${Math.min(checks.fanCount || 0, 10)}/10 - import your mailing list in the fans tab, it's the fastest way`, tab: 'fans' },
   ];
 
   const done = steps.filter(s => checks[s.key]).length;
@@ -335,6 +338,16 @@ function Posts({ supabase, tenantId, profile }) {
 
   const feedOptions = [{ id: 'community', label: 'everyone' }, ...members.map(m => ({ id: m.slug, label: m.name?.toLowerCase() }))];
 
+  // Starter templates for the blank-page problem. Each is a rough draft the
+  // artist personalises before posting — filler in [brackets] makes it obvious
+  // what to swap out.
+  const TEMPLATES = [
+    { label: '♪ studio update', text: `spent today in the studio working on [song]. it's not finished, but there's a moment about [what happened] that i can't stop playing back. you'll hear it first here.` },
+    { label: '◎ show announce', text: `just locked in: [venue], [city], [date]. this one's going to be special because [reason]. check in at the show to earn your stamps — see you down the front.` },
+    { label: '? ask your fans', text: `honest question for the inner circle: [the thing you're deciding — next single? tour city? merch design?]. you're the people who show up, so you get a say.` },
+    { label: '✦ behind the scenes', text: `something i've never shared before: [the story behind a song / a photo from the archive / how a lyric happened]. this stays here — just for this community.` },
+  ];
+
   return (
     <div>
       <H style={{ marginBottom: 20 }}>posts</H>
@@ -344,6 +357,14 @@ function Posts({ supabase, tenantId, profile }) {
             <button key={f.id} onClick={() => setFeedType(f.id)} style={{ padding: '4px 12px', borderRadius: 20, border: `1px solid ${feedType === f.id ? RUBY : BORDER}`, background: feedType === f.id ? RUBY + '11' : 'transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 10, color: feedType === f.id ? RUBY : SLATE }}>{f.label}</button>
           ))}
         </div>
+        {!content.trim() && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Mono size={9} color={SLATE + '88'}>need a starting point?</Mono>
+            {TEMPLATES.map(t => (
+              <button key={t.label} onClick={() => setContent(t.text)} style={{ padding: '4px 10px', borderRadius: 20, border: `1px dashed ${BORDER}`, background: 'transparent', cursor: 'pointer', fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE }}>{t.label}</button>
+            ))}
+          </div>
+        )}
         <textarea value={content} onChange={e => setContent(e.target.value)} onKeyDown={e => e.metaKey && e.key === 'Enter' && doPost()} placeholder="post to your community..." rows={3}
           style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", resize: 'vertical', boxSizing: 'border-box', marginBottom: 10 }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -911,6 +932,89 @@ function FanMap({ fans, currencyName, currencyIcon }) {
   );
 }
 
+// ============ MAILING LIST IMPORT ============
+// Paste-or-upload import that turns an artist's existing mailing list into
+// invite emails (via /api/invites). This is the cold-start killer: most
+// artists arrive with a list from mailchimp/bandcamp and an empty community.
+function ImportInvites({ supabase, tenantId }) {
+  const [open, setOpen] = useState(false);
+  const [raw, setRaw] = useState('');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState('');
+
+  // Pull anything email-shaped out of whatever they paste — a bare list, a
+  // mailchimp/bandcamp CSV export, a spreadsheet column — and dedupe.
+  const emails = [...new Set((raw.match(/[^\s,;<>"']+@[^\s,;<>"']+\.[^\s,;<>"']{2,}/g) || []).map(e => e.toLowerCase()))];
+
+  const onFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setRaw(prev => (prev ? prev + '\n' : '') + String(reader.result || ''));
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const send = async () => {
+    if (!emails.length || sending) return;
+    setSending(true); setResult('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { setResult('session expired - refresh and try again'); setSending(false); return; }
+      let sent = 0;
+      for (let i = 0; i < emails.length; i += 100) {
+        const res = await fetch('/api/invites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ tenantId, emails: emails.slice(i, i + 100) }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setResult(data.error || 'something went wrong'); setSending(false); return; }
+        sent += data.sent || 0;
+        setResult(`sending... ${sent} of ${emails.length}`);
+      }
+      setResult(`invited ${sent} ${sent === 1 ? 'person' : 'people'} ✦`);
+      setRaw('');
+    } catch {
+      setResult('error sending invites');
+    }
+    setSending(false);
+  };
+
+  return (
+    <div style={{ background: SURFACE, borderRadius: 12, border: `1px solid ${BORDER}`, padding: '16px 18px', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 3 }}>import your mailing list</div>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, lineHeight: 1.5 }}>invite the fans you already have - paste emails or upload a csv export</div>
+        </div>
+        {!open && <Btn onClick={() => setOpen(true)} variant="ghost" style={{ fontSize: 11, whiteSpace: 'nowrap' }}>import →</Btn>}
+      </div>
+      {open && (
+        <div style={{ marginTop: 14 }}>
+          <textarea value={raw} onChange={e => setRaw(e.target.value)} rows={4}
+            placeholder="paste emails here - commas, newlines, or a whole csv, we'll find the addresses..."
+            style={{ width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 12, color: INK, outline: 'none', fontFamily: "'DM Mono', monospace", resize: 'vertical', boxSizing: 'border-box', marginBottom: 10 }} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, border: `1px solid ${RUBY}33`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer' }}>
+              upload csv
+              <input type="file" accept=".csv,.txt" onChange={onFile} style={{ display: 'none' }} />
+            </label>
+            <Btn onClick={send} disabled={sending || emails.length === 0} style={{ fontSize: 12 }}>
+              {sending ? 'sending...' : `send ${emails.length || ''} invite${emails.length === 1 ? '' : 's'}`}
+            </Btn>
+            <Btn onClick={() => { setOpen(false); setResult(''); }} variant="ghost" style={{ fontSize: 11 }}>close</Btn>
+            {result && <Mono size={10} color={result.includes('error') || result.includes('wrong') || result.includes('expired') ? RUBY : SAGE}>{result}</Mono>}
+          </div>
+          <div style={{ marginTop: 10, fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '88', lineHeight: 1.6 }}>
+            only invite people who signed up to hear from you - each email says it was sent because they're on your mailing list.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Fans({ supabase, tenantId, currencyName, currencyIcon }) {
   const [fans, setFans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1001,6 +1105,9 @@ function Fans({ supabase, tenantId, currencyName, currencyIcon }) {
           </div>
         ))}
       </div>
+
+      {/* Mailing list import */}
+      <ImportInvites supabase={supabase} tenantId={tenantId} />
 
       {/* Fan Map */}
       <FanMap fans={fans} currencyName={currencyName} currencyIcon={currencyIcon} />
