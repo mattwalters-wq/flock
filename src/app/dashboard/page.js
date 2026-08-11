@@ -286,7 +286,7 @@ function Overview({ supabase, tenantId, tenant, currencyName, currencyIcon, rewa
           <>
             <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>lock in the founder rate · $1/month, forever</div>
             <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10, lineHeight: 1.6 }}>
-              flock is free in beta. founding artists who set up billing keep $1/month for life, whatever we charge later.{referrals.months > 0 ? ` your ${referrals.months} referral ${referrals.months === 1 ? 'month applies' : 'months apply'} as free time at checkout.` : ''}
+              beta artists keep $1/month for life, whatever we charge later. cancel anytime.{referrals.months > 0 ? ` your ${referrals.months} referral ${referrals.months === 1 ? 'month applies' : 'months apply'} as free time at checkout.` : ''}
             </div>
           </>
         )}
@@ -326,7 +326,7 @@ function Overview({ supabase, tenantId, tenant, currencyName, currencyIcon, rewa
           {referrals.count > 0 && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SAGE, marginLeft: 8 }}>{referrals.count} referred · {referrals.months} free {referrals.months === 1 ? 'month' : 'months'} banked</span>}
         </div>
         <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10, lineHeight: 1.6 }}>
-          when they launch a community with your link, you earn a free month once paid plans start — and they keep the founder rate.
+          when an artist launches a community with your link, you earn a free month off your subscription — and they get the founder rate too.
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input readOnly value={tenant?.slug ? `https://${process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com'}/onboarding?ref=${tenant.slug}` : '...'} style={{ flex: 1, padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace", outline: 'none' }} />

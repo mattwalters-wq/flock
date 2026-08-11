@@ -222,7 +222,7 @@ const BODY_HTML = `
         <a class="btn btn--primary" href="/onboarding">launch your community&nbsp;<span class="star">✦</span></a>
         <a class="btn btn--ghost" href="#how">see how it works</a>
       </div>
-      <p class="hero__meta"><b>free in beta</b> · no credit card needed · founding artists lock their rate for life</p>
+      <p class="hero__meta"><b>$1/month founder rate</b> · locked for life · cancel anytime</p>
 
       <div class="frame reveal">
         <div class="frame__bar">
@@ -404,7 +404,7 @@ const BODY_HTML = `
         </div>
         <div class="compare__row compare__row--flock">
           <div class="compare__name">flock&nbsp;<span class="star" style="color:var(--accent)">✦</span></div>
-          <div class="compare__price">free in beta</div>
+          <div class="compare__price">$1/mo founder rate</div>
           <div class="compare__desc">website + link in bio + community + shows + rewards + email. yours forever. <span class="compare__tag">all of it</span></div>
         </div>
       </div>
@@ -427,8 +427,8 @@ const BODY_HTML = `
           <p class="stat__label">tools collapsed into a single platform you actually own.</p>
         </div>
         <div class="stat">
-          <div class="stat__num">$<span class="accent-word">0</span></div>
-          <p class="stat__label">to launch in beta. founding artists keep their rate for life.</p>
+          <div class="stat__num">$<span class="accent-word">1</span></div>
+          <p class="stat__label">a month for founding artists. locked for life, cancel anytime.</p>
         </div>
       </div>
     </div>
@@ -438,8 +438,8 @@ const BODY_HTML = `
     <div class="wrap">
       <div class="cta reveal">
         <span class="label label--accent">founding artist access</span>
-        <div class="cta__price">free</div>
-        <p class="cta__sub">while we build · founding artists lock their rate for life when paid plans launch</p>
+        <div class="cta__price">$1<span style="font-size:0.35em;font-weight:600;color:var(--ink-3);">/month</span></div>
+        <p class="cta__sub">the founder rate — locked for life for artists who join during beta</p>
         <ul class="cta__list">
           <li><span class="tick">✓</span> your own community</li>
           <li><span class="tick">✓</span> custom fan currency</li>
@@ -455,7 +455,7 @@ const BODY_HTML = `
           <a class="btn btn--primary" href="/onboarding">launch your community&nbsp;<span class="star">✦</span></a>
           <a class="btn btn--ghost" href="#compare">see what's included</a>
         </div>
-        <p class="cta__fine">free in beta · no credit card needed · the founder rate is only for artists who join during beta</p>
+        <p class="cta__fine">$1/month, locked for life · cancel anytime · founder rate is only for beta artists</p>
       </div>
     </div>
   </section>
