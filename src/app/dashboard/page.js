@@ -150,6 +150,8 @@ function Overview({ supabase, tenantId, tenant, currencyName, currencyIcon, rewa
   const [copiedCommunity, setCopiedCommunity] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [referrals, setReferrals] = useState({ count: 0, months: 0 });
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingError, setBillingError] = useState('');
   const [digestResult, setDigestResult] = useState('');
   const [digestIntro, setDigestIntro] = useState('');
   const [showDigest, setShowDigest] = useState(false);
@@ -266,6 +268,54 @@ function Overview({ supabase, tenantId, tenant, currencyName, currencyIcon, rewa
             const url = typeof window !== 'undefined' ? window.location.origin : '';
             navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
           }} variant="ghost" style={{ fontSize: 11 }}>{copiedCommunity ? 'copied ✓' : 'copy'}</Btn>
+        </div>
+      </div>
+
+      <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>billing</Mono>
+      <div style={{ background: SURFACE, borderRadius: 12, padding: '16px 18px', border: `1px solid ${BORDER}`, marginBottom: 24 }}>
+        {['active', 'trialing'].includes(tenant?.billing_status) ? (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>
+              founder rate · $1/month <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SAGE, marginLeft: 6 }}>{tenant.billing_status === 'trialing' ? 'free months applied ✓' : 'active ✓'}</span>
+            </div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10, lineHeight: 1.6 }}>
+              your rate is locked for life. referral free months apply automatically.
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>lock in the founder rate · $1/month, forever</div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10, lineHeight: 1.6 }}>
+              flock is free in beta. founding artists who set up billing keep $1/month for life, whatever we charge later.{referrals.months > 0 ? ` your ${referrals.months} referral ${referrals.months === 1 ? 'month applies' : 'months apply'} as free time at checkout.` : ''}
+            </div>
+          </>
+        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Btn
+            disabled={billingBusy}
+            onClick={async () => {
+              setBillingBusy(true); setBillingError('');
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.access_token) { setBillingError('session expired - refresh and try again'); setBillingBusy(false); return; }
+                const endpoint = ['active', 'trialing'].includes(tenant?.billing_status) ? '/api/billing/portal' : '/api/billing/checkout';
+                const res = await fetch(endpoint, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                  body: JSON.stringify({ tenantId }),
+                });
+                const data = await res.json();
+                if (!res.ok || !data.url) { setBillingError(data.error || 'something went wrong'); setBillingBusy(false); return; }
+                window.location.href = data.url;
+              } catch {
+                setBillingError('something went wrong'); setBillingBusy(false);
+              }
+            }}
+            style={{ fontSize: 12 }}
+          >
+            {billingBusy ? 'opening...' : ['active', 'trialing'].includes(tenant?.billing_status) ? 'manage billing →' : 'lock in founder rate →'}
+          </Btn>
+          {billingError && <Mono size={10} color={RUBY}>{billingError}</Mono>}
         </div>
       </div>
 
