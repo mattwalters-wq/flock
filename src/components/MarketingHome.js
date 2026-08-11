@@ -222,7 +222,7 @@ const BODY_HTML = `
         <a class="btn btn--primary" href="/onboarding">launch your community&nbsp;<span class="star">✦</span></a>
         <a class="btn btn--ghost" href="#how">see how it works</a>
       </div>
-      <p class="hero__meta"><b>free in beta</b> · no credit card needed · early artists get a founder rate</p>
+      <p class="hero__meta"><b>free in beta</b> · no credit card needed · founding artists lock their rate for life</p>
 
       <div class="frame reveal">
         <div class="frame__bar">
@@ -428,7 +428,7 @@ const BODY_HTML = `
         </div>
         <div class="stat">
           <div class="stat__num">$<span class="accent-word">0</span></div>
-          <p class="stat__label">to launch in beta. early artists keep a founder rate.</p>
+          <p class="stat__label">to launch in beta. founding artists keep their rate for life.</p>
         </div>
       </div>
     </div>
@@ -437,9 +437,9 @@ const BODY_HTML = `
   <section class="section" id="pricing">
     <div class="wrap">
       <div class="cta reveal">
-        <span class="label label--accent">beta access</span>
+        <span class="label label--accent">founding artist access</span>
         <div class="cta__price">free</div>
-        <p class="cta__sub">for independent artists while we build</p>
+        <p class="cta__sub">while we build · founding artists lock their rate for life when paid plans launch</p>
         <ul class="cta__list">
           <li><span class="tick">✓</span> your own community</li>
           <li><span class="tick">✓</span> custom fan currency</li>
@@ -455,7 +455,7 @@ const BODY_HTML = `
           <a class="btn btn--primary" href="/onboarding">launch your community&nbsp;<span class="star">✦</span></a>
           <a class="btn btn--ghost" href="#compare">see what's included</a>
         </div>
-        <p class="cta__fine">free in beta · no credit card needed · early artists get a founder rate</p>
+        <p class="cta__fine">free in beta · no credit card needed · the founder rate is only for artists who join during beta</p>
       </div>
     </div>
   </section>
@@ -491,7 +491,7 @@ const BODY_HTML = `
     </div>
     <div class="footer__bottom">
       <small>© 2026 flock · made for independent artists</small>
-      <small>free in beta ✦</small>
+      <small>founding artist beta ✦</small>
     </div>
   </div>
 </footer>
