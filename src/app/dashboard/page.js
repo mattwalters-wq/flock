@@ -139,12 +139,14 @@ function SetupChecklist({ supabase, tenantId }) {
 }
 
 // ============ OVERVIEW ============
-function Overview({ supabase, tenantId, currencyName, currencyIcon, rewardsLabel = 'rewards' }) {
+function Overview({ supabase, tenantId, tenant, currencyName, currencyIcon, rewardsLabel = 'rewards' }) {
   const [stats, setStats] = useState({ members: 0, posts: 0, shows: 0, totalPoints: 0, pendingClaims: 0 });
   const [recentMembers, setRecentMembers] = useState([]);
   const [digestSending, setDigestSending] = useState(false);
   const [copiedHighlights, setCopiedHighlights] = useState(false);
   const [copiedCommunity, setCopiedCommunity] = useState(false);
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const [referrals, setReferrals] = useState({ count: 0, months: 0 });
   const [digestResult, setDigestResult] = useState('');
   const [digestIntro, setDigestIntro] = useState('');
   const [showDigest, setShowDigest] = useState(false);
@@ -161,6 +163,13 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon, rewardsLabel
       setStats({ members: members.count || 0, posts: posts.count || 0, shows: shows.count || 0, totalPoints: (pd || []).reduce((s, p) => s + (p.stamp_count || 0), 0), pendingClaims: pending.count || 0 });
       const { data: recent } = await supabase.from('profiles').select('display_name, stamp_count, created_at, role').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(6);
       setRecentMembers(recent || []);
+      // Referral stats. referral_credits may not be migrated yet, so each read
+      // is independent and failure just leaves the zeros in place.
+      try {
+        const { count } = await supabase.from('tenants').select('id', { count: 'exact', head: true }).eq('referred_by', tenantId);
+        const { data: credits } = await supabase.from('referral_credits').select('months').eq('referrer_tenant_id', tenantId);
+        setReferrals({ count: count || 0, months: (credits || []).reduce((s, c) => s + (c.months || 0), 0) });
+      } catch { /* pre-migration */ }
     })();
   }, [supabase, tenantId]);
 
@@ -254,6 +263,25 @@ function Overview({ supabase, tenantId, currencyName, currencyIcon, rewardsLabel
             const url = typeof window !== 'undefined' ? window.location.origin : '';
             navigator.clipboard.writeText(url).then(() => { setCopiedCommunity(true); setTimeout(() => setCopiedCommunity(false), 2000); });
           }} variant="ghost" style={{ fontSize: 11 }}>{copiedCommunity ? 'copied ✓' : 'copy'}</Btn>
+        </div>
+      </div>
+
+      <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>refer an artist</Mono>
+      <div style={{ background: SURFACE, borderRadius: 12, padding: '16px 18px', border: `1px solid ${BORDER}`, marginBottom: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>
+          know an artist who'd love this?
+          {referrals.count > 0 && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SAGE, marginLeft: 8 }}>{referrals.count} referred · {referrals.months} free {referrals.months === 1 ? 'month' : 'months'} banked</span>}
+        </div>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginBottom: 10, lineHeight: 1.6 }}>
+          when they launch a community with your link, you earn a free month once paid plans start — and they keep the founder rate.
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input readOnly value={tenant?.slug ? `https://${process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com'}/onboarding?ref=${tenant.slug}` : '...'} style={{ flex: 1, padding: '9px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace", outline: 'none' }} />
+          <Btn onClick={() => {
+            if (!tenant?.slug) return;
+            const url = `https://${process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com'}/onboarding?ref=${tenant.slug}`;
+            navigator.clipboard.writeText(url).then(() => { setCopiedReferral(true); setTimeout(() => setCopiedReferral(false), 2000); });
+          }} variant="ghost" style={{ fontSize: 11 }}>{copiedReferral ? 'copied ✓' : 'copy'}</Btn>
         </div>
       </div>
 
@@ -1812,7 +1840,7 @@ export default function Dashboard() {
 
       {/* Content */}
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 60px' }}>
-        {activeTab === 'overview' && <Overview supabase={supabase} tenantId={tenantId} currencyName={currencyName} currencyIcon={currencyIcon} rewardsLabel={rewardsLabel} />}
+        {activeTab === 'overview' && <Overview supabase={supabase} tenantId={tenantId} tenant={tenant} currencyName={currencyName} currencyIcon={currencyIcon} rewardsLabel={rewardsLabel} />}
         {activeTab === 'posts' && <Posts supabase={supabase} tenantId={tenantId} profile={profile} />}
         {activeTab === 'shows' && <Shows supabase={supabase} tenantId={tenantId} />}
         {activeTab === 'members' && <Members supabase={supabase} tenantId={tenantId} />}

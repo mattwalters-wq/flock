@@ -29,16 +29,25 @@ export async function POST(request) {
     if (tenantError) { console.error('[onboarding] tenant error:', tenantError); return NextResponse.json({ error: tenantError.message }, { status: 400 }); }
     const tenantId = tenant.id;
 
-    // 2b. Referral attribution (best-effort). The referral code is just the
-    // referrer's slug; we store it as referred_by on the new tenant. Wrapped so a
-    // bogus code — or the referred_by column not being migrated yet — can never
-    // break a signup. Crediting is handled manually for now.
+    // 2b. Referral attribution + crediting (best-effort). The referral code is
+    // just the referrer's slug; we store it as referred_by on the new tenant and
+    // write a credit row to the referral_credits ledger (1 free month, applied
+    // when paid plans launch). The UNIQUE(referred_tenant_id) constraint makes
+    // the credit idempotent. Wrapped so a bogus code — or the tables not being
+    // migrated yet — can never break a signup.
     const refCode = (referralCode || '').trim().toLowerCase();
     if (refCode && refCode !== community.slug) {
       try {
         const { data: referrer } = await db.from('tenants').select('id').eq('slug', refCode).single();
         if (referrer?.id) {
           await db.from('tenants').update({ referred_by: referrer.id }).eq('id', tenantId);
+          const { error: creditError } = await db.from('referral_credits').insert({
+            referrer_tenant_id: referrer.id,
+            referred_tenant_id: tenantId,
+            months: 1,
+            note: `referred ${community.slug}`,
+          });
+          if (creditError) console.error('[onboarding] referral credit skipped:', creditError.message);
         }
       } catch (e) {
         console.error('[onboarding] referral attribution skipped:', e?.message);
