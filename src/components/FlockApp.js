@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { authErrorMessage } from '@/lib/supabase-browser';
+import { flockPitchUrl } from '@/lib/flock-link';
 
 // Bound an auth call so a stuck token-refresh can't freeze the UI forever.
 function withTimeout(promise, ms) {
@@ -1347,7 +1348,7 @@ export function FlockApp({ tenantId: propTenantId }) {
             the platform is. Artists get the admin bar above instead. */}
         {!(profile?.role === 'admin' || profile?.role === 'band') && (
           <a
-            href={`https://fans-flock.com?utm_source=tenant&utm_medium=app_header&utm_campaign=${typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : ''}`}
+            href={flockPitchUrl({ medium: 'app_header' })}
             target="_blank"
             rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: '5px 20px', textDecoration: 'none' }}
@@ -1872,7 +1873,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
             {/* flock brand mark — clear, tappable, links to the marketing site */}
             <a
-              href={`https://fans-flock.com?utm_source=tenant&utm_medium=app_profile&utm_campaign=${typeof window !== 'undefined' ? window.location.hostname.split('.')[0] : ''}`}
+              href={flockPitchUrl({ medium: 'app_profile' })}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, textDecoration: 'none', padding: '28px 0 8px' }}

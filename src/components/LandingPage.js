@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
+import { flockPitchUrl } from '@/lib/flock-link';
 
 export function LandingPage() {
   const [mode, setMode] = useState('signup');
@@ -187,7 +188,7 @@ export function LandingPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20, fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '77' }}>
-          powered by <a href="https://fans-flock.com" style={{ color: SLATE + '77', textDecoration: 'none' }}>flock</a>
+          powered by <a href={flockPitchUrl({ medium: 'landing_footer' })} style={{ color: SLATE + '77', textDecoration: 'none' }}>flock</a>
           {' · '}
           <a href="https://fans-flock.com/terms" style={{ color: SLATE + '77', textDecoration: 'none' }}>terms</a>
           {' · '}

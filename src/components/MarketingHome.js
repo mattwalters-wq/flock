@@ -503,6 +503,29 @@ export function MarketingHome() {
     root.classList.add('fm-js');
     document.body.classList.add('fm-body');
 
+    // Carry referral attribution from the inbound URL onto the onboarding CTAs.
+    // Visitors arrive here from "powered by flock" marks on artist communities
+    // carrying ?ref=<slug> (plus utm_*); the CTAs are static "/onboarding" links
+    // in BODY_HTML, so without this the attribution dies on the first click.
+    // Older links in the wild only carry utm_campaign=<slug>, so fall back to it.
+    try {
+      const inbound = new URLSearchParams(window.location.search);
+      const carried = new URLSearchParams();
+      ['ref', 'utm_source', 'utm_medium', 'utm_campaign'].forEach((k) => {
+        const v = inbound.get(k);
+        if (v) carried.set(k, v);
+      });
+      if (!carried.get('ref') && inbound.get('utm_source') === 'tenant' && inbound.get('utm_campaign')) {
+        carried.set('ref', inbound.get('utm_campaign'));
+      }
+      const qs = carried.toString();
+      if (qs) {
+        document.querySelectorAll('.fm-root a[href^="/onboarding"]').forEach((a) => {
+          a.setAttribute('href', `/onboarding?${qs}`);
+        });
+      }
+    } catch { /* attribution is best-effort — never break the page over it */ }
+
     const nav = document.getElementById('fm-nav');
     const onScroll = () => { if (nav) nav.classList.toggle('is-stuck', window.scrollY > 8); };
     onScroll();

@@ -18,6 +18,7 @@ export default function HighlightsPage() {
   const [memberMap, setMemberMap] = useState({});
   const [shows, setShows] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const ruby = config.color_ruby || '#8B1A2B';
   const cream = config.color_cream || '#F5EFE6';
@@ -126,10 +127,32 @@ export default function HighlightsPage() {
             </div>
           )}
 
-          <a href={joinUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: ruby, color: cream, padding: '14px 30px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, letterSpacing: '-0.2px' }}>
-            join the community
-            <span style={{ ...mono, fontSize: 13 }}>✦</span>
-          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <a href={joinUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: ruby, color: cream, padding: '14px 30px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, letterSpacing: '-0.2px' }}>
+              join the community
+              <span style={{ ...mono, fontSize: 13 }}>✦</span>
+            </a>
+            <button
+              onClick={async () => {
+                // This page doubles as the artist's link-in-bio, so make passing
+                // it on one tap: native share sheet where available, clipboard
+                // everywhere else.
+                const url = `${window.location.origin}/highlights`;
+                if (navigator.share) {
+                  try { await navigator.share({ title: tenantName, text: tagline, url }); } catch { /* user dismissed */ }
+                  return;
+                }
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                } catch {}
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', color: cream + 'CC', border: `1px solid ${cream}33`, padding: '13px 22px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', ...sans }}
+            >
+              {copied ? 'link copied ✓' : 'share ↗'}
+            </button>
+          </div>
           <div style={{ marginTop: 12, ...mono, fontSize: 9, color: cream + '44', letterSpacing: '0.5px' }}>free to join · posts, rewards &amp; exclusive content</div>
         </div>
 

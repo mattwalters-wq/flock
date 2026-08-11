@@ -69,6 +69,12 @@ const CURRENCY_PRESETS = [
 function StepAccount({ initial, onNext }) {
   const [data, setData] = useState(initial);
   const [errors, setErrors] = useState({});
+  // Adopt a referral code that lands after mount: the wizard's ?ref= effect runs
+  // AFTER this step has already copied `initial` into local state, so without
+  // this sync the prefilled code never reaches the field (or the submit).
+  useEffect(() => {
+    if (initial.referralCode) setData(p => (p.referralCode ? p : { ...p, referralCode: initial.referralCode }));
+  }, [initial.referralCode]);
   const validate = () => {
     const e = {};
     if (!data.fullName.trim()) e.fullName = 'enter your name';
@@ -525,7 +531,13 @@ function OnboardingWizard() {
   useEffect(() => {
     try {
       const ref = new URLSearchParams(window.location.search).get('ref');
-      if (ref) setAccount(p => ({ ...p, referralCode: ref.trim().toLowerCase() }));
+      if (ref) {
+        setAccount(p => {
+          const next = { ...p, referralCode: ref.trim().toLowerCase() };
+          save({ account: next }); // survive a reload before step 1 completes
+          return next;
+        });
+      }
     } catch {}
   }, []);
 

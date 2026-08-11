@@ -3,14 +3,17 @@
 // per page) and suppressed when a tenant has hide_branding set.
 //
 // The link carries UTM params identifying the referring tenant so signups driven
-// from tenant sites are attributable. Colours use the tenant theme CSS vars set
-// in layout.js, so it respects light/dark and each tenant's palette.
+// from tenant sites are attributable, and a ref=<slug> so an artist who converts
+// credits this tenant. Colours use the tenant theme CSS vars set in layout.js,
+// so it respects light/dark and each tenant's palette.
 //
 // Generous bottom padding clears the fixed bottom nav in the fan app (FlockApp)
 // so the line is never hidden behind it; on pages without a nav it simply reads
 // as whitespace.
+import { flockPitchUrl } from '@/lib/flock-link';
+
 export function PoweredByFlock({ slug }) {
-  const href = `https://fans-flock.com?utm_source=tenant&utm_campaign=${encodeURIComponent(slug || '')}`;
+  const href = flockPitchUrl({ slug, medium: 'powered_by' });
   return (
     <div
       style={{
