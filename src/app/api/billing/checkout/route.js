@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase-server';
 import { stripeRequest, getFounderPriceId } from '@/lib/stripe';
+import { isGod } from '@/lib/god';
 
 // Starts a Stripe Checkout session for the $1/month founder subscription.
 // Auth: same pattern as /api/invites — a valid Supabase token whose profile is
@@ -20,9 +21,11 @@ export async function POST(request) {
     const { data: userData, error: userError } = await db.auth.getUser(token);
     if (userError || !userData?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
+    // Tenant admins/band members, or the platform owner (god mode has no
+    // per-tenant profile rows — mirrors the client-side isGod checks).
     const { data: profile } = await db.from('profiles')
       .select('role').eq('id', userData.user.id).eq('tenant_id', tenantId).maybeSingle();
-    if (!profile || !['admin', 'band'].includes(profile.role)) {
+    if (!isGod(userData.user) && (!profile || !['admin', 'band'].includes(profile.role))) {
       return NextResponse.json({ error: 'Not authorized for this community' }, { status: 403 });
     }
 

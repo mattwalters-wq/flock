@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase-server';
+import { isGod } from '@/lib/god';
 
 // Sends "you're invited" emails for an artist's imported mailing list.
 //
@@ -35,7 +36,7 @@ export async function POST(request) {
 
     const { data: profile } = await db.from('profiles')
       .select('role').eq('id', userData.user.id).eq('tenant_id', tenantId).maybeSingle();
-    if (!profile || !['admin', 'band'].includes(profile.role)) {
+    if (!isGod(userData.user) && (!profile || !['admin', 'band'].includes(profile.role))) {
       return NextResponse.json({ error: 'Not authorized for this community' }, { status: 403 });
     }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase-server';
 import { stripeRequest } from '@/lib/stripe';
+import { isGod } from '@/lib/god';
 
 // Opens the Stripe customer portal (update card, cancel, invoices) for a
 // tenant that already has billing set up. Same auth pattern as checkout.
@@ -20,7 +21,7 @@ export async function POST(request) {
 
     const { data: profile } = await db.from('profiles')
       .select('role').eq('id', userData.user.id).eq('tenant_id', tenantId).maybeSingle();
-    if (!profile || !['admin', 'band'].includes(profile.role)) {
+    if (!isGod(userData.user) && (!profile || !['admin', 'band'].includes(profile.role))) {
       return NextResponse.json({ error: 'Not authorized for this community' }, { status: 403 });
     }
 
