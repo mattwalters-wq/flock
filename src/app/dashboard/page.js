@@ -338,6 +338,9 @@ function Overview({ supabase, tenantId, tenant, currencyName, currencyIcon, rewa
         </div>
       </div>
 
+      <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>email your fans</Mono>
+      <EmailBroadcast supabase={supabase} tenantId={tenantId} />
+
       <Mono style={{ marginBottom: 10, letterSpacing: '1.5px', textTransform: 'uppercase' }}>community digest email</Mono>
       <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, padding: '18px' }}>
         <div style={{ fontSize: 13, color: SLATE, marginBottom: 14, lineHeight: 1.5 }}>Send a roundup to all fans who opted in. Pulls recent posts and shows automatically.</div>
@@ -978,6 +981,100 @@ function FanMap({ fans, currencyName, currencyIcon }) {
         <Mono size={9} color={SLATE}>{fanLocations.length} {fanLocations.length === 1 ? 'fan' : 'fans'} on the map</Mono>
         <Mono size={9} color={SLATE}>dot size = {currencyName} earned</Mono>
       </div>
+    </div>
+  );
+}
+
+// ============ EMAIL BROADCAST ============
+// Custom email to all opted-in fans — subject, message, optional CTA button
+// (pre-save link, tickets, merch). The mailing-list replacement: the digest is
+// the automated roundup, this is the artist speaking in their own words.
+function EmailBroadcast({ supabase, tenantId }) {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [ctaText, setCtaText] = useState('');
+  const [ctaUrl, setCtaUrl] = useState('');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState('');
+  const [audience, setAudience] = useState(null);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    if (!supabase || !tenantId) return;
+    supabase.from('profiles').select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId).eq('role', 'fan').eq('email_notifications', true)
+      .then(({ count }) => setAudience(count || 0));
+    supabase.from('email_broadcasts').select('subject, sent_count, created_at')
+      .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(3)
+      .then(({ data }) => setHistory(data || []));
+  }, [supabase, tenantId]);
+
+  const send = async () => {
+    if (!subject.trim() || !body.trim() || sending) return;
+    if (ctaUrl.trim() && !/^https?:\/\//i.test(ctaUrl.trim())) { setResult('button link must start with https://'); return; }
+    setSending(true); setResult('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { setResult('session expired - refresh and try again'); setSending(false); return; }
+      const res = await fetch('/api/email/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ tenantId, subject, body, ctaText, ctaUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setResult(data.error || 'something went wrong'); setSending(false); return; }
+      setResult(`sent to ${data.sent} ${data.sent === 1 ? 'fan' : 'fans'} ✦`);
+      setSubject(''); setBody(''); setCtaText(''); setCtaUrl('');
+      setHistory(h => [{ subject: subject.trim(), sent_count: data.sent, created_at: new Date().toISOString() }, ...h].slice(0, 3));
+    } catch {
+      setResult('error sending');
+    }
+    setSending(false);
+  };
+
+  const inputStyle = { width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', marginBottom: 10 };
+
+  return (
+    <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, padding: '18px', marginBottom: 24 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginBottom: 4 }}>
+        email your fans
+        {audience !== null && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: SLATE, marginLeft: 8 }}>{audience} opted in</span>}
+      </div>
+      <div style={{ fontSize: 13, color: SLATE, marginBottom: 14, lineHeight: 1.5 }}>
+        write your own email - pre-save announcements, release news, anything. lands straight in their inbox, no algorithm in between.
+      </div>
+      {!open ? (
+        <Btn onClick={() => setOpen(true)} variant="ghost">compose email</Btn>
+      ) : (
+        <>
+          <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="subject line..." style={inputStyle} />
+          <textarea value={body} onChange={e => setBody(e.target.value)} rows={5}
+            placeholder="your message - written like it's from you, because it is..."
+            style={{ ...inputStyle, resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input value={ctaText} onChange={e => setCtaText(e.target.value)} placeholder="button text (optional, e.g. pre-save now)" style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+            <input value={ctaUrl} onChange={e => setCtaUrl(e.target.value)} placeholder="button link (https://...)" style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Btn onClick={send} disabled={sending || !subject.trim() || !body.trim()}>
+              {sending ? 'sending...' : `send to ${audience ?? '...'} fans`}
+            </Btn>
+            <Btn onClick={() => { setOpen(false); setResult(''); }} variant="ghost">cancel</Btn>
+            {result && <Mono size={11} color={result.includes('error') || result.includes('wrong') || result.includes('must') || result.includes('expired') ? RUBY : SAGE}>{result}</Mono>}
+          </div>
+        </>
+      )}
+      {history.length > 0 && (
+        <div style={{ marginTop: 14, borderTop: `1px solid ${BORDER}`, paddingTop: 10 }}>
+          {history.map((h, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '4px 0' }}>
+              <Mono size={10} color={SLATE} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.subject}</Mono>
+              <Mono size={9} color={SLATE + '88'} style={{ whiteSpace: 'nowrap' }}>{h.sent_count} sent · {new Date(h.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</Mono>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
