@@ -24,8 +24,13 @@ export async function POST(request) {
     if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
     const userId = authData.user.id;
 
-    // 2. Create tenant
-    const { data: tenant, error: tenantError } = await db.from('tenants').insert({ slug: community.slug, name: community.name }).select('id').single();
+    // 2. Create tenant. founder_deadline opens the 14-day window to lock the
+    // $1/mo founder rate (drives the dashboard countdown banner).
+    const { data: tenant, error: tenantError } = await db.from('tenants').insert({
+      slug: community.slug,
+      name: community.name,
+      founder_deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    }).select('id').single();
     if (tenantError) { console.error('[onboarding] tenant error:', tenantError); return NextResponse.json({ error: tenantError.message }, { status: 400 }); }
     const tenantId = tenant.id;
 

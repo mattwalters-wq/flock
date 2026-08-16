@@ -985,6 +985,54 @@ function FanMap({ fans, currencyName, currencyIcon }) {
   );
 }
 
+// ============ FOUNDER RATE BANNER ============
+// Countdown strip shown across every dashboard tab while a new tenant's
+// 14-day founder-rate window is open and billing isn't set up. Grandfathered
+// tenants (founder_deadline NULL) never see it — for them billing stays a
+// quiet opt-in card on the overview.
+function FounderBanner({ supabase, tenantId, deadline }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const daysLeft = Math.max(0, Math.ceil((new Date(deadline) - Date.now()) / (24 * 60 * 60 * 1000)));
+
+  const checkout = async () => {
+    if (busy) return;
+    setBusy(true); setError('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { setError('session expired - refresh and try again'); setBusy(false); return; }
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ tenantId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) { setError(data.error || 'something went wrong'); setBusy(false); return; }
+      window.location.href = data.url;
+    } catch {
+      setError('something went wrong'); setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ background: WARM_GOLD, padding: '10px 20px' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, color: INK }}>✦ founder rate — $1/month, locked for life</span>
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: INK + 'AA', marginLeft: 10 }}>
+            {daysLeft === 0 ? 'last day' : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`}
+          </span>
+          {error && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, marginLeft: 10 }}>{error}</span>}
+        </div>
+        <button onClick={checkout} disabled={busy}
+          style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700, color: CREAM, background: INK, border: 'none', borderRadius: 8, padding: '8px 16px', cursor: busy ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+          {busy ? 'opening...' : 'lock it in →'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ============ EMAIL BROADCAST ============
 // Custom email to all opted-in fans — subject, message, optional CTA button
 // (pre-save link, tickets, merch). The mailing-list replacement: the digest is
@@ -2091,6 +2139,12 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+
+      {/* Founder-rate countdown (new tenants only, until billing is active) */}
+      {tenant?.founder_deadline
+        && !['active', 'trialing'].includes(tenant.billing_status)
+        && new Date(tenant.founder_deadline) > new Date()
+        && <FounderBanner supabase={supabase} tenantId={tenantId} deadline={tenant.founder_deadline} />}
 
       {/* Content */}
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '28px 20px 60px' }}>
