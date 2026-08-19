@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase-server';
 import { isGod } from '@/lib/god';
+import { getUserEmailMap, sendResendBatch } from '@/lib/email';
 
 // Artist-composed email broadcast to their opted-in fans — the "replace the
 // mailing list" feature (pre-save announcements, release news, tour drops).
@@ -53,9 +54,7 @@ export async function POST(request) {
       .select('id').eq('tenant_id', tenantId).eq('email_notifications', true).eq('role', 'fan');
     if (!subscribers?.length) return NextResponse.json({ ok: true, sent: 0, total: 0 });
 
-    const { data: users } = await db.auth.admin.listUsers();
-    const emailMap = {};
-    (users?.users || []).forEach(u => { emailMap[u.id] = u.email; });
+    const emailMap = await getUserEmailMap(db);
     const emails = subscribers.map(s => emailMap[s.id]).filter(Boolean);
 
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
@@ -79,20 +78,12 @@ export async function POST(request) {
       </div>
     `;
 
-    let sent = 0;
-    for (const email of emails) {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: `${tenant.name} <hello@fans-flock.com>`,
-          to: email,
-          subject: subject.trim(),
-          html,
-        }),
-      }).catch(() => null);
-      if (res?.ok) sent++;
-    }
+    const sent = await sendResendBatch(RESEND_API_KEY, emails, (email) => ({
+      from: `${tenant.name} <hello@fans-flock.com>`,
+      to: email,
+      subject: subject.trim(),
+      html,
+    }));
 
     // Record the send (best-effort — the emails are already out).
     try {

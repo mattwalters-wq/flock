@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase-server';
+import { getUserEmailMap, sendResendBatch } from '@/lib/email';
 
 export async function POST(request) {
   try {
@@ -29,9 +30,7 @@ export async function POST(request) {
     const { data: subscribers } = await db.from('profiles').select('id').eq('tenant_id', tenantId).eq('email_notifications', true).eq('role', 'fan');
     if (!subscribers || subscribers.length === 0) return NextResponse.json({ ok: true, sent: 0, total: 0 });
 
-    const { data: users } = await db.auth.admin.listUsers();
-    const emailMap = {};
-    (users?.users || []).forEach(u => { emailMap[u.id] = u.email; });
+    const emailMap = await getUserEmailMap(db);
     const emails = subscribers.map(s => emailMap[s.id]).filter(Boolean);
 
     const communityUrl = `https://${tenant.slug}.${APP_DOMAIN}`;
@@ -58,16 +57,7 @@ export async function POST(request) {
       </div>
     `).join('');
 
-    let sent = 0;
-    for (const email of emails) {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: `${tenant.name} <hello@fans-flock.com>`,
-          to: email,
-          subject: `${tenant.name.toLowerCase()} · community roundup ✦`,
-          html: `
+    const digestHtml = `
             <div style="font-family:'DM Sans',sans-serif;max-width:520px;margin:0 auto;background:#F5EFE6;padding:32px 24px;border-radius:12px;">
               <div style="font-size:24px;font-weight:700;color:#1A1018;text-transform:lowercase;margin-bottom:4px;">${tenant.name}</div>
               <div style="font-family:'DM Mono',monospace;font-size:9px;color:#6A5A62;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:24px;">community roundup</div>
@@ -92,11 +82,14 @@ export async function POST(request) {
               <a href="${communityUrl}" style="display:block;padding:14px 24px;background:#8B1A2B;color:#fff;text-decoration:none;border-radius:8px;text-align:center;font-size:14px;font-weight:600;margin-bottom:24px;">visit community →</a>
               <div style="font-family:'DM Mono',monospace;font-size:9px;color:#6A5A62;letter-spacing:1px;border-top:1px solid #E8DDD4;padding-top:16px;">powered by flock · fan communities for independent artists</div>
             </div>
-          `,
-        }),
-      }).catch(() => {});
-      sent++;
-    }
+          `;
+
+    const sent = await sendResendBatch(RESEND_API_KEY, emails, (email) => ({
+      from: `${tenant.name} <hello@fans-flock.com>`,
+      to: email,
+      subject: `${tenant.name.toLowerCase()} · community roundup ✦`,
+      html: digestHtml,
+    }));
 
     return NextResponse.json({ ok: true, sent, total: emails.length });
   } catch (err) {
