@@ -1037,6 +1037,61 @@ function FounderBanner({ supabase, tenantId, deadline }) {
 // Custom email to all opted-in fans — subject, message, optional CTA button
 // (pre-save link, tickets, merch). The mailing-list replacement: the digest is
 // the automated roundup, this is the artist speaking in their own words.
+//
+// Past messages: every send is recorded in email_broadcasts, and the card
+// shows the full history — when it went, how many fans it reached, and the
+// full message on tap — so an artist can always check "did that go out?".
+const HISTORY_PAGE = 20;
+
+function fmtSentAt(iso) {
+  return new Date(iso).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function PastMessages({ history, loading, onLoadMore, hasMore, onReuse }) {
+  const [open, setOpen] = useState(null);
+  if (loading) return <Mono size={10} color={SLATE + '88'}>loading past messages...</Mono>;
+  if (!history.length) return <Mono size={10} color={SLATE + '88'}>no emails sent yet - your past messages will show up here.</Mono>;
+  return (
+    <div>
+      {history.map(h => {
+        const isOpen = open === h.id;
+        return (
+          <div key={h.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+            <button onClick={() => setOpen(isOpen ? null : h.id)}
+              style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '8px 0', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'DM Sans', sans-serif" }}>{h.subject}</div>
+                <Mono size={9} color={SLATE + '88'} style={{ marginTop: 2 }}>
+                  {h.sent_count === 0 ? 'sent to 0 fans' : `sent to ${h.sent_count} ${h.sent_count === 1 ? 'fan' : 'fans'}`} · {fmtSentAt(h.created_at)}
+                </Mono>
+              </div>
+              <Mono size={10} color={SLATE} style={{ whiteSpace: 'nowrap' }}>{isOpen ? 'hide ↑' : 'view ↓'}</Mono>
+            </button>
+            {isOpen && (
+              <div style={{ padding: '4px 0 14px' }}>
+                <div style={{ background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '12px 14px', fontSize: 13, color: INK, lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: "'DM Sans', sans-serif" }}>{h.body}</div>
+                {h.cta_text && h.cta_url && (
+                  <Mono size={10} color={SLATE} style={{ marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    button: <span style={{ color: INK, fontWeight: 600 }}>{h.cta_text}</span> → <a href={h.cta_url} target="_blank" rel="noreferrer" style={{ color: RUBY }}>{h.cta_url}</a>
+                  </Mono>
+                )}
+                <div style={{ marginTop: 10 }}>
+                  <Btn onClick={() => onReuse(h)} variant="ghost" style={{ fontSize: 11, padding: '6px 12px' }}>use as a starting point</Btn>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {hasMore && (
+        <div style={{ paddingTop: 10 }}>
+          <Btn onClick={onLoadMore} variant="ghost" style={{ fontSize: 11, padding: '6px 12px' }}>load older messages</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EmailBroadcast({ supabase, tenantId }) {
   const [open, setOpen] = useState(false);
   const [subject, setSubject] = useState('');
@@ -1047,16 +1102,28 @@ function EmailBroadcast({ supabase, tenantId }) {
   const [result, setResult] = useState('');
   const [audience, setAudience] = useState(null);
   const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const loadHistory = useCallback(async (offset = 0) => {
+    if (!supabase || !tenantId) return;
+    const { data, count } = await supabase.from('email_broadcasts')
+      .select('id, subject, body, cta_text, cta_url, sent_count, created_at', { count: 'exact' })
+      .eq('tenant_id', tenantId).order('created_at', { ascending: false })
+      .range(offset, offset + HISTORY_PAGE - 1);
+    setHistory(h => offset === 0 ? (data || []) : [...h, ...(data || [])]);
+    setHistoryTotal(count || 0);
+    setHistoryLoading(false);
+  }, [supabase, tenantId]);
 
   useEffect(() => {
     if (!supabase || !tenantId) return;
     supabase.from('profiles').select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenantId).eq('role', 'fan').eq('email_notifications', true)
       .then(({ count }) => setAudience(count || 0));
-    supabase.from('email_broadcasts').select('subject, sent_count, created_at')
-      .eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(3)
-      .then(({ data }) => setHistory(data || []));
-  }, [supabase, tenantId]);
+    loadHistory(0);
+  }, [supabase, tenantId, loadHistory]);
 
   const send = async () => {
     if (!subject.trim() || !body.trim() || sending) return;
@@ -1074,14 +1141,22 @@ function EmailBroadcast({ supabase, tenantId }) {
       if (!res.ok) { setResult(data.error || 'something went wrong'); setSending(false); return; }
       setResult(`sent to ${data.sent} ${data.sent === 1 ? 'fan' : 'fans'} ✦`);
       setSubject(''); setBody(''); setCtaText(''); setCtaUrl('');
-      setHistory(h => [{ subject: subject.trim(), sent_count: data.sent, created_at: new Date().toISOString() }, ...h].slice(0, 3));
+      setOpen(false);
+      setShowHistory(true);
+      loadHistory(0);
     } catch {
       setResult('error sending');
     }
     setSending(false);
   };
 
+  const reuse = (h) => {
+    setSubject(h.subject || ''); setBody(h.body || ''); setCtaText(h.cta_text || ''); setCtaUrl(h.cta_url || '');
+    setResult(''); setOpen(true);
+  };
+
   const inputStyle = { width: '100%', padding: '10px 12px', background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, fontSize: 13, color: INK, outline: 'none', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', marginBottom: 10 };
+  const last = history[0];
 
   return (
     <div style={{ background: SURFACE, borderRadius: 10, border: `1px solid ${BORDER}`, padding: '18px', marginBottom: 24 }}>
@@ -1093,7 +1168,10 @@ function EmailBroadcast({ supabase, tenantId }) {
         write your own email - pre-save announcements, release news, anything. lands straight in their inbox, no algorithm in between.
       </div>
       {!open ? (
-        <Btn onClick={() => setOpen(true)} variant="ghost">compose email</Btn>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Btn onClick={() => setOpen(true)} variant="ghost">compose email</Btn>
+          {result && <Mono size={11} color={SAGE}>{result}</Mono>}
+        </div>
       ) : (
         <>
           <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="subject line..." style={inputStyle} />
@@ -1113,16 +1191,29 @@ function EmailBroadcast({ supabase, tenantId }) {
           </div>
         </>
       )}
-      {history.length > 0 && (
-        <div style={{ marginTop: 14, borderTop: `1px solid ${BORDER}`, paddingTop: 10 }}>
-          {history.map((h, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '4px 0' }}>
-              <Mono size={10} color={SLATE} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.subject}</Mono>
-              <Mono size={9} color={SLATE + '88'} style={{ whiteSpace: 'nowrap' }}>{h.sent_count} sent · {new Date(h.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</Mono>
-            </div>
-          ))}
-        </div>
-      )}
+
+      <div style={{ marginTop: 16, borderTop: `1px solid ${BORDER}`, paddingTop: 12 }}>
+        <button onClick={() => setShowHistory(v => !v)}
+          style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+          <div style={{ minWidth: 0 }}>
+            <Mono style={{ letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+              past messages{historyTotal > 0 ? ` · ${historyTotal}` : ''}
+            </Mono>
+            {!showHistory && !historyLoading && (
+              <Mono size={9} color={SLATE + '88'} style={{ marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {last ? `last sent ${fmtSentAt(last.created_at)} · "${last.subject}" · ${last.sent_count} ${last.sent_count === 1 ? 'fan' : 'fans'}` : 'nothing sent yet'}
+              </Mono>
+            )}
+          </div>
+          <Mono size={10} color={SLATE} style={{ whiteSpace: 'nowrap' }}>{showHistory ? 'hide ↑' : 'show all ↓'}</Mono>
+        </button>
+        {showHistory && (
+          <div style={{ marginTop: 8 }}>
+            <PastMessages history={history} loading={historyLoading} hasMore={history.length < historyTotal}
+              onLoadMore={() => loadHistory(history.length)} onReuse={reuse} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

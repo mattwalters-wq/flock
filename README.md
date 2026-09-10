@@ -33,6 +33,8 @@ safe:
 | `notification_triggers.sql` | in-app notification rows on comment / reply / like |
 | `backfill_stamps_april_22.sql` | one-off retroactive stamp backfill |
 | `harden_rls_security.sql` | clamps protected profile columns (no self-awarded stamps / self-promotion) and scopes inserts to the writer's own tenant |
+| `add_email_broadcasts.sql` | the `email_broadcasts` send-history table behind the dashboard's "email your fans" card and its past-messages list |
+| `grant_table_privileges.sql` | grants app-role privileges on `email_broadcasts`, `push_subscriptions` and `comment_likes` (created without them, so every read/write was denied before RLS) and sets default privileges for future tables |
 
 `flock-schema.sql` already includes the contents of `harden_rls_security.sql`;
 the migration exists to apply the same hardening to databases created before it.

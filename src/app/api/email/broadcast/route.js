@@ -85,9 +85,13 @@ export async function POST(request) {
       html,
     }));
 
-    // Record the send (best-effort — the emails are already out).
+    // Record the send (best-effort — the emails are already out). supabase-js
+    // returns errors rather than throwing, so check the result explicitly:
+    // a silently dropped row here means the artist can't tell whether their
+    // email went out (see migrations/grant_table_privileges.sql).
+    let recorded = true;
     try {
-      await db.from('email_broadcasts').insert({
+      const { error: histError } = await db.from('email_broadcasts').insert({
         tenant_id: tenantId,
         sender_id: userData.user.id,
         subject: subject.trim(),
@@ -96,11 +100,16 @@ export async function POST(request) {
         cta_url: ctaUrl?.trim() || null,
         sent_count: sent,
       });
+      if (histError) {
+        recorded = false;
+        console.error('[email/broadcast] history not recorded:', histError.message);
+      }
     } catch (e) {
-      console.error('[email/broadcast] history skipped:', e?.message);
+      recorded = false;
+      console.error('[email/broadcast] history not recorded:', e?.message);
     }
 
-    return NextResponse.json({ ok: true, sent, total: emails.length });
+    return NextResponse.json({ ok: true, sent, total: emails.length, recorded });
   } catch (err) {
     console.error('[email/broadcast] error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
