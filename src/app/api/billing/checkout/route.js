@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServiceSupabase } from '@/lib/supabase-server';
+import { requireTenantAdmin } from '@/lib/api-auth';
 import { stripeRequest, getFounderPriceId } from '@/lib/stripe';
-import { isGod } from '@/lib/god';
 
 // Starts a Stripe Checkout session for the $1/month founder subscription.
 // Auth: same pattern as /api/invites — a valid Supabase token whose profile is
@@ -11,23 +10,8 @@ import { isGod } from '@/lib/god';
 export async function POST(request) {
   try {
     const { tenantId } = await request.json();
-    if (!tenantId) return NextResponse.json({ error: 'Missing tenantId' }, { status: 400 });
-
-    const authHeader = request.headers.get('authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-    const db = getServiceSupabase();
-    const { data: userData, error: userError } = await db.auth.getUser(token);
-    if (userError || !userData?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-    // Tenant admins/band members, or the platform owner (god mode has no
-    // per-tenant profile rows — mirrors the client-side isGod checks).
-    const { data: profile } = await db.from('profiles')
-      .select('role').eq('id', userData.user.id).eq('tenant_id', tenantId).maybeSingle();
-    if (!isGod(userData.user) && (!profile || !['admin', 'band'].includes(profile.role))) {
-      return NextResponse.json({ error: 'Not authorized for this community' }, { status: 403 });
-    }
+    const { db, user, error } = await requireTenantAdmin(request, tenantId);
+    if (error) return error;
 
     const { data: tenant } = await db.from('tenants')
       .select('id, slug, name, stripe_customer_id, billing_status').eq('id', tenantId).single();
@@ -40,7 +24,7 @@ export async function POST(request) {
     let customerId = tenant.stripe_customer_id;
     if (!customerId) {
       const customer = await stripeRequest('POST', '/customers', {
-        email: userData.user.email,
+        email: user.email,
         name: tenant.name,
         metadata: { tenant_id: String(tenantId), tenant_slug: tenant.slug },
       });

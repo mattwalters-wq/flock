@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server';
-import { getServiceSupabase } from '@/lib/supabase-server';
-import { getUserEmailMap, sendResendBatch } from '@/lib/email';
+import { requireTenantAdmin } from '@/lib/api-auth';
+import { selectAll } from '@/lib/supabase-server';
+import { getUserEmailMap, sendResendBatch, escapeHtml } from '@/lib/email';
 
+// Community roundup email to opted-in fans. Admin/band (or god) only — the
+// caller is authenticated from their access token.
 export async function POST(request) {
   try {
-    const { tenantId, customIntro } = await request.json();
-    if (!tenantId) return NextResponse.json({ error: 'Missing tenantId' }, { status: 400 });
+    const { tenantId, customIntro, intro } = await request.json();
+    const { db, error } = await requireTenantAdmin(request, tenantId);
+    if (error) return error;
+    const introText = (customIntro ?? intro ?? '').trim();
 
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     if (!RESEND_API_KEY) return NextResponse.json({ error: 'No Resend key configured' }, { status: 500 });
 
-    const db = getServiceSupabase();
     const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 
     const { data: tenant } = await db.from('tenants').select('name, slug').eq('id', tenantId).single();
@@ -27,8 +31,8 @@ export async function POST(request) {
     const { data: topFans } = await db.from('profiles').select('display_name, stamp_count').eq('tenant_id', tenantId).eq('role', 'fan').order('stamp_count', { ascending: false }).limit(5);
 
     // Get subscribers
-    const { data: subscribers } = await db.from('profiles').select('id').eq('tenant_id', tenantId).eq('email_notifications', true).eq('role', 'fan');
-    if (!subscribers || subscribers.length === 0) return NextResponse.json({ ok: true, sent: 0, total: 0 });
+    const subscribers = await selectAll(() => db.from('profiles').select('id').eq('tenant_id', tenantId).eq('email_notifications', true).eq('role', 'fan').order('id'));
+    if (subscribers.length === 0) return NextResponse.json({ ok: true, sent: 0, total: 0 });
 
     const emailMap = await getUserEmailMap(db);
     const emails = subscribers.map(s => emailMap[s.id]).filter(Boolean);
@@ -37,32 +41,32 @@ export async function POST(request) {
 
     const postsHtml = (recentPosts || []).map(p => `
       <div style="padding:14px 0;border-bottom:1px solid #E8DDD4;">
-        <div style="font-family:'DM Mono',monospace;font-size:9px;color:#8B1A2B;margin-bottom:6px;letter-spacing:0.5px;">${p.feed_type}</div>
-        <p style="font-size:13px;color:#1A1018;line-height:1.5;margin:0;">${p.content?.slice(0, 200)}${p.content?.length > 200 ? '...' : ''}</p>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:#8B1A2B;margin-bottom:6px;letter-spacing:0.5px;">${escapeHtml(p.feed_type)}</div>
+        <p style="font-size:13px;color:#1A1018;line-height:1.5;margin:0;">${escapeHtml((p.content || '').slice(0, 200))}${p.content?.length > 200 ? '...' : ''}</p>
       </div>
     `).join('');
 
     const showsHtml = (upcomingShows || []).map(s => `
       <div style="padding:10px 0;border-bottom:1px solid #E8DDD4;display:flex;gap:12px;">
         <div style="font-family:'DM Mono',monospace;font-size:10px;color:#6A5A62;min-width:60px;">${new Date(s.date + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</div>
-        <div><div style="font-size:13px;font-weight:600;color:#1A1018;">${s.city}</div><div style="font-size:11px;color:#6A5A62;">${s.venue}</div></div>
+        <div><div style="font-size:13px;font-weight:600;color:#1A1018;">${escapeHtml(s.city)}</div><div style="font-size:11px;color:#6A5A62;">${escapeHtml(s.venue)}</div></div>
       </div>
     `).join('');
 
     const leaderboardHtml = (topFans || []).map((f, i) => `
       <div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #E8DDD4;">
         <span style="font-family:'DM Mono',monospace;font-size:11px;color:${i === 0 ? '#C9922A' : '#6A5A62'};width:20px;">${i + 1}</span>
-        <span style="flex:1;font-size:12px;color:#1A1018;">${f.display_name}</span>
+        <span style="flex:1;font-size:12px;color:#1A1018;">${escapeHtml(f.display_name)}</span>
         <span style="font-family:'DM Mono',monospace;font-size:11px;color:#6A5A62;">${f.stamp_count} ✦</span>
       </div>
     `).join('');
 
     const digestHtml = `
             <div style="font-family:'DM Sans',sans-serif;max-width:520px;margin:0 auto;background:#F5EFE6;padding:32px 24px;border-radius:12px;">
-              <div style="font-size:24px;font-weight:700;color:#1A1018;text-transform:lowercase;margin-bottom:4px;">${tenant.name}</div>
+              <div style="font-size:24px;font-weight:700;color:#1A1018;text-transform:lowercase;margin-bottom:4px;">${escapeHtml(tenant.name)}</div>
               <div style="font-family:'DM Mono',monospace;font-size:9px;color:#6A5A62;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:24px;">community roundup</div>
 
-              ${customIntro ? `<p style="font-size:14px;color:#1A1018;line-height:1.6;margin-bottom:24px;padding:16px;background:#FAF5F0;border-radius:8px;border-left:3px solid #8B1A2B;">${customIntro}</p>` : ''}
+              ${introText ? `<p style="font-size:14px;color:#1A1018;line-height:1.6;margin-bottom:24px;padding:16px;background:#FAF5F0;border-radius:8px;border-left:3px solid #8B1A2B;">${escapeHtml(introText).replace(/\n/g, '<br />')}</p>` : ''}
 
               ${recentPosts?.length ? `
                 <div style="font-family:'DM Mono',monospace;font-size:9px;color:#6A5A62;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">recent posts</div>
@@ -85,7 +89,7 @@ export async function POST(request) {
           `;
 
     const sent = await sendResendBatch(RESEND_API_KEY, emails, (email) => ({
-      from: `${tenant.name} <hello@fans-flock.com>`,
+      from: fromHeader(tenant.name),
       to: email,
       subject: `${tenant.name.toLowerCase()} · community roundup ✦`,
       html: digestHtml,
@@ -94,6 +98,6 @@ export async function POST(request) {
     return NextResponse.json({ ok: true, sent, total: emails.length });
   } catch (err) {
     console.error('[digest] error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Could not send digest' }, { status: 500 });
   }
 }

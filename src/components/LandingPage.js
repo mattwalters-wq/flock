@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
+import { getSupabase, authErrorMessage, authFetch } from '@/lib/supabase-browser';
 import { flockPitchUrl } from '@/lib/flock-link';
 
 export function LandingPage() {
@@ -98,7 +98,7 @@ export function LandingPage() {
         id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(),
         role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
       }); } catch (_) {}
-      fetch('/api/email/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), displayName: displayName.trim(), tenantId }) }).catch(() => {});
+      await authFetch('/api/email/welcome', { tenantId }).catch(() => {});
       window.location.href = '/';
       return;
     }
@@ -108,7 +108,7 @@ export function LandingPage() {
         id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(),
         role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
       }); } catch (_) {}
-      fetch('/api/email/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), displayName: displayName.trim(), tenantId }) }).catch(() => {});
+      await authFetch('/api/email/welcome', { tenantId }).catch(() => {});
       window.location.href = '/';
     } else {
       setError('something went wrong, please try again');

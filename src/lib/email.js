@@ -9,17 +9,23 @@
 // one request per 100 recipients instead of one per fan, which stays clear of
 // both Resend's per-second rate limit and the serverless function timeout.
 
-export async function getUserEmailMap(db) {
+export async function getAuthUserMap(db) {
   const map = {};
   let page = 1;
   for (;;) {
     const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) break;
+    if (error) throw new Error(`listUsers failed: ${error.message}`);
     const users = data?.users || [];
-    users.forEach(u => { map[u.id] = u.email; });
+    users.forEach(u => { map[u.id] = u; });
     if (users.length < 1000) break;
     page++;
   }
+  return map;
+}
+
+export async function getUserEmailMap(db) {
+  const map = {};
+  Object.entries(await getAuthUserMap(db)).forEach(([id, u]) => { map[id] = u.email; });
   return map;
 }
 
@@ -38,4 +44,18 @@ export async function sendResendBatch(apiKey, recipients, buildEmail) {
     }
   }
   return sent;
+}
+
+// Escape user/tenant-supplied text before interpolating it into email HTML.
+export function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Display-name part of a From header. Tenant names are artist-controlled; strip
+// characters that would break out of (or inject into) the address header.
+export function fromHeader(name) {
+  const clean = String(name || 'flock').replace(/[<>"\\\r\n,;]/g, '').trim().slice(0, 60) || 'flock';
+  return `${clean} <hello@fans-flock.com>`;
 }

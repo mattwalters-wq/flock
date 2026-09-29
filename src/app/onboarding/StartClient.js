@@ -108,18 +108,26 @@ function StepCommunity({ initial, onNext, onBack }) {
   const [errors, setErrors] = useState({});
 
   const checkSlug = async (slug) => {
-    if (!slug) return;
+    if (!slug) return null;
     setChecking(true);
-    const { data: existing } = await sb().from('tenants').select('id').eq('slug', slug).single();
+    const { data: existing } = await sb().from('tenants').select('id').eq('slug', slug).maybeSingle();
     setSlugAvailable(!existing);
     setChecking(false);
+    return !existing;
   };
 
-  const validate = () => {
+  // Always confirm availability before continuing (the blur check may not have
+  // run or finished yet, e.g. when resuming with a pre-filled slug).
+  const continueIfValid = async () => {
+    const available = slugAvailable ?? (data.slug.trim() ? await checkSlug(data.slug) : null);
+    if (validate(available)) onNext(data);
+  };
+
+  const validate = (available = slugAvailable) => {
     const e = {};
     if (!data.name.trim()) e.name = 'enter a community name';
     if (!data.slug.trim()) e.slug = 'enter a url slug';
-    if (slugAvailable === false) e.slug = 'that url is taken - try another';
+    else if (available === false) e.slug = 'that url is taken - try another';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -148,7 +156,7 @@ function StepCommunity({ initial, onNext, onBack }) {
       <Input label="tagline (optional)" value={data.tagline} onChange={e => setData(p => ({ ...p, tagline: e.target.value }))} placeholder="a one-liner about you or your music" hint="shows on your public highlights page" />
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <Btn onClick={onBack} variant="ghost">← back</Btn>
-        <Btn onClick={() => validate() && onNext(data)} style={{ flex: 1 }}>continue →</Btn>
+        <Btn onClick={continueIfValid} style={{ flex: 1 }}>continue →</Btn>
       </div>
     </div>
   );
@@ -515,8 +523,11 @@ function OnboardingWizard() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const d = JSON.parse(saved);
-        if (d.step && d.step < 6) setStep(d.step); // never auto-resume mid-launch
-        if (d.account) setAccount(d.account);
+        // Never auto-resume mid-launch. The password is never persisted, so a
+        // reload resumes at the account step (everything else pre-filled).
+        if (d.step && d.step < 6) setStep(1);
+        if (d.account) setAccount({ ...d.account, password: '' });
+        if (d.account?.password) save({ account: { ...d.account, password: undefined } }); // scrub legacy saves
         if (d.community) setCommunity(d.community);
         if (d.branding) setBranding(d.branding);
         if (d.currency) setCurrency(d.currency);
@@ -542,10 +553,13 @@ function OnboardingWizard() {
   }, []);
 
   // Save to localStorage whenever state changes
+  // The password is deliberately never written to localStorage.
   const save = (updates) => {
     try {
       const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...updates }));
+      const next = { ...current, ...updates };
+      if (next.account) next.account = { ...next.account, password: undefined };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {}
   };
 

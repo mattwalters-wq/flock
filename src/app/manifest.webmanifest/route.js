@@ -7,7 +7,7 @@ const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 // the artist's community. Resolved from the Host header (middleware skips dotted
 // paths, so we can't rely on x-tenant-slug here).
 export async function GET() {
-  const host = headers().get('host') || '';
+  const host = (await headers()).get('host') || '';
   let name = 'flock';
   let theme = '#8B1A2B';
   let bg = '#F5EFE6';

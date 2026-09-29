@@ -3,8 +3,8 @@ import { getServiceSupabase } from '@/lib/supabase-server';
 import { headers } from 'next/headers';
 
 export default async function JoinPage({ params }) {
-  const { code } = params;
-  const headersList = headers();
+  const { code } = await params;
+  const headersList = await headers();
   const tenantSlug = headersList.get('x-tenant-slug');
 
   if (code && tenantSlug) {
@@ -12,7 +12,7 @@ export default async function JoinPage({ params }) {
     const { data: tenant } = await db.from('tenants').select('id').eq('slug', tenantSlug).single();
     if (tenant) {
       // Store referral code in cookie via redirect with query param
-      redirect(`/?ref=${code}`);
+      redirect(`/?ref=${encodeURIComponent(code)}`);
     }
   }
 

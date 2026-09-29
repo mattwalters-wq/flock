@@ -15,6 +15,7 @@ const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 function openAsGod(supabase, slug, path = '') {
   const base = `https://${slug}.${APP_DOMAIN}${path}`;
   const w = window.open('about:blank', '_blank');
+  if (w) w.opener = null; // the tenant page must not be able to script this admin tab
   (async () => {
     let url = base;
     try {

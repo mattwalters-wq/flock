@@ -20,7 +20,7 @@ export async function GET(request) {
     if (!artist || !appId) return NextResponse.json({ events: [], error: 'bandsintown not configured' });
 
     const encodedArtist = encodeURIComponent(artist);
-    const res = await fetch(`https://rest.bandsintown.com/artists/${encodedArtist}/events?app_id=${appId}&date=upcoming`, {
+    const res = await fetch(`https://rest.bandsintown.com/artists/${encodedArtist}/events?app_id=${encodeURIComponent(appId)}&date=upcoming`, {
       headers: { Accept: 'application/json' },
     });
 
@@ -51,6 +51,6 @@ export async function GET(request) {
     return NextResponse.json({ events: mapped });
   } catch (err) {
     console.error('[bandsintown] error:', err);
-    return NextResponse.json({ events: [], error: err.message }, { status: 500 });
+    return NextResponse.json({ events: [], error: 'Could not load shows' }, { status: 500 });
   }
 }

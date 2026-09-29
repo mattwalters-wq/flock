@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '@/lib/supabase-browser';
+import { safeUrl } from '@/lib/safe-url';
 
 function timeAgo(ts) {
   const d = Math.floor((Date.now() - new Date(ts)) / 1000);
@@ -69,10 +70,10 @@ export default function HighlightsPage() {
     config.social_instagram && { label: 'instagram', url: `https://instagram.com/${config.social_instagram}` },
     config.social_tiktok && { label: 'tiktok', url: `https://tiktok.com/@${config.social_tiktok}` },
     config.social_spotify && { label: 'spotify', url: config.social_spotify.startsWith('http') ? config.social_spotify : `https://open.spotify.com/${config.social_spotify}` },
-    config.social_apple_music && { label: 'apple music', url: config.social_apple_music },
-    config.social_youtube && { label: 'youtube', url: config.social_youtube },
-    config.social_website && { label: 'website', url: config.social_website },
-  ].filter(Boolean);
+    config.social_apple_music && { label: 'apple music', url: safeUrl(config.social_apple_music) },
+    config.social_youtube && { label: 'youtube', url: safeUrl(config.social_youtube) },
+    config.social_website && { label: 'website', url: safeUrl(config.social_website) },
+  ].filter(l => l && l.url);
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: cream, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -178,7 +179,7 @@ export default function HighlightsPage() {
                   <div style={{ ...mono, fontSize: 11, color: SLATE, marginTop: 3 }}>{show.venue}</div>
                 </div>
                 {show.ticket_url ? (
-                  <a href={show.ticket_url} target="_blank" rel="noopener noreferrer"
+                  <a href={safeUrl(show.ticket_url) || undefined} target="_blank" rel="noopener noreferrer"
                     style={{ ...mono, fontSize: 11, color: ruby, textDecoration: 'none', letterSpacing: '0.5px', borderBottom: `1px solid ${ruby}44`, paddingBottom: 2 }}>tickets</a>
                 ) : (
                   <div style={{ ...mono, fontSize: 10, color: SLATE + '88' }}>free entry</div>

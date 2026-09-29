@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServiceSupabase } from '@/lib/supabase-server';
+import { requireTenantAdmin } from '@/lib/api-auth';
 import { stripeRequest } from '@/lib/stripe';
-import { isGod } from '@/lib/god';
 
 // Opens the Stripe customer portal (update card, cancel, invoices) for a
 // tenant that already has billing set up. Same auth pattern as checkout.
@@ -9,21 +8,8 @@ import { isGod } from '@/lib/god';
 export async function POST(request) {
   try {
     const { tenantId } = await request.json();
-    if (!tenantId) return NextResponse.json({ error: 'Missing tenantId' }, { status: 400 });
-
-    const authHeader = request.headers.get('authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-    const db = getServiceSupabase();
-    const { data: userData, error: userError } = await db.auth.getUser(token);
-    if (userError || !userData?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-    const { data: profile } = await db.from('profiles')
-      .select('role').eq('id', userData.user.id).eq('tenant_id', tenantId).maybeSingle();
-    if (!isGod(userData.user) && (!profile || !['admin', 'band'].includes(profile.role))) {
-      return NextResponse.json({ error: 'Not authorized for this community' }, { status: 403 });
-    }
+    const { db, error } = await requireTenantAdmin(request, tenantId);
+    if (error) return error;
 
     const { data: tenant } = await db.from('tenants')
       .select('slug, stripe_customer_id').eq('id', tenantId).single();
