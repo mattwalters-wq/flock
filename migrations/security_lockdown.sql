@@ -304,6 +304,21 @@ DROP TRIGGER IF EXISTS guard_post_columns ON public.posts;
 CREATE TRIGGER guard_post_columns BEFORE UPDATE ON public.posts
 FOR EACH ROW EXECUTE FUNCTION public.guard_post_columns();
 
+-- Like/comment counters update posts on behalf of the liker/commenter. They
+-- were SECURITY INVOKER, so the column guard above would revert their writes
+-- (and RLS only lets authors update their own posts). Run them as owner.
+DO $$
+DECLARE f text;
+BEGIN
+  FOREACH f IN ARRAY ARRAY['public.update_post_like_count()', 'public.update_post_comment_count()'] LOOP
+    IF to_regprocedure(f) IS NOT NULL THEN
+      EXECUTE format('ALTER FUNCTION %s SECURITY DEFINER', f);
+      EXECUTE format('ALTER FUNCTION %s SET search_path = public, pg_temp', f);
+      EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
+    END IF;
+  END LOOP;
+END $$;
+
 -- ── 6. Child rows must belong to the parent's tenant ────────────────────────
 DROP POLICY IF EXISTS "comments_insert" ON public.comments;
 CREATE POLICY "comments_insert" ON public.comments FOR INSERT WITH CHECK (
