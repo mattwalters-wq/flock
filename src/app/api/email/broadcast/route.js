@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getServiceSupabase } from '@/lib/supabase-server';
-import { isGod } from '@/lib/god';
-import { getUserEmailMap, sendResendBatch } from '@/lib/email';
+import { requireTenantAdmin } from '@/lib/api-auth';
+import { selectAll } from '@/lib/supabase-server';
+import { getUserEmailMap, sendResendBatch, escapeHtml, fromHeader } from '@/lib/email';
 
 // Artist-composed email broadcast to their opted-in fans — the "replace the
 // mailing list" feature (pre-save announcements, release news, tour drops).
@@ -13,12 +13,6 @@ import { getUserEmailMap, sendResendBatch } from '@/lib/email';
 // Audience: fans with email_notifications = true only; every email says how
 // to opt out (profile toggle). Each send is recorded in email_broadcasts.
 
-function escapeHtml(s) {
-  return String(s || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
 export async function POST(request) {
   try {
     const { tenantId, subject, body, ctaText, ctaUrl } = await request.json();
@@ -29,19 +23,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Button link must start with http(s)://' }, { status: 400 });
     }
 
-    const authHeader = request.headers.get('authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-    const db = getServiceSupabase();
-    const { data: userData, error: userError } = await db.auth.getUser(token);
-    if (userError || !userData?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-    const { data: profile } = await db.from('profiles')
-      .select('role').eq('id', userData.user.id).eq('tenant_id', tenantId).maybeSingle();
-    if (!isGod(userData.user) && (!profile || !['admin', 'band'].includes(profile.role))) {
-      return NextResponse.json({ error: 'Not authorized for this community' }, { status: 403 });
-    }
+    const { db, user, error } = await requireTenantAdmin(request, tenantId);
+    if (error) return error;
 
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     if (!RESEND_API_KEY) return NextResponse.json({ error: 'No Resend key configured' }, { status: 500 });
@@ -50,8 +33,8 @@ export async function POST(request) {
     if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
     // Opted-in fans only — same audience rule as the digest.
-    const { data: subscribers } = await db.from('profiles')
-      .select('id').eq('tenant_id', tenantId).eq('email_notifications', true).eq('role', 'fan');
+    const subscribers = await selectAll(() => db.from('profiles')
+      .select('id').eq('tenant_id', tenantId).eq('email_notifications', true).eq('role', 'fan').order('id'));
     if (!subscribers?.length) return NextResponse.json({ ok: true, sent: 0, total: 0 });
 
     const emailMap = await getUserEmailMap(db);
@@ -79,9 +62,9 @@ export async function POST(request) {
     `;
 
     const sent = await sendResendBatch(RESEND_API_KEY, emails, (email) => ({
-      from: `${tenant.name} <hello@fans-flock.com>`,
+      from: fromHeader(tenant.name),
       to: email,
-      subject: subject.trim(),
+      subject: subject.trim().replace(/[\r\n]+/g, ' '),
       html,
     }));
 
@@ -93,7 +76,7 @@ export async function POST(request) {
     try {
       const { error: histError } = await db.from('email_broadcasts').insert({
         tenant_id: tenantId,
-        sender_id: userData.user.id,
+        sender_id: user.id,
         subject: subject.trim(),
         body: body.trim(),
         cta_text: ctaText?.trim() || null,
@@ -112,6 +95,6 @@ export async function POST(request) {
     return NextResponse.json({ ok: true, sent, total: emails.length, recorded });
   } catch (err) {
     console.error('[email/broadcast] error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Could not send broadcast' }, { status: 500 });
   }
 }

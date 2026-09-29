@@ -5,7 +5,7 @@ community on a subdomain (`<slug>.fans-flock.com`): a feed (posts, polls,
 media, threaded comments), a gamified "stamp" loyalty system with tiers and
 rewards, show check-ins, leaderboards, and email digests.
 
-**Stack:** Next.js 14 (App Router) · Supabase (auth / Postgres / storage) ·
+**Stack:** Next.js 15 (App Router) · React 19 · Supabase (auth / Postgres / storage) ·
 Resend (email) · deployed on Vercel.
 
 ## Local setup
@@ -13,6 +13,15 @@ Resend (email) · deployed on Vercel.
 1. `cp .env.local.example .env.local` and fill in the values.
 2. `npm install`
 3. `npm run dev`
+
+## API route auth
+
+Every `/api` route that reads private data or sends email/push on a
+community's behalf identifies the caller from their Supabase access token
+(`Authorization: Bearer <jwt>`, attached by `authFetch()` in
+`src/lib/supabase-browser.js`) and checks it with `requireTenantAdmin()` /
+`getRequestUser()` in `src/lib/api-auth.js`. Never accept a user id from the
+request body as proof of identity.
 
 ## Database
 
@@ -35,6 +44,7 @@ safe:
 | `harden_rls_security.sql` | clamps protected profile columns (no self-awarded stamps / self-promotion) and scopes inserts to the writer's own tenant |
 | `add_email_broadcasts.sql` | the `email_broadcasts` send-history table behind the dashboard's "email your fans" card and its past-messages list |
 | `grant_table_privileges.sql` | grants app-role privileges on `email_broadcasts`, `push_subscriptions` and `comment_likes` (created without them, so every read/write was denied before RLS) and sets default privileges for future tables |
+| `security_lockdown.sql` | **run after all of the above.** Revokes browser access to the internal `SECURITY DEFINER` functions (stamp awarding, notifications, referral counts), blocks self-promotion to admin on profile insert and tenant-hopping on update, restricts post/reward-claim/stamp-history writes, dedupes like-farming, fixes `checkin_show`, and adds the `complete_referral()` RPC the app now uses. New functions are no longer executable by `anon`/`authenticated` by default — `GRANT EXECUTE` each new RPC explicitly. |
 
 `flock-schema.sql` already includes the contents of `harden_rls_security.sql`;
 the migration exists to apply the same hardening to databases created before it.

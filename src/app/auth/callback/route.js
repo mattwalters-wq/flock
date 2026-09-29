@@ -1,19 +1,32 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 
+// OAuth (PKCE) callback. The code verifier was stored in a cookie by the
+// browser client when sign-in started, so the exchange must run with a
+// cookie-aware client; the resulting session is written back to the same
+// cookies, where the browser client picks it up.
 export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const host = request.headers.get('host') || '';
 
   if (code) {
-    const supabase = createClient(
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          setAll: (list) => { list.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); },
+        },
+      },
     );
-    const { data } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) console.error('[auth/callback] exchange failed:', error.message);
 
     // If we're on the root domain, find the user's community and redirect there
     if (data?.user && (host === APP_DOMAIN || host === `www.${APP_DOMAIN}`)) {

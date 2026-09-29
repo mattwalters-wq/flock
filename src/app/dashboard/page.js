@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { isGod } from '@/lib/god';
+import { authFetch } from '@/lib/supabase-browser';
+import { safeUrl } from '@/lib/safe-url';
 
 const INK = '#1a1a1a'; const CREAM = '#F5F0E8'; const RUBY = '#8B1A2B';
 const WARM_GOLD = '#C9922A'; const SLATE = '#6A5A62'; const SURFACE = '#FAF5F0';
@@ -181,9 +183,9 @@ function Overview({ supabase, tenantId, tenant, currencyName, currencyIcon, rewa
   const sendDigest = async () => {
     setDigestSending(true); setDigestResult('');
     try {
-      const res = await fetch('/api/digest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, intro: digestIntro }) });
+      const res = await authFetch('/api/digest', { tenantId, customIntro: digestIntro });
       const data = await res.json();
-      setDigestResult(data.message || (res.ok ? 'sent!' : 'something went wrong'));
+      setDigestResult(res.ok ? `sent to ${data.sent ?? 0} fan${data.sent === 1 ? '' : 's'}` : (data.error || 'something went wrong'));
     } catch { setDigestResult('error sending'); }
     setDigestSending(false);
   };
@@ -579,7 +581,7 @@ function Shows({ supabase, tenantId }) {
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {show.checkin_code && <div style={{ background: INK, color: CREAM, borderRadius: 6, padding: '4px 12px', fontFamily: "'DM Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: '2px' }}>{show.checkin_code}</div>}
-                {show.ticket_url && <a href={show.ticket_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, textDecoration: 'none' }}>tickets ↗</a>}
+                {safeUrl(show.ticket_url) && <a href={safeUrl(show.ticket_url)} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: RUBY, textDecoration: 'none' }}>tickets ↗</a>}
                 <button onClick={() => startEdit(show)} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 11, color: SLATE, fontFamily: "'DM Mono', monospace" }}>edit</button>
                 <button onClick={async () => { await supabase.from('shows').delete().eq('id', show.id); setShows(p => p.filter(x => x.id !== show.id)); }} style={{ background: 'none', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12, color: RUBY, fontFamily: "'DM Mono', monospace" }}>×</button>
               </div>
@@ -1072,7 +1074,7 @@ function PastMessages({ history, loading, onLoadMore, hasMore, onReuse }) {
                 <div style={{ background: CREAM, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '12px 14px', fontSize: 13, color: INK, lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: "'DM Sans', sans-serif" }}>{h.body}</div>
                 {h.cta_text && h.cta_url && (
                   <Mono size={10} color={SLATE} style={{ marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    button: <span style={{ color: INK, fontWeight: 600 }}>{h.cta_text}</span> → <a href={h.cta_url} target="_blank" rel="noreferrer" style={{ color: RUBY }}>{h.cta_url}</a>
+                    button: <span style={{ color: INK, fontWeight: 600 }}>{h.cta_text}</span> → <a href={safeUrl(h.cta_url) || undefined} target="_blank" rel="noopener noreferrer" style={{ color: RUBY }}>{h.cta_url}</a>
                   </Mono>
                 )}
                 <div style={{ marginTop: 10 }}>
@@ -1312,7 +1314,7 @@ function Fans({ supabase, tenantId, currencyName, currencyIcon }) {
 
   useEffect(() => {
     if (!tenantId || !user) return;
-    fetch('/api/fans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, requestingUserId: user.id }) })
+    authFetch('/api/fans', { tenantId })
       .then(r => r.json())
       .then(d => { setFans(d.fans || []); setLoading(false); })
       .catch(() => setLoading(false));
@@ -2124,8 +2126,9 @@ export default function Dashboard() {
     const urlParams = new URLSearchParams(window.location.search);
     const slugParam = urlParams.get('slug');
     let slug = null;
-    if (slugParam) {
-      // God mode - slug passed via URL param
+    if (slugParam && isGod(user)) {
+      // God mode - slug passed via URL param (platform owner only; anyone else
+      // stays on their own subdomain's community)
       slug = slugParam;
     } else if (host.endsWith(`.${APP_DOMAIN}`)) {
       // Normal - slug from subdomain
@@ -2135,7 +2138,7 @@ export default function Dashboard() {
     if (slug && supabase) {
       supabase.from('tenants').select('id').eq('slug', slug).single().then(({ data }) => { if (data?.id) setClientTenantId(data.id); });
     }
-  }, [supabase]);
+  }, [supabase, user]);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
   const [tenant, setTenant] = useState(null);

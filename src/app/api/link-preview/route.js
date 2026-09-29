@@ -1,3 +1,74 @@
+import { lookup } from 'dns/promises';
+import net from 'net';
+
+export const runtime = 'nodejs';
+
+// Link previews fetch arbitrary user-supplied URLs server-side, so guard
+// against SSRF: only public http(s) hosts on standard ports, every redirect hop
+// re-validated, and the response body capped.
+const MAX_BYTES = 512 * 1024;
+const MAX_REDIRECTS = 3;
+
+function isPrivateIp(ip) {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split('.').map(Number);
+    return a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) ||
+      (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19));
+  }
+  const v6 = ip.toLowerCase();
+  if (v6.startsWith('::ffff:')) return isPrivateIp(v6.slice(7));
+  return v6 === '::' || v6 === '::1' || v6.startsWith('fc') || v6.startsWith('fd') ||
+    v6.startsWith('fe8') || v6.startsWith('fe9') || v6.startsWith('fea') || v6.startsWith('feb') || v6.startsWith('ff');
+}
+
+async function assertPublicUrl(raw) {
+  const u = new URL(raw);
+  if (!['http:', 'https:'].includes(u.protocol)) throw new Error('invalid url');
+  if (u.port && !['80', '443'].includes(u.port)) throw new Error('invalid url');
+  if (u.username || u.password) throw new Error('invalid url');
+  const host = u.hostname.replace(/^\[|\]$/g, '');
+  const addrs = net.isIP(host) ? [{ address: host }] : await lookup(host, { all: true });
+  if (!addrs.length || addrs.some(a => isPrivateIp(a.address))) throw new Error('invalid url');
+  return u;
+}
+
+async function safeFetch(raw) {
+  let current = raw;
+  for (let i = 0; i <= MAX_REDIRECTS; i++) {
+    await assertPublicUrl(current);
+    const res = await fetch(current, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; FlockBot/1.0)', Accept: 'text/html' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
+      current = new URL(res.headers.get('location'), current).toString();
+      continue;
+    }
+    return res;
+  }
+  throw new Error('too many redirects');
+}
+
+async function readCapped(res) {
+  const reader = res.body?.getReader();
+  if (!reader) return '';
+  const chunks = [];
+  let total = 0;
+  while (total < MAX_BYTES) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.length;
+  }
+  reader.cancel().catch(() => {});
+  return new TextDecoder().decode(Buffer.concat(chunks.map(c => Buffer.from(c))).subarray(0, MAX_BYTES));
+}
+
+const CACHE = { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800' };
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
@@ -10,7 +81,7 @@ export async function GET(req) {
       return Response.json({ error: "invalid url" }, { status: 400 });
     }
 
-    const domain = parsed.hostname.replace("www.", "");
+    const domain = parsed.hostname.replace(/^www\./, "");
 
     // --- YouTube oEmbed ---
     const isYouTube = domain === "youtube.com" || domain === "youtu.be";
@@ -26,7 +97,7 @@ export async function GET(req) {
           description: `by ${data.author_name}`,
           image: data.thumbnail_url || null,
           siteName: "YouTube", domain: "youtube.com", type: "video",
-        });
+        }, { headers: CACHE });
       }
     }
 
@@ -43,7 +114,7 @@ export async function GET(req) {
           url, title: data.title || null, description: null,
           image: data.thumbnail_url || null,
           siteName: "Spotify", domain: "spotify.com", type: "music",
-        });
+        }, { headers: CACHE });
       }
     }
 
@@ -60,18 +131,18 @@ export async function GET(req) {
           description: `by ${data.author_name}`,
           image: data.thumbnail_url || null,
           siteName: "SoundCloud", domain: "soundcloud.com", type: "music",
-        });
+        }, { headers: CACHE });
       }
     }
 
     // --- Generic OG scrape ---
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; StampsLandBot/1.0)" },
-      signal: AbortSignal.timeout(5000),
-    });
+    const res = await safeFetch(url);
     if (!res.ok) return Response.json({ error: "fetch failed" }, { status: 400 });
+    if (!(res.headers.get("content-type") || "").includes("html")) {
+      return Response.json({ url, title: null, description: null, image: null, siteName: domain, domain }, { headers: CACHE });
+    }
 
-    const html = await res.text();
+    const html = await readCapped(res);
     const get = (pattern) => {
       const m = html.match(pattern);
       return m ? m[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"').trim() : null;
@@ -96,10 +167,10 @@ export async function GET(req) {
       url,
       title: title?.slice(0, 100) || null,
       description: description?.slice(0, 200) || null,
-      image: image || null,
+      image: image && /^https?:\/\//i.test(image) ? image : null,
       siteName, domain,
-    });
-  } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 });
+    }, { headers: CACHE });
+  } catch {
+    return Response.json({ error: "preview unavailable" }, { status: 400 });
   }
 }

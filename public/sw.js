@@ -29,7 +29,12 @@ self.addEventListener('push', (event) => {
 // deep-linked post) or opens a new one.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  // Only ever navigate within this community's own origin.
+  let url = '/';
+  try {
+    const u = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
+    if (u.origin === self.location.origin) url = u.href;
+  } catch { /* fall back to home */ }
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of all) {

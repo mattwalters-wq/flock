@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
+import { getSupabase, authErrorMessage, authFetch } from '@/lib/supabase-browser';
+import { safeUrl } from '@/lib/safe-url';
 
 const STREAMING_ICONS = {
   spotify: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>,
@@ -11,15 +12,16 @@ const STREAMING_ICONS = {
   tiktok: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>,
 };
 
-function getSpotifyEmbedUrl(url) {
-  if (!url) return null;
+function getSpotifyEmbedUrl(raw) {
   // Convert spotify URL to embed URL
   // e.g. https://open.spotify.com/artist/xxx -> https://open.spotify.com/embed/artist/xxx
-  if (url.includes('spotify.com/embed')) return url;
-  if (url.includes('open.spotify.com')) {
-    return url.replace('open.spotify.com/', 'open.spotify.com/embed/');
-  }
-  return null;
+  // Only ever embed a real open.spotify.com page: this goes into an iframe src.
+  const url = safeUrl(raw);
+  if (!url) return null;
+  const u = new URL(url);
+  if (u.hostname !== 'open.spotify.com') return null;
+  if (!u.pathname.startsWith('/embed/')) u.pathname = `/embed${u.pathname}`;
+  return u.href;
 }
 
 export function PublicPage({ tenantId }) {
@@ -113,14 +115,14 @@ export function PublicPage({ tenantId }) {
 
   const streamingLinks = [
     config.social_spotify && { key: 'spotify', label: 'Spotify', url: config.social_spotify.startsWith('http') ? config.social_spotify : `https://open.spotify.com/artist/${config.social_spotify}` },
-    config.social_apple_music && { key: 'apple_music', label: 'Apple Music', url: config.social_apple_music },
-    config.social_youtube && { key: 'youtube', label: 'YouTube', url: config.social_youtube },
-    config.social_website && { key: 'website', label: 'Website', url: config.social_website.startsWith('http') ? config.social_website : `https://${config.social_website}` },
-  ].filter(Boolean);
+    config.social_apple_music && { key: 'apple_music', label: 'Apple Music', url: safeUrl(config.social_apple_music) },
+    config.social_youtube && { key: 'youtube', label: 'YouTube', url: safeUrl(config.social_youtube) },
+    config.social_website && { key: 'website', label: 'Website', url: safeUrl(config.social_website) },
+  ].filter(l => l && l.url);
 
   const socialLinks = [
-    config.social_instagram && { key: 'instagram', url: `https://instagram.com/${config.social_instagram}` },
-    config.social_tiktok && { key: 'tiktok', url: `https://tiktok.com/@${config.social_tiktok}` },
+    config.social_instagram && { key: 'instagram', url: `https://instagram.com/${encodeURIComponent(config.social_instagram.replace(/^@/, ''))}` },
+    config.social_tiktok && { key: 'tiktok', url: `https://tiktok.com/@${encodeURIComponent(config.social_tiktok.replace(/^@/, ''))}` },
   ].filter(Boolean);
 
   const formatDate = (dateStr) => {
@@ -156,23 +158,14 @@ export function PublicPage({ tenantId }) {
 
     // Check for referral code
     let refCode = null;
-    let referrerId = null;
-    try {
-      refCode = sessionStorage.getItem('flock_ref_code');
-      if (refCode && tenantId) {
-        const { data: referrer } = await sb.from('profiles').select('id').eq('tenant_id', tenantId).eq('referral_code', refCode).single();
-        if (referrer) referrerId = referrer.id;
-      }
-    } catch (e) {}
+    try { refCode = sessionStorage.getItem('flock_ref_code'); } catch (e) {}
 
+    // Credit the referrer server-side: complete_referral() resolves the code,
+    // and only lets a brand-new member credit a referrer once.
     const handleReferralAward = async (newUserId) => {
-      if (!referrerId || !newUserId || !tenantId) return;
+      if (!refCode || !newUserId || !tenantId) return;
       try {
-        // Award stamps to referrer via the existing action trigger
-        await sb.rpc('award_stamps', { target_user_id: referrerId, action_trigger_key: 'referral_completed', p_tenant_id: tenantId });
-        // Increment referrer's referral_count via SECURITY DEFINER — under RLS a
-        // fan can't (and shouldn't) update another user's profile row directly.
-        await sb.rpc('increment_referral_count', { p_referrer: referrerId, p_tenant_id: tenantId });
+        await sb.rpc('complete_referral', { p_referral_code: refCode });
         sessionStorage.removeItem('flock_ref_code');
       } catch (e) {}
     };
@@ -191,12 +184,12 @@ export function PublicPage({ tenantId }) {
       if (session && tenantId) {
         try { await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }); } catch (_) {}
         await handleReferralAward(data.user.id);
-        fetch('/api/email/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), displayName: displayName.trim(), tenantId }) }).catch(() => {});
+        await authFetch('/api/email/welcome', { tenantId }).catch(() => {});
         window.location.href = '/';
       } else if (data?.user && tenantId) {
         try { await sb.from('profiles').insert({ id: data.user.id, tenant_id: tenantId, display_name: displayName.trim(), role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true }); } catch (_) {}
         await handleReferralAward(data.user.id);
-        fetch('/api/email/welcome', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email.trim(), displayName: displayName.trim(), tenantId }) }).catch(() => {});
+        await authFetch('/api/email/welcome', { tenantId }).catch(() => {});
         window.location.href = '/';
       } else {
         setAuthError('something went wrong, please try again');
@@ -477,7 +470,7 @@ export function PublicPage({ tenantId }) {
         <div style={{ animation: 'fadeIn 0.6s ease-out 0.5s both' }}>
           <div style={{ display: 'grid', gridTemplateColumns: linkTiles.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
             {linkTiles.map(tile => (
-              <a key={tile.id} href={tile.url?.startsWith('http') ? tile.url : `https://${tile.url}`} target="_blank" rel="noopener noreferrer"
+              <a key={tile.id} href={safeUrl(tile.url) || undefined} target="_blank" rel="noopener noreferrer"
                 style={{ background: bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08', border: `1px solid ${bg === 'dark' ? 'rgba(255,255,255,0.1)' : BORDER}`, borderRadius: 12, textDecoration: 'none', color: bg === 'dark' ? cream : ink, transition: 'all 0.2s', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
                 onMouseEnter={e => { e.currentTarget.style.background = `${ruby}22`; e.currentTarget.style.borderColor = `${ruby}55`; }}
                 onMouseLeave={e => { e.currentTarget.style.background = bg === 'dark' ? 'rgba(255,255,255,0.06)' : ink + '08'; e.currentTarget.style.borderColor = bg === 'dark' ? 'rgba(255,255,255,0.1)' : BORDER; }}>

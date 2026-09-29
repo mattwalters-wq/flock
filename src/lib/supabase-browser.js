@@ -125,3 +125,17 @@ export function authErrorMessage(error) {
   if (/refresh token|session (missing|expired|not found)|auth session/i.test(m)) return 'your session expired — please sign in again';
   return m;
 }
+
+// POST JSON to one of our /api routes with the user's access token attached,
+// so the server can identify the caller (routes never trust a user id in the
+// body). Resolves to the fetch Response.
+export async function authFetch(url, body) {
+  const { data } = await getSupabase().auth.getSession();
+  const token = data?.session?.access_token;
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+    keepalive: true, // let fire-and-forget calls finish across a navigation
+  });
+}

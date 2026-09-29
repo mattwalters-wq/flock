@@ -12,6 +12,10 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
   const [tenantId, setTenantId] = useState(serverTenantId || null);
   const mounted = useRef(false);
   const supabase = getSupabase();
+  // Latest tenant id for callbacks registered once on mount (the auth listener
+  // would otherwise keep the mount-time value, often null).
+  const tenantIdRef = useRef(tenantId);
+  useEffect(() => { tenantIdRef.current = tenantId; }, [tenantId]);
 
   // Resolve tenant client-side from subdomain - doesn't depend on server headers
   useEffect(() => {
@@ -29,7 +33,7 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
 
   const fetchProfile = async (authUser, tid) => {
     const userId = authUser?.id;
-    const id = tid || tenantId;
+    const id = tid || tenantIdRef.current;
     if (!userId || !id) return null;
     const { data } = await supabase
       .from('profiles')
@@ -64,15 +68,16 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
       if (u) fetchProfile(u).then(p => { if (p) setProfile(p); }).catch(() => {});
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Keep this callback synchronous: awaiting a Supabase query inside it
+    // re-enters the auth lock and can deadlock. Defer the profile fetch, and
+    // don't blank an already-loaded profile on a routine token refresh.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (u) {
-        const p = await fetchProfile(u);
-        setProfile(p);
-      } else {
-        setProfile(null);
-      }
+      if (!u) { setProfile(null); return; }
+      setTimeout(() => {
+        fetchProfile(u).then(p => { if (p || event === 'SIGNED_IN') setProfile(p); }).catch(() => {});
+      }, 0);
     });
 
     // A brand-new tenant arrives straight from onboarding with its session in the

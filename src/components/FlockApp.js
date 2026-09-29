@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { authErrorMessage } from '@/lib/supabase-browser';
+import { authErrorMessage, authFetch } from '@/lib/supabase-browser';
+import { safeUrl } from '@/lib/safe-url';
 import { flockPitchUrl } from '@/lib/flock-link';
 
 // Bound an auth call so a stuck token-refresh can't freeze the UI forever.
@@ -134,11 +135,23 @@ function PollWidget({ postId, options, supabase, currentUserId, tenantId }) {
 
 // ─── LINK PREVIEW ────────────────────────────────────────────────────────────
 
-function LinkPreviewCard({ url }) {
+// One request per URL per page load, however many times the card remounts.
+const linkPreviewCache = new Map();
+function fetchLinkPreview(url) {
+  if (!linkPreviewCache.has(url)) {
+    linkPreviewCache.set(url, fetch(`/api/link-preview?url=${encodeURIComponent(url)}`).then(r => r.json()).catch(() => null));
+  }
+  return linkPreviewCache.get(url);
+}
+
+function LinkPreviewCard({ url: rawUrl }) {
+  const url = safeUrl(rawUrl);
   const [data, setData] = useState(null);
   useEffect(() => {
     if (!url) return;
-    fetch(`/api/link-preview?url=${encodeURIComponent(url)}`).then(r => r.json()).then(d => { if (d.title) setData(d); }).catch(() => {});
+    let live = true;
+    fetchLinkPreview(url).then(d => { if (live && d?.title) setData(d); });
+    return () => { live = false; };
   }, [url]);
   if (!data) return null;
   const BORDER = 'var(--border)'; const INK = 'var(--ink)'; const RUBY = 'var(--ruby)'; const CREAM = 'var(--cream)';
@@ -447,7 +460,7 @@ function PostCard({ post, currentUserId, currentProfile, supabase, tenantId, mem
                     allowFullScreen allow="autoplay; fullscreen" />
                 </div>
               ) : (
-                <a href={post.live_url} target="_blank" rel="noopener noreferrer"
+                <a href={safeUrl(post.live_url) || undefined} target="_blank" rel="noopener noreferrer"
                   style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#E0505015', border: '1px solid #E0505033', borderRadius: 10, textDecoration: 'none' }}>
                   <span style={{ fontSize: 20 }}>▶</span>
                   <div>
@@ -789,6 +802,7 @@ export function FlockApp({ tenantId: propTenantId }) {
   const [currencyIcon, setCurrencyIcon] = useState('✦');
   const [rewardsLabel, setRewardsLabel] = useState('rewards');
   const [logoUrl, setLogoUrl] = useState(null);
+  const [tenantCfg, setTenantCfg] = useState({});
   const [STAMP_LEVELS, setStampLevels] = useState(DEFAULT_LEVELS);
 
   // UI state
@@ -869,6 +883,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
       const cfg = {};
       (cfgRes.data || []).forEach(({ key, value }) => { cfg[key] = value; });
+      setTenantCfg(cfg);
       if (cfg.currency_name) setCurrencyName(cfg.currency_name);
       if (cfg.rewards_label) setRewardsLabel(cfg.rewards_label);
       if (cfg.currency_icon) setCurrencyIcon(cfg.currency_icon);
@@ -925,13 +940,21 @@ export function FlockApp({ tenantId: propTenantId }) {
 
     // Geo capture
     if (user && profile && !profile.signup_ip) {
-      fetch('/api/geo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, language: navigator.language }) }).catch(() => {});
+      authFetch('/api/geo', {}).catch(() => {});
     }
   }, [supabase, tenantId]);
 
   // ── Fetch posts ───────────────────────────────────────────────────────────
+  const fetchPostsReq = useRef(0);
   const fetchPosts = useCallback(async (feed = feedView, append = false) => {
     if (!supabase || !tenantId) return;
+    // Rapid feed/filter switches: only the latest request may update the feed.
+    const reqId = ++fetchPostsReq.current;
+    const stale = () => {
+      if (reqId === fetchPostsReq.current) return false;
+      if (append) setLoadingMorePosts(false);
+      return true;
+    };
     if (append) setLoadingMorePosts(true);
     else { setLoadingPosts(true); setHasMorePosts(true); }
     try {
@@ -953,6 +976,7 @@ export function FlockApp({ tenantId: propTenantId }) {
       }
 
       const { data } = await query;
+      if (stale()) return;
       if (!data) {
         if (append) setLoadingMorePosts(false);
         else { setPosts([]); setLoadingPosts(false); }
@@ -971,10 +995,11 @@ export function FlockApp({ tenantId: propTenantId }) {
 
       let likedIds = new Set();
       if (user) {
-        const { data: likes } = await supabase.from('post_likes').select('post_id').eq('user_id', user.id).eq('tenant_id', tenantId);
+        const { data: likes } = await supabase.from('post_likes').select('post_id').eq('user_id', user.id).in('post_id', data.map(p => p.id));
         if (likes) likedIds = new Set(likes.map(l => l.post_id));
       }
 
+      if (stale()) return;
       const mapped = data.map(p => ({ ...p, profiles: pmap[p.author_id] || null, user_has_liked: likedIds.has(p.id) }));
 
       if (append) {
@@ -991,8 +1016,10 @@ export function FlockApp({ tenantId: propTenantId }) {
       }
     } catch (e) {
       console.error('fetchPosts error:', e);
+      if (stale()) return;
       if (!append) setPosts([]);
     }
+    if (stale()) return;
     if (append) setLoadingMorePosts(false);
     else setLoadingPosts(false);
   }, [feedView, user, supabase, tenantId, posts, feedArtistOnly, artistIds]);
@@ -1234,8 +1261,8 @@ export function FlockApp({ tenantId: propTenantId }) {
       await fetchPosts();
       if (profile?.role === 'band' || profile?.role === 'admin') {
         // Only notify fans if artist hasn't disabled it
-        if (cfg.notify_fans_on_post !== 'false') {
-          fetch('/api/email/band-post', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, authorName: profile.display_name, content: newPost.trim(), feedType, postId: inserted?.id }) }).catch(() => {});
+        if (tenantCfg.notify_fans_on_post !== 'false') {
+          if (inserted?.id) authFetch('/api/email/band-post', { tenantId, postId: inserted.id }).catch(() => {});
         }
       }
     }
@@ -1669,7 +1696,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                                isPast ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66' }}>past</span> :
                                show.checkin_code && !sold ? <button onClick={() => { setCheckinShow(show); setCheckinCode(''); setCheckinStatus(''); }} style={{ background: WARM_GOLD, color: INK, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>check in</button> :
                                sold ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY }}>sold out</span> :
-                               show.ticket_url ? <a href={show.ticket_url} target="_blank" rel="noopener noreferrer" style={{ background: INK, color: CREAM, borderRadius: 6, padding: '6px 12px', fontSize: 10, fontWeight: 600, textDecoration: 'none' }}>tickets</a> : null}
+                               safeUrl(show.ticket_url) ? <a href={safeUrl(show.ticket_url)} target="_blank" rel="noopener noreferrer" style={{ background: INK, color: CREAM, borderRadius: 6, padding: '6px 12px', fontSize: 10, fontWeight: 600, textDecoration: 'none' }}>tickets</a> : null}
                             </div>
                           </div>
                         </div>
