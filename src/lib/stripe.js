@@ -70,15 +70,16 @@ export async function getFounderPriceId() {
 // the SDK: v1 is HMAC-SHA256 of `${t}.${rawBody}` with the endpoint secret.
 export function verifyStripeSignature(rawBody, sigHeader, secret, toleranceSeconds = 300) {
   if (!sigHeader || !secret) return false;
-  const parts = Object.fromEntries(
-    sigHeader.split(',').map(p => { const i = p.indexOf('='); return [p.slice(0, i), p.slice(i + 1)]; })
-  );
-  const t = parts.t;
-  const v1 = parts.v1;
-  if (!t || !v1) return false;
+  const parts = sigHeader.split(',').map(p => p.trim().split('='));
+  const t = parts.find(([name]) => name === 't')?.[1];
+  const signatures = parts.filter(([name]) => name === 'v1').map(([, value]) => value);
+  if (!t || !/^\d+$/.test(t) || !Number.isSafeInteger(Number(t))) return false;
   if (Math.abs(Date.now() / 1000 - Number(t)) > toleranceSeconds) return false;
   const expected = crypto.createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex');
   const a = Buffer.from(expected, 'hex');
-  const b = Buffer.from(v1, 'hex');
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return signatures.some(v1 => {
+    if (!/^[a-f0-9]{64}$/i.test(v1 || '')) return false;
+    const b = Buffer.from(v1, 'hex');
+    return crypto.timingSafeEqual(a, b);
+  });
 }

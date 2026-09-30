@@ -17,13 +17,11 @@
 BEGIN;
 
 -- ── 0. is_god(): pin search_path (identity rule unchanged) ─────────────────
--- Still recognises the owner by uid OR email claim, matching src/lib/god.js.
--- Recommended follow-up: drop the email branch here and in god.js once the
--- owner confirms they only ever sign in with the SUPER_ADMIN_ID account.
+-- The owner account id was verified against auth.users during this audit.
+-- Editable email addresses must not grant platform privileges.
 CREATE OR REPLACE FUNCTION public.is_god()
 RETURNS boolean LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
-  SELECT auth.uid() = '5cdcf898-6bda-42b7-860e-0964562c9c22'::uuid
-      OR lower(coalesce(auth.jwt() ->> 'email', '')) = 'matt.walters@unifiedmusicgroup.com';
+  SELECT auth.uid() = '5cdcf898-6bda-42b7-860e-0964562c9c22'::uuid;
 $$;
 
 -- ── 1. Internal SECURITY DEFINER functions: not callable from the API ───────
@@ -166,7 +164,7 @@ DECLARE
 BEGIN
   IF uid IS NULL THEN RETURN 0; END IF;
   SELECT tenant_id, last_active_date, login_streak INTO tid, last_date, cur_streak
-    FROM profiles WHERE id = uid;
+    FROM profiles WHERE id = uid FOR UPDATE;
   IF tid IS NULL OR (p_tenant_id IS NOT NULL AND p_tenant_id <> tid) THEN RETURN 0; END IF;
   IF last_date = current_date THEN RETURN COALESCE(cur_streak, 0); END IF;
   new_streak := CASE WHEN last_date = current_date - 1 THEN COALESCE(cur_streak, 0) + 1 ELSE 1 END;
@@ -187,7 +185,7 @@ DECLARE
   v_me record;
   v_ref uuid;
 BEGIN
-  SELECT id, tenant_id, referred_by, created_at INTO v_me FROM profiles WHERE id = auth.uid();
+  SELECT id, tenant_id, referred_by, created_at INTO v_me FROM profiles WHERE id = auth.uid() FOR UPDATE;
   IF v_me.id IS NULL OR v_me.referred_by IS NOT NULL OR v_me.created_at < now() - interval '1 hour' THEN
     RETURN false;
   END IF;
@@ -417,19 +415,73 @@ BEGIN
   END IF;
 END $$;
 
--- ── 10. Column-level hiding (DEPLOY WITH CLIENT CHANGE) ─────────────────────
--- Uncomment once every browser select('*') on profiles/shows is replaced with an
--- explicit column list (FlockApp.js:530,1006; auth-context.js:36; admin/page.js:125,127;
--- PublicPage.js:62; highlights/page.js:45; dashboard/page.js:533) and admins read
--- check-in codes via a SECURITY DEFINER RPC. Otherwise select('*') starts failing.
---
--- REVOKE SELECT ON public.profiles FROM anon, authenticated;
--- GRANT SELECT (id, tenant_id, display_name, avatar_url, bio, city, stamp_count, stamp_level,
---   role, band_member, show_count, referral_count, email_notifications, joined_at, created_at,
---   login_streak, last_active_date, member_number) ON public.profiles TO anon, authenticated;
--- -- referral_code: readable only by owner via RPC get_my_referral_code()
--- REVOKE SELECT ON public.shows FROM anon, authenticated;
--- GRANT SELECT (id, tenant_id, date, city, venue, country, region, ticket_url, status, sort_order, created_at)
---   ON public.shows TO anon, authenticated;
+-- ── 10. Private columns: deploy the explicit projections and API routes first ──
+-- Public check-in availability is separate from the secret code itself.
+ALTER TABLE public.shows ADD COLUMN IF NOT EXISTS has_checkin boolean
+  GENERATED ALWAYS AS (checkin_code IS NOT NULL) STORED;
+REVOKE SELECT ON public.profiles FROM PUBLIC, anon, authenticated;
+GRANT SELECT (id, tenant_id, display_name, avatar_url, bio, city, stamp_count, stamp_level,
+  role, band_member, show_count, referral_count, email_notifications, joined_at, created_at,
+  login_streak, last_active_date, member_number) ON public.profiles TO anon, authenticated;
+REVOKE SELECT ON public.shows FROM PUBLIC, anon, authenticated;
+GRANT SELECT (id, tenant_id, date, city, venue, country, region, ticket_url, status, sort_order,
+  created_at, has_checkin) ON public.shows TO anon, authenticated;
+
+-- ── 11. Media: tenant paths and ownership, including legacy artist assets ────
+DROP POLICY IF EXISTS "authenticated users can upload media" ON storage.objects;
+DROP POLICY IF EXISTS "authenticated users can update media" ON storage.objects;
+DROP POLICY IF EXISTS media_insert_scoped ON storage.objects;
+CREATE POLICY media_insert_scoped ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'media' AND (
+  public.is_god() OR (
+    (storage.foldername(name))[2] = public.current_tenant_id()::text
+    AND (
+      public.is_tenant_admin(public.current_tenant_id())
+      OR ((storage.foldername(name))[1] IN ('avatars','posts','audio','video')
+          AND (storage.filename(name) LIKE auth.uid()::text || '-%'
+               OR storage.filename(name) LIKE auth.uid()::text || '.%'))
+    )
+  )
+));
+DROP POLICY IF EXISTS media_update_scoped ON storage.objects;
+CREATE POLICY media_update_scoped ON storage.objects FOR UPDATE TO authenticated
+USING (bucket_id = 'media' AND (
+  public.is_god() OR (
+    (storage.foldername(name))[2] = public.current_tenant_id()::text
+    AND (owner_id = auth.uid()::text OR public.is_tenant_admin(public.current_tenant_id()))
+  )
+))
+WITH CHECK (bucket_id = 'media' AND (
+  public.is_god() OR (
+    (storage.foldername(name))[2] = public.current_tenant_id()::text
+    AND (owner_id = auth.uid()::text OR public.is_tenant_admin(public.current_tenant_id()))
+  )
+));
+
+-- ── 12. Exclusive posts are protected by RLS, including their child rows ────
+DROP POLICY IF EXISTS posts_read ON public.posts;
+CREATE POLICY posts_read ON public.posts FOR SELECT USING (
+  NOT coalesce(is_exclusive, false) OR tenant_id = public.current_tenant_id() OR public.is_god()
+);
+DROP POLICY IF EXISTS comments_read ON public.comments;
+CREATE POLICY comments_read ON public.comments FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.posts p WHERE p.id = comments.post_id AND p.tenant_id = comments.tenant_id)
+);
+DROP POLICY IF EXISTS likes_read ON public.post_likes;
+CREATE POLICY likes_read ON public.post_likes FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.posts p WHERE p.id = post_likes.post_id AND p.tenant_id = post_likes.tenant_id)
+);
+DROP POLICY IF EXISTS poll_votes_read ON public.poll_votes;
+CREATE POLICY poll_votes_read ON public.poll_votes FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.posts p WHERE p.id = poll_votes.post_id AND p.tenant_id = poll_votes.tenant_id)
+);
+DO $$ BEGIN
+ IF to_regclass('public.comment_likes') IS NOT NULL THEN
+  DROP POLICY IF EXISTS comment_likes_read ON public.comment_likes;
+  CREATE POLICY comment_likes_read ON public.comment_likes FOR SELECT USING (
+   EXISTS (SELECT 1 FROM public.comments c WHERE c.id = comment_likes.comment_id AND c.tenant_id = comment_likes.tenant_id)
+  );
+ END IF;
+END $$;
 
 COMMIT;

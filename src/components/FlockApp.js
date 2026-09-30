@@ -1,4 +1,6 @@
 'use client';
+import { SHOW_COLUMNS } from '@/lib/public-columns';
+import { PROFILE_COLUMNS } from '@/lib/public-columns';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { authErrorMessage, authFetch } from '@/lib/supabase-browser';
@@ -540,7 +542,7 @@ function UserProfileModal({ userId, supabase, tenantId, onClose, levels, currenc
 
   useEffect(() => {
     if (!userId) return;
-    supabase.from('profiles').select('*').eq('id', userId).eq('tenant_id', tenantId).single().then(({ data }) => setProf(data));
+    supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', userId).eq('tenant_id', tenantId).single().then(({ data }) => setProf(data));
   }, [userId]);
 
   if (!userId) return null;
@@ -939,7 +941,7 @@ export function FlockApp({ tenantId: propTenantId }) {
     }
 
     // Geo capture
-    if (user && profile && !profile.signup_ip) {
+    if (user && profile && !profile.geo_recorded) {
       authFetch('/api/geo', {}).catch(() => {});
     }
   }, [supabase, tenantId]);
@@ -1030,7 +1032,7 @@ export function FlockApp({ tenantId: propTenantId }) {
 
   const fetchShows = useCallback(async () => {
     if (!supabase || !tenantId) return;
-    const { data } = await supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date');
+    const { data } = await supabase.from('shows').select(SHOW_COLUMNS).eq('tenant_id', tenantId).order('date');
     
     // Also fetch Bandsintown events if configured
     let bitEvents = [];
@@ -1694,7 +1696,7 @@ export function FlockApp({ tenantId: propTenantId }) {
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               {attended ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: WARM_GOLD }}>{currencyIcon} attended</span> :
                                isPast ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: SLATE + '66' }}>past</span> :
-                               show.checkin_code && !sold ? <button onClick={() => { setCheckinShow(show); setCheckinCode(''); setCheckinStatus(''); }} style={{ background: WARM_GOLD, color: INK, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>check in</button> :
+                               show.has_checkin && !sold ? <button onClick={() => { setCheckinShow(show); setCheckinCode(''); setCheckinStatus(''); }} style={{ background: WARM_GOLD, color: INK, border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'DM Mono', monospace" }}>check in</button> :
                                sold ? <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: RUBY }}>sold out</span> :
                                safeUrl(show.ticket_url) ? <a href={safeUrl(show.ticket_url)} target="_blank" rel="noopener noreferrer" style={{ background: INK, color: CREAM, borderRadius: 6, padding: '6px 12px', fontSize: 10, fontWeight: 600, textDecoration: 'none' }}>tickets</a> : null}
                             </div>

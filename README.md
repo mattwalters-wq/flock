@@ -25,15 +25,15 @@ request body as proof of identity.
 
 ## Database
 
-The canonical, full schema lives in **`flock-schema.sql`** — run it once in the
-SQL editor of a fresh Supabase project. It creates every table, the RLS
-policies, the `SECURITY DEFINER` award/check-in/notification functions, and the
-security-hardening layer (protected profile columns + tenant-scoped inserts).
+**`flock-schema.sql` is a historical base schema, not a complete current bootstrap.**
+The deployed database also contains incremental tables, columns, functions and
+policies. A fresh project needs a reconciled schema export and staging validation
+before it can run the current app. See `audit/2026-09-30-app-review.md`.
 
 Incremental changes applied to existing databases live in **`migrations/`** and
-are run in the Supabase SQL editor in filename order. They are idempotent
-(`create or replace`, `drop ... if exists`, `if not exists`), so re-running is
-safe:
+are applied in reviewed dependency order. Do not run them alphabetically:
+older files can restore permissive policies over newer hardening. Run the final
+lockdown only after the coordinated app changes below:
 
 | migration | what it adds |
 | --- | --- |
@@ -46,8 +46,17 @@ safe:
 | `grant_table_privileges.sql` | grants app-role privileges on `email_broadcasts`, `push_subscriptions` and `comment_likes` (created without them, so every read/write was denied before RLS) and sets default privileges for future tables |
 | `security_lockdown.sql` | **run after all of the above.** Revokes browser access to the internal `SECURITY DEFINER` functions (stamp awarding, notifications, referral counts), blocks self-promotion to admin on profile insert and tenant-hopping on update, restricts post/reward-claim/stamp-history writes, dedupes like-farming, fixes `checkin_show`, and adds the `complete_referral()` RPC the app now uses. New functions are no longer executable by `anon`/`authenticated` by default — `GRANT EXECUTE` each new RPC explicitly. |
 
-`flock-schema.sql` already includes the contents of `harden_rls_security.sql`;
-the migration exists to apply the same hardening to databases created before it.
+The revised `security_lockdown.sql` also scopes storage ownership, protects
+exclusive post reads, and removes public access to signup geo/IP, referral codes,
+and show check-in codes. Deploy it with the explicit client column projections
+and `/api/profile` / `/api/shows` authorization changes. Add `shows.has_checkin`
+(the generated boolean defined in section 10) before deploying the app, then
+apply the full lockdown after deployment. Existing browser `select('*')` calls
+must be removed before private-column grants are revoked.
+
+`tests/database-security.sql` is a rollback-only fixture test: append it in place
+of the lockdown's final `COMMIT` when validating, never run it as a permanent
+migration. `npm test`, `npm run lint`, and `npm run build` cover local checks.
 
 > The old single-tenant `supabase-schema.sql` has been removed — `flock-schema.sql`
-> is the single source of truth.
+> remains a base snapshot pending a reconciled current schema export.

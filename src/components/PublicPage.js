@@ -1,4 +1,5 @@
 'use client';
+import { SHOW_COLUMNS } from '@/lib/public-columns';
 import { useState, useEffect } from 'react';
 import { getSupabase, authErrorMessage, authFetch } from '@/lib/supabase-browser';
 import { safeUrl } from '@/lib/safe-url';
@@ -61,7 +62,7 @@ export function PublicPage({ tenantId }) {
         sb.from('tenant_config').select('key, value').eq('tenant_id', tenantId),
         sb.from('tenant_members').select('*').eq('tenant_id', tenantId).order('display_order'),
         sb.from('posts').select('*, profiles!posts_author_id_fkey(display_name, role, band_member)').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(4),
-        sb.from('shows').select('*').eq('tenant_id', tenantId).gte('date', new Date().toISOString().split('T')[0]).order('date'),
+        sb.from('shows').select(SHOW_COLUMNS).eq('tenant_id', tenantId).gte('date', new Date().toISOString().split('T')[0]).order('date'),
         sb.from('profiles').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
         sb.from('external_links').select('*').eq('tenant_id', tenantId).order('sort_order'),
       ]);
@@ -493,7 +494,7 @@ export function PublicPage({ tenantId }) {
             upcoming shows · {shows.length} {shows.length === 1 ? 'date' : 'dates'}
           </div>
           {visibleShows.map(show => (
-            <div key={show.id} onClick={() => show.ticket_url && window.open(show.ticket_url, '_blank')}
+            <div key={show.id} onClick={() => safeUrl(show.ticket_url) && window.open(safeUrl(show.ticket_url), '_blank', 'noopener,noreferrer')}
               style={{ background: bg === 'light' ? OFF_WHITE : 'rgba(255,255,255,0.06)', borderRadius: 4, padding: '13px 16px', marginBottom: 6, border: `1px solid ${bg === 'light' ? BORDER : 'rgba(255,255,255,0.08)'}`, display: 'flex', alignItems: 'center', gap: 14, cursor: show.ticket_url ? 'pointer' : 'default' }}>
               <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: SLATE, minWidth: 52 }}>{formatDate(show.date)}</div>
               <div style={{ flex: 1 }}>

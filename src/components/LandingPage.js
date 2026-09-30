@@ -58,7 +58,7 @@ export function LandingPage() {
           try { await sb.from('profiles').insert({
             id: data.user.id, tenant_id: tenantId, display_name: name,
             role: 'fan', stamp_count: 0, stamp_level: 'first_press', email_notifications: true,
-          });
+          }); } catch { setError('could not join this community'); setLoading(false); return; }
         }
       }
       window.location.href = '/';

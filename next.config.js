@@ -13,6 +13,7 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
   poweredByHeader: false,
   images: {
     remotePatterns: [

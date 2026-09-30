@@ -1,4 +1,5 @@
 'use client';
+import { SHOW_COLUMNS } from '@/lib/public-columns';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '@/lib/supabase-browser';
 import { safeUrl } from '@/lib/safe-url';
@@ -43,7 +44,7 @@ export default function HighlightsPage() {
         sb.from('tenant_config').select('key, value').eq('tenant_id', t.id),
         sb.from('tenant_members').select('*').eq('tenant_id', t.id).order('display_order'),
         sb.from('posts').select('*, profiles!posts_author_id_fkey(display_name, role, band_member)').eq('is_highlight', true).eq('tenant_id', t.id).order('created_at', { ascending: false }).limit(12),
-        sb.from('shows').select('*').eq('tenant_id', t.id).gte('date', new Date().toISOString().split('T')[0]).order('date').limit(4),
+        sb.from('shows').select(SHOW_COLUMNS).eq('tenant_id', t.id).gte('date', new Date().toISOString().split('T')[0]).order('date').limit(4),
       ]);
 
       const cfg = {};

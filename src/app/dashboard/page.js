@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { isGod } from '@/lib/god';
 import { authFetch } from '@/lib/supabase-browser';
 import { safeUrl } from '@/lib/safe-url';
+import { escapeHtml } from '@/lib/email';
 
 const INK = '#1a1a1a'; const CREAM = '#F5F0E8'; const RUBY = '#8B1A2B';
 const WARM_GOLD = '#C9922A'; const SLATE = '#6A5A62'; const SURFACE = '#FAF5F0';
@@ -532,7 +533,7 @@ function Shows({ supabase, tenantId }) {
   };
 
   useEffect(() => { load(); }, []);
-  const load = () => supabase.from('shows').select('*').eq('tenant_id', tenantId).order('date').then(({ data }) => setShows(data || []));
+  const load = () => authFetch('/api/shows', { tenantId }).then(r => r.ok ? r.json() : Promise.reject(new Error('Could not load shows'))).then(({ shows }) => setShows(shows || [])).catch(() => alert('Could not load shows. Please try again.'));
 
   const add = async () => {
     if (!form.venue || !form.city || !form.date) return;
@@ -962,7 +963,7 @@ function FanMap({ fans, currencyName, currencyIcon }) {
           radius: size, fillColor: RUBY, color: RUBY,
           weight: 1, opacity: 0.7, fillOpacity: 0.5,
         }).bindPopup(
-          `<div style="font-family:sans-serif;font-size:12px;"><b>${fan.display_name || 'fan'}</b><br/>${fan.signup_city || ''} ${fan.signup_country || ''}<br/><span style="color:#C9922A;">${fan.stamp_count || 0} ${currencyName}</span></div>`
+          `<div style="font-family:sans-serif;font-size:12px;"><b>${escapeHtml(fan.display_name || 'fan')}</b><br/>${escapeHtml(fan.signup_city)} ${escapeHtml(fan.signup_country)}<br/><span style="color:#C9922A;">${escapeHtml(fan.stamp_count || 0)} ${escapeHtml(currencyName)}</span></div>`
         ).addTo(map);
       });
 
