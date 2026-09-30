@@ -1,6 +1,7 @@
 'use client';
+import { PROFILE_COLUMNS } from '@/lib/public-columns';
 import { createContext, useContext, useEffect, useState, useRef, useMemo } from 'react';
-import { getSupabase, getAnonClient } from '@/lib/supabase-browser';
+import { getSupabase, getAnonClient, authFetch } from '@/lib/supabase-browser';
 import { isGod } from '@/lib/god';
 
 const AuthContext = createContext({});
@@ -37,11 +38,14 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
     if (!userId || !id) return null;
     const { data } = await supabase
       .from('profiles')
-      .select('*')
+      .select(PROFILE_COLUMNS)
       .eq('id', userId)
       .eq('tenant_id', id)
       .maybeSingle();
-    if (data) return data;
+    if (data) {
+      const privateData = await authFetch('/api/profile', {}).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+      return { ...data, ...privateData };
+    }
     // God admin operates as an admin in every community without holding a
     // per-tenant profile row. Synthesize one so the UI grants admin powers; the
     // database side is authorised separately by the SQL is_god() used in RLS.
@@ -135,9 +139,9 @@ export function AuthProvider({ children, tenantId: serverTenantId }) {
       .update(updates)
       .eq('id', user.id)
       .eq('tenant_id', tenantId)
-      .select()
+      .select(PROFILE_COLUMNS)
       .maybeSingle();
-    if (data) setProfile(data);
+    if (data) setProfile(p => ({ ...p, ...data }));
     return { data, error };
   };
 

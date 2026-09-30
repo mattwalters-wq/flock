@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { tenantSessionUrl } from '@/lib/tenant-session-url';
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
 
@@ -37,7 +38,8 @@ export async function GET(request) {
         .limit(1);
       const slug = profiles?.[0]?.tenants?.slug;
       if (slug) {
-        return NextResponse.redirect(`https://${slug}.${APP_DOMAIN}`);
+        const destination = tenantSessionUrl(slug, data.session);
+        if (destination) return NextResponse.redirect(destination);
       }
       return NextResponse.redirect(`https://${APP_DOMAIN}/onboarding`);
     }

@@ -1,6 +1,7 @@
 'use client';
+import { PROFILE_COLUMNS } from '@/lib/public-columns';
 import { useState, useEffect } from 'react';
-import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
+import { getSupabase, authErrorMessage, authFetch } from '@/lib/supabase-browser';
 import { isGod } from '@/lib/god';
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'fans-flock.com';
@@ -123,9 +124,9 @@ function TenantDetail({ tenant, supabase, onBack }) {
   useEffect(() => {
     (async () => {
       const [fansRes, postsRes, showsRes, membersRes, configRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('tenant_id', tenant.id).order('stamp_count', { ascending: false }),
+        supabase.from('profiles').select(PROFILE_COLUMNS).eq('tenant_id', tenant.id).order('stamp_count', { ascending: false }),
         supabase.from('posts').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }).limit(20),
-        supabase.from('shows').select('*').eq('tenant_id', tenant.id).order('date'),
+        authFetch('/api/shows', { tenantId: tenant.id }).then(r => r.json()).then(({ shows }) => ({ data: shows })),
         supabase.from('tenant_members').select('*').eq('tenant_id', tenant.id).order('display_order'),
         supabase.from('tenant_config').select('key, value').eq('tenant_id', tenant.id),
       ]);

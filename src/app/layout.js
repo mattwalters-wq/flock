@@ -38,7 +38,7 @@ export default async function RootLayout({ children }) {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -57,13 +57,13 @@ export default async function RootLayout({ children }) {
         <meta property="og:site_name" content={`${tenantName} · flock`} />
         <meta property="og:title" content={`${tenantName} · fan community`} />
         <meta property="og:description" content={`Join the ${tenantName} fan community. Earn points, unlock rewards, connect directly with the artists.`} />
-        <meta property="og:image" content="https://fans-flock.com/og-community.png" />
+        <meta property="og:image" content="https://fans-flock.com/og.png" />
 
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={`${tenantName} · fan community`} />
         <meta name="twitter:description" content={`Join the ${tenantName} fan community. Earn points, unlock rewards, connect directly with the artists.`} />
-        <meta name="twitter:image" content="https://fans-flock.com/og-community.png" />
+        <meta name="twitter:image" content="https://fans-flock.com/og.png" />
 
         <style dangerouslySetInnerHTML={{ __html: cssVars }} />
       </head>

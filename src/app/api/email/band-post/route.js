@@ -3,6 +3,7 @@ import { requireTenantAdmin } from '@/lib/api-auth';
 import { selectAll } from '@/lib/supabase-server';
 import { getUserEmailMap, sendResendBatch, escapeHtml, fromHeader } from '@/lib/email';
 import webpush from 'web-push';
+import { isTrustedPushEndpoint } from '@/lib/push-endpoint';
 
 // Notifies opted-in fans (email + web push) that the artist posted. Admin/band
 // (or god) only, authenticated from the caller's access token. The post is
@@ -77,6 +78,7 @@ export async function POST(request) {
           tag: `post-${post.id}`,
         });
         await Promise.all(subs.map(async (s) => {
+          if (!isTrustedPushEndpoint(s.endpoint)) return;
           try {
             await webpush.sendNotification(
               { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

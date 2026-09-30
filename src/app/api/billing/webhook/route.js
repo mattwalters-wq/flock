@@ -24,11 +24,12 @@ export async function POST(request) {
       const session = event.data.object;
       const tenantId = Number(session.metadata?.tenant_id);
       if (tenantId && session.subscription) {
-        await db.from('tenants').update({
+        const { error } = await db.from('tenants').update({
           stripe_subscription_id: session.subscription,
           plan: 'founder',
           billing_status: 'active',
         }).eq('id', tenantId);
+        if (error) throw new Error(error.message);
       }
     }
 
@@ -43,17 +44,18 @@ export async function POST(request) {
       // the founder promise; a canceled founder can resubscribe at it.
       const tenantId = Number(sub.metadata?.tenant_id);
       if (tenantId) {
-        await db.from('tenants').update(update).eq('id', tenantId);
+        const { error } = await db.from('tenants').update(update).eq('id', tenantId);
+        if (error) throw new Error(error.message);
       } else if (sub.customer) {
-        await db.from('tenants').update(update).eq('stripe_customer_id', sub.customer);
+        const { error } = await db.from('tenants').update(update).eq('stripe_customer_id', sub.customer);
+        if (error) throw new Error(error.message);
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (err) {
     console.error('[billing/webhook] error:', err);
-    // 200 anyway for parse/db hiccups on verified events — Stripe retries
-    // aggressively and the next subscription.updated will reconverge state.
-    return NextResponse.json({ received: true, note: 'processing error logged' });
+    // Let Stripe retry failed writes instead of acknowledging and losing them.
+    return NextResponse.json({ error: 'Could not process webhook' }, { status: 500 });
   }
 }

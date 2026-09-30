@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { getSupabase, authErrorMessage } from '@/lib/supabase-browser';
+import { tenantSessionUrl } from '@/lib/tenant-session-url';
 
 const INK = '#1A1018'; const CREAM = '#F5EFE6'; const RUBY = '#8B1A2B';
 const SLATE = '#6A5A62'; const SURFACE = '#FAF5F0'; const BORDER = '#E8DDD4';
@@ -24,7 +25,7 @@ export default function LoginPage() {
     const { data: profiles } = await sb.from('profiles').select('tenant_id, tenants(slug)').eq('id', data.user.id).limit(1);
     const slug = profiles?.[0]?.tenants?.slug;
     if (slug) {
-      window.location.href = `https://${slug}.${APP_DOMAIN}`;
+      window.location.href = tenantSessionUrl(slug, data.session) || '/onboarding';
     } else {
       window.location.href = `/onboarding`;
     }
